@@ -8,6 +8,15 @@
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
 
+### Pendiente de integración — `refactor(setup): remove T0.8 connection files` (`refactor/remove-t08-from-t07` → `develop`)
+- **Autor:** `@JopsWtD`
+- **Motivo:** el PR #2 (`[S0 - T0.7]`, Issue `#10`) incluyó por error entregables de `[S0 - T0.8] Conexión a la base de datos` (Issue `#11`), asignada a `@Sofi11017`.
+- **Cambios incluidos:**
+  - Eliminación de `ConnectionFactory.java` (`com.carmotors.sgt.config`).
+  - Eliminación de `ConfiguracionException.java` (`com.carmotors.sgt.exception`).
+  - Eliminación de `config.properties.example` (`src/main/resources`).
+  - Sin cambios en `pom.xml`, `.gitignore`, `Main.java`, `database/`, `util/` ni `view/`. `mvn clean test` en verde.
+
 ### Pendiente de integración — `[S1 - T1.3] Esqueleto del menú principal` (`feature/project-setup` → `develop`, Issue `#16`)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
