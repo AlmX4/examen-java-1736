@@ -8,6 +8,16 @@
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
 
+### Pendiente de integración — `[S0 - T0.8] Conexión a la base de datos` (`feature/setup-conexion-db` → `develop`, Issue `#11`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `src/main/resources/config.properties.example` con plantilla segura (`db.url`, `db.user`, `db.password`, `factura.carpeta=output`, sin tasa de IVA ni secretos reales) cumpliendo con `RNF-14`.
+  - Creación de `ConfiguracionException.java` (`com.carmotors.sgt.exception`) extendiendo `RuntimeException` con constructores estándar `(mensaje)` y `(mensaje, causa)` para evitar `System.exit()`.
+  - Implementación de `ConnectionFactory.java` (`com.carmotors.sgt.config`) bajo el patrón creacional Singleton (`getInstance()` sincronizado), carga única de `config.properties` en codificación UTF-8 vía `Properties`, validación de propiedades obligatorias y método `getConnection()` retornando una `Connection` nueva en cada llamado para transacciones atómicas multi-tabla (`RN-04`, `RNF-08`).
+  - Creación de pruebas unitarias JUnit 5 en `ConnectionFactoryTest` validando el Singleton, `getCarpetaFacturas()` y verificación condicional de conexión (SELECT 1 con `Assumptions.assumeTrue`) asegurando ejecución limpia de `mvn clean test` sin depender de MySQL activo localmente.
+
+
 ### Pendiente de integración — `refactor(setup): remove T0.8 connection files` (`refactor/remove-t08-from-t07` → `develop`)
 - **Autor:** `@JopsWtD`
 - **Motivo:** el PR #2 (`[S0 - T0.7]`, Issue `#10`) incluyó por error entregables de `[S0 - T0.8] Conexión a la base de datos` (Issue `#11`), asignada a `@Sofi11017`.
