@@ -8,6 +8,16 @@
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
 
+### Pendiente de integración — `[S1 - T1.2] Excepciones propias y manejo de errores` (`feature/setup-excepciones` → `develop`, Issue `#15`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `CarMotorsException` (`com.carmotors.sgt.exception`) como excepción raíz no chequeada (`RuntimeException`) del dominio con constructores estándar `(mensaje)` y `(mensaje, causa)` y documentación Javadoc del flujo Service -> Controller (RNF-12, RNF-23).
+  - Creación de subclases específicas del dominio: `EntidadNoEncontradaException`, `DatoDuplicadoException` y `ValidacionException` bajo `com.carmotors.sgt.exception`.
+  - Integración de `ConfiguracionException` como subclase de `CarMotorsException`, manteniendo total compatibilidad con la fábrica de conexiones.
+  - Creación de pruebas unitarias JUnit 5 en `CarMotorsExceptionTest` validando jerarquía `instanceof`, constructores y simulación del flujo Service (lanza) -> Controller (captura sin abortar la aplicación ni usar `System.exit()`).
+
+
 ### Pendiente de integración — `[S0 - T0.8] Conexión a la base de datos` (`feature/setup-conexion-db` → `develop`, Issue `#11`)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
