@@ -1,14 +1,13 @@
 package com.carmotors.sgt.exception;
 
 /**
- * Excepción de configuración de la aplicación (archivo no encontrado,
- * error de lectura I/O o propiedad obligatoria ausente/en blanco).
+ * Excepción lanzada cuando ocurre un error en la carga o validación
+ * de la configuración de la aplicación (config.properties).
  *
- * <p>Extiende {@link RuntimeException} para no forzar captura obligatoria
- * pero permitir un fallo controlado al iniciar la aplicación sin usar
- * {@code System.exit()}.</p>
+ * <p>Extiende {@link CarMotorsException} para integrarse en la jerarquía
+ * de excepciones de la aplicación, permitiendo un fallo controlado sin invocar {@code System.exit()}.</p>
  */
-public class ConfiguracionException extends RuntimeException {
+public class ConfiguracionException extends CarMotorsException {
 
     public ConfiguracionException(String mensaje) {
         super(mensaje);
