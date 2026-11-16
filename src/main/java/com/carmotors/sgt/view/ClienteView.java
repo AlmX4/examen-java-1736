@@ -3,12 +3,13 @@ package com.carmotors.sgt.view;
 import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.util.ConsoleReader;
 
 import java.util.List;
 
 /**
- * Submenú de consola para la gestión de clientes (RF-17, RN-13, RN-17, RNF-03, RNF-24).
+ * Submenú de consola para la gestión de clientes y vehículos (RF-17, RF-18, RN-13, RN-17, RNF-03, RNF-24).
  */
 public class ClienteView implements SubmenuVista {
 
@@ -41,10 +42,12 @@ public class ClienteView implements SubmenuVista {
             System.out.println("  6. Actualizar cliente");
             System.out.println("  7. Desactivar cliente");
             System.out.println("  8. Reactivar cliente");
+            System.out.println("  9. Registrar vehículo a un cliente");
+            System.out.println(" 10. Listar vehículos de un cliente");
             System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 10);
             switch (opcion) {
                 case 1:
                     listarClientes(true);
@@ -69,6 +72,12 @@ public class ClienteView implements SubmenuVista {
                     break;
                 case 8:
                     reactivarCliente();
+                    break;
+                case 9:
+                    registrarVehiculo();
+                    break;
+                case 10:
+                    listarVehiculosPorCliente();
                     break;
                 case 0:
                     ejecutando = false;
@@ -207,6 +216,54 @@ public class ClienteView implements SubmenuVista {
         ConsoleReader.pausar();
     }
 
+    private void registrarVehiculo() {
+        try {
+            int clienteId = ConsoleReader.leerEnteroPositivo("ID del cliente propietario");
+            Cliente cliente = clienteController.buscarPorId(clienteId);
+            System.out.println("  Cliente seleccionado: " + cliente.getNombre()
+                    + " (" + (cliente.isActivo() ? "Activo" : "Inactivo") + ")");
+
+            if (!cliente.isActivo()) {
+                System.out.println("\n  [!] Error: No se puede registrar un vehículo a un cliente inactivo (RN-17).");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            String placa = ConsoleReader.leerPlaca("Placa del vehículo (5-10 caracteres)");
+            String marca = ConsoleReader.leerTextoObligatorio("Marca");
+            String modelo = ConsoleReader.leerTextoObligatorio("Modelo");
+
+            Vehiculo nuevo = new Vehiculo(clienteId, placa, marca, modelo);
+            Vehiculo creado = clienteController.registrarVehiculo(nuevo);
+            System.out.println("\n  [✓] Vehículo registrado exitosamente con ID " + creado.getId()
+                    + " y placa " + creado.getPlaca() + ".");
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al registrar vehículo: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void listarVehiculosPorCliente() {
+        try {
+            int clienteId = ConsoleReader.leerEnteroPositivo("ID del cliente");
+            Cliente cliente = clienteController.buscarPorId(clienteId);
+            System.out.println("\n--- Vehículos del Cliente: " + cliente.getNombre()
+                    + " (Doc: " + cliente.getDocumentoIdentidad() + ") ---");
+
+            List<Vehiculo> vehiculos = clienteController.listarVehiculosPorCliente(clienteId);
+            if (vehiculos.isEmpty()) {
+                System.out.println("  [i] El cliente no tiene vehículos registrados.");
+            } else {
+                for (Vehiculo v : vehiculos) {
+                    imprimirDetalleVehiculo(v);
+                }
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
     private void imprimirDetalleCliente(Cliente cliente) {
         String estado = cliente.isActivo() ? "Activo" : "Inactivo";
         String tel = (cliente.getTelefono() == null || cliente.getTelefono().isEmpty())
@@ -218,5 +275,13 @@ public class ClienteView implements SubmenuVista {
                 + " | Tel: " + tel
                 + " | Email: " + cliente.getEmail()
                 + " | Estado: " + estado);
+    }
+
+    private void imprimirDetalleVehiculo(Vehiculo vehiculo) {
+        System.out.println("  - ID " + vehiculo.getId()
+                + " | Placa: " + vehiculo.getPlaca()
+                + " | Marca: " + vehiculo.getMarca()
+                + " | Modelo: " + vehiculo.getModelo()
+                + " | Cliente ID: " + vehiculo.getClienteId());
     }
 }
