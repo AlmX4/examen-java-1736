@@ -25,13 +25,12 @@ class ClienteControllerTest {
 
     private ClienteController controllerConVehiculos;
     private ClienteController controllerSinVehiculos;
-    private Cliente clienteActivo;
 
     @BeforeEach
     void setUp() {
         VehiculoRepoTest vehiculoRepo = new VehiculoRepoTest();
         ClienteRepoTest clienteRepo = new ClienteRepoTest();
-        clienteActivo = new Cliente(1, "Pedro Pérez", "123456", "3001112233", "pedro@correo.com", true);
+        Cliente clienteActivo = new Cliente(1, "Pedro Pérez", "123456", "3001112233", "pedro@correo.com", true);
         clienteRepo.guardar(clienteActivo);
 
         ClienteService clienteService = new ClienteService(clienteRepo);
@@ -96,17 +95,33 @@ class ClienteControllerTest {
 
         @Override
         public Vehiculo buscarPorId(int id) {
-            return lista.stream().filter(v -> v.getId() == id).findFirst().orElse(null);
+            for (Vehiculo v : lista) {
+                if (v.getId() == id) {
+                    return v;
+                }
+            }
+            return null;
         }
 
         @Override
         public Vehiculo buscarPorPlaca(String placa) {
-            return lista.stream().filter(v -> v.getPlaca().equalsIgnoreCase(placa)).findFirst().orElse(null);
+            for (Vehiculo v : lista) {
+                if (v.getPlaca().equalsIgnoreCase(placa)) {
+                    return v;
+                }
+            }
+            return null;
         }
 
         @Override
         public List<Vehiculo> listarPorCliente(int clienteId) {
-            return lista.stream().filter(v -> v.getClienteId() == clienteId).toList();
+            List<Vehiculo> resultado = new ArrayList<>();
+            for (Vehiculo v : lista) {
+                if (v.getClienteId() == clienteId) {
+                    resultado.add(v);
+                }
+            }
+            return resultado;
         }
 
         @Override
@@ -125,22 +140,43 @@ class ClienteControllerTest {
 
         @Override
         public List<Cliente> listarActivos() {
-            return lista.stream().filter(Cliente::isActivo).toList();
+            List<Cliente> activos = new ArrayList<>();
+            for (Cliente c : lista) {
+                if (c.isActivo()) {
+                    activos.add(c);
+                }
+            }
+            return activos;
         }
 
         @Override
         public Cliente buscarPorId(int id) {
-            return lista.stream().filter(c -> c.getId() == id).findFirst().orElse(null);
+            for (Cliente c : lista) {
+                if (c.getId() == id) {
+                    return c;
+                }
+            }
+            return null;
         }
 
         @Override
         public Cliente buscarPorDocumento(String documento) {
-            return lista.stream().filter(c -> c.getDocumentoIdentidad().equals(documento)).findFirst().orElse(null);
+            for (Cliente c : lista) {
+                if (c.getDocumentoIdentidad().equals(documento)) {
+                    return c;
+                }
+            }
+            return null;
         }
 
         @Override
         public Cliente buscarPorEmail(String email) {
-            return lista.stream().filter(c -> c.getEmail().equalsIgnoreCase(email)).findFirst().orElse(null);
+            for (Cliente c : lista) {
+                if (c.getEmail().equalsIgnoreCase(email)) {
+                    return c;
+                }
+            }
+            return null;
         }
 
         @Override
