@@ -28,6 +28,14 @@
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
 
+### PR #76 — `fix(proveedores): align supplier CRUD with develop contracts and review blockers (T1.6)` (`fix/proveedores-t16` → `develop`, cierra `#19`)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Creación de `Proveedor` (`com.carmotors.sgt.model`), `ProveedorDAO` (`com.carmotors.sgt.repository`) y `ProveedorDAOImpl` (`com.carmotors.sgt.repository.impl`) reutilizando `conexionCompartida` cuando existe (`RNF-08`), `PreparedStatement` (`RNF-07`), retorno `null` controlado y manejo de `SQLException` con `CarMotorsException`.
+  - Creación de `ProveedorService` (`com.carmotors.sgt.service`) validando nombre obligatorio, límites de longitud según `schema.sql`, normalización a `null` de opcionales vacíos (`telefono`, `email`, `direccion`), unicidad de email sin distinguir mayúsculas (`DatoDuplicadoException`) y desactivación/reactivación lógica (`RF-28`, `RN-17`).
+  - Creación de `ProveedorController` y `ProveedorView` (`SubmenuVista` conectada en `Main.java`), listando todos los proveedores con su estado (`ACTIVO`/`INACTIVO`) sin imprimir `"null"` literal, usando `ConsoleReader.leerEmailOpcional` y `ConsoleReader.leerConfirmacion` antes de desactivar (`RNF-12`, `RNF-24`).
+  - Creación de pruebas unitarias JUnit 5 en `ProveedorServiceTest`.
+
 ### Pendiente de integración — `[S1 - T1.4] Tablas de consulta (catálogos fijos)` (`feature/setup-catalogos` → `develop`, Issue `#17`)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
