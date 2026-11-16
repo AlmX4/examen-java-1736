@@ -9,6 +9,7 @@ import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
+import com.carmotors.sgt.model.RankingProveedor;
 import com.carmotors.sgt.util.ConsoleReader;
 
 public class EvaluacionProveedorView implements SubmenuVista {
@@ -43,10 +44,11 @@ public class EvaluacionProveedorView implements SubmenuVista {
             System.out.println("  1. Registrar evaluación");
             System.out.println("  2. Ver historial por proveedor");
             System.out.println("  3. Ver promedio de proveedor");
+            System.out.println("  4. Ranking de proveedores");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 3);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 4);
             switch (opcion) {
                 case 1:
                     registrarEvaluacion();
@@ -56,6 +58,9 @@ public class EvaluacionProveedorView implements SubmenuVista {
                     break;
                 case 3:
                     verPromedio();
+                    break;
+                case 4:
+                    verRanking();
                     break;
                 case 0:
                     ejecutando = false;
@@ -122,6 +127,34 @@ public class EvaluacionProveedorView implements SubmenuVista {
             BigDecimal promedio = evaluacionProveedorController.obtenerPromedioProveedor(proveedorId);
             System.out.println("\n  [Promedio de evaluaciones] " + proveedor.getNombre());
             System.out.println("  Puntaje promedio: " + promedio + " / 5.0");
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void verRanking() {
+        try {
+            List<RankingProveedor> ranking = evaluacionProveedorController.generarRanking();
+            if (ranking.isEmpty()) {
+                System.out.println("\n  [i] No hay proveedores registrados para generar el ranking.");
+            } else {
+                String formato = "  %-4s %-30s %-12s %-12s%n";
+                System.out.println("\n  [Ranking de proveedores]");
+                System.out.printf(formato, "#", "Proveedor", "Promedio", "Evaluaciones");
+                System.out.println("  -------------------------------------------------------------");
+                int posicion = 1;
+                for (RankingProveedor fila : ranking) {
+                    if (fila.getPromedio() == null) {
+                        System.out.printf(formato, "-", fila.getProveedor().getNombre(), "Sin evaluar",
+                                fila.getCantidadEvaluaciones());
+                    } else {
+                        System.out.printf(formato, posicion, fila.getProveedor().getNombre(), fila.getPromedio(),
+                                fila.getCantidadEvaluaciones());
+                        posicion++;
+                    }
+                }
+            }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }

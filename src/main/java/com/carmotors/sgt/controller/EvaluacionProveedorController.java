@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import com.carmotors.sgt.model.EvaluacionProveedor;
+import com.carmotors.sgt.model.RankingProveedor;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
 
 public class EvaluacionProveedorController {
@@ -35,5 +36,9 @@ public class EvaluacionProveedorController {
 
     public BigDecimal obtenerPromedioProveedor(int proveedorId) {
         return evaluacionProveedorService.obtenerPromedioProveedor(proveedorId);
+    }
+
+    public List<RankingProveedor> generarRanking() {
+        return evaluacionProveedorService.generarRanking();
     }
 }
