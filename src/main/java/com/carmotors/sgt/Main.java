@@ -14,6 +14,7 @@ import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.ServicioTipoRepository;
 import com.carmotors.sgt.repository.TecnicoRepository;
+import com.carmotors.sgt.repository.VehiculoRepository;
 import com.carmotors.sgt.repository.impl.ClienteRepositoryImpl;
 import com.carmotors.sgt.repository.impl.EspecialidadRepositoryImpl;
 import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
@@ -22,12 +23,14 @@ import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.ServicioTipoRepositoryImpl;
 import com.carmotors.sgt.repository.impl.TecnicoRepositoryImpl;
+import com.carmotors.sgt.repository.impl.VehiculoRepositoryImpl;
 import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
 import com.carmotors.sgt.service.ProveedorService;
 import com.carmotors.sgt.service.RepuestoService;
 import com.carmotors.sgt.service.ServicioTipoService;
 import com.carmotors.sgt.service.TecnicoService;
+import com.carmotors.sgt.service.VehiculoService;
 import com.carmotors.sgt.view.ClienteView;
 import com.carmotors.sgt.view.ConsolaMenuView;
 import com.carmotors.sgt.view.EvaluacionProveedorView;
@@ -48,7 +51,9 @@ public class Main {
 
         ClienteRepository clienteRepository = new ClienteRepositoryImpl();
         ClienteService clienteService = new ClienteService(clienteRepository);
-        ClienteController clienteController = new ClienteController(clienteService);
+        VehiculoRepository vehiculoRepository = new VehiculoRepositoryImpl();
+        VehiculoService vehiculoService = new VehiculoService(vehiculoRepository, clienteRepository);
+        ClienteController clienteController = new ClienteController(clienteService, vehiculoService);
         menuPrincipal.setSubmenuClientes(new ClienteView(clienteController));
 
         ProveedorDAO proveedorDAO = new ProveedorDAOImpl();

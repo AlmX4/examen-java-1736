@@ -8,7 +8,17 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
-### Pendiente de integración — `[S2 - T2.6] Evaluaciones de proveedores` (`feature/gestion-proveedores` → `develop`, Issue `#25`)
+### PR #80 — `feat(clientes): add vehicle registration and listing (T2.1)` (`feature/gestion-clientes` → `develop`, cierra `#20`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `Vehiculo` (`com.carmotors.sgt.model`) como POJO clásico con `id`, `clienteId`, `placa`, `marca`, `modelo`, constructores, getters, setters y `toString()`.
+  - Creación de `VehiculoRepository` (`com.carmotors.sgt.repository`) y `VehiculoRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `RETURN_GENERATED_KEYS`, constructor dual con soporte para `Connection` compartida (`RNF-08`), retorno `null` controlado sin `Optional` y manejo de `SQLException` envuelto en `CarMotorsException` (`RNF-07`, `RNF-12`).
+  - Creación de `VehiculoService` (`com.carmotors.sgt.service`) con validación de existencia y estado activo del cliente al registrar (`RN-17`), normalización y unicidad de placa alfanumérica en mayúsculas (`RN-13`), y consulta de vehículos por cliente permitida incluso para clientes inactivos para preservar su historial (`HU-09`).
+  - Integración en `ClienteController` (`com.carmotors.sgt.controller`) y `ClienteView` (`com.carmotors.sgt.view`), añadiendo opciones 9 (registrar vehículo) y 10 (listar vehículos de cliente) al menú de consola, conectado en `Main.java`.
+  - Creación de pruebas unitarias completas en JUnit 5: `VehiculoTest` (4 pruebas), `VehiculoServiceTest` (16 pruebas en memoria) y `ClienteControllerTest` (3 pruebas), totalizando 87 pruebas unitarias en el proyecto sin fallos.
+
+### PR #79 — `feat(proveedores): add supplier evaluation registration (T2.6)` (`feature/gestion-proveedores` → `develop`, cierra `#25`)
 - **Autor:** `@AlmX4`
 - **Cambios incluidos:**
   - Creación de `EvaluacionProveedor` (`com.carmotors.sgt.model`) con `id`, `proveedor_id`, `fecha` por defecto en la fecha actual, `calidad` y `puntualidad` como enteros del 1 al 5 y `comentario` opcional con normalización segura.
