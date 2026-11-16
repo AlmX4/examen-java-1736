@@ -2,6 +2,7 @@ package com.carmotors.sgt.view;
 
 import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.util.ConsoleReader;
@@ -9,7 +10,7 @@ import com.carmotors.sgt.util.ConsoleReader;
 import java.util.List;
 
 /**
- * Submenú de consola para la gestión de clientes y vehículos (RF-17, RF-18, RN-13, RN-17, RNF-03, RNF-24).
+ * Submenú de consola para la gestión de clientes y vehículos (RF-17, RF-18, RF-19, RN-13, RN-17, RNF-03, RNF-24).
  */
 public class ClienteView implements SubmenuVista {
 
@@ -44,10 +45,11 @@ public class ClienteView implements SubmenuVista {
             System.out.println("  8. Reactivar cliente");
             System.out.println("  9. Registrar vehículo a un cliente");
             System.out.println(" 10. Listar vehículos de un cliente");
+            System.out.println(" 11. Buscar vehículo por placa");
             System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 10);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 11);
             switch (opcion) {
                 case 1:
                     listarClientes(true);
@@ -78,6 +80,9 @@ public class ClienteView implements SubmenuVista {
                     break;
                 case 10:
                     listarVehiculosPorCliente();
+                    break;
+                case 11:
+                    buscarVehiculoPorPlaca();
                     break;
                 case 0:
                     ejecutando = false;
@@ -113,6 +118,8 @@ public class ClienteView implements SubmenuVista {
             Cliente cliente = clienteController.buscarPorId(id);
             System.out.println("\n--- Cliente Encontrado ---");
             imprimirDetalleCliente(cliente);
+        } catch (EntidadNoEncontradaException e) {
+            System.out.println("\n  [i] " + e.getMessage());
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] " + e.getMessage());
         }
@@ -125,6 +132,8 @@ public class ClienteView implements SubmenuVista {
             Cliente cliente = clienteController.buscarPorDocumento(documento);
             System.out.println("\n--- Cliente Encontrado ---");
             imprimirDetalleCliente(cliente);
+        } catch (EntidadNoEncontradaException e) {
+            System.out.println("\n  [i] " + e.getMessage());
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] " + e.getMessage());
         }
@@ -258,6 +267,29 @@ public class ClienteView implements SubmenuVista {
                     imprimirDetalleVehiculo(v);
                 }
             }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void buscarVehiculoPorPlaca() {
+        try {
+            String placa = ConsoleReader.leerPlaca("Placa del vehículo");
+            Vehiculo vehiculo = clienteController.buscarVehiculoPorPlaca(placa);
+            System.out.println("\n--- Vehículo Encontrado ---");
+            imprimirDetalleVehiculo(vehiculo);
+
+            try {
+                Cliente propietario = clienteController.buscarPorId(vehiculo.getClienteId());
+                System.out.println("  Propietario asociado:");
+                imprimirDetalleCliente(propietario);
+            } catch (CarMotorsException e) {
+                System.out.println("  [!] Propietario ID " + vehiculo.getClienteId()
+                        + " (no disponible: " + e.getMessage() + ")");
+            }
+        } catch (EntidadNoEncontradaException e) {
+            System.out.println("\n  [i] " + e.getMessage());
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }

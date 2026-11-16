@@ -125,13 +125,14 @@ public class VehiculoService {
      */
     public Vehiculo buscarPorPlaca(String placa) {
         String placaNormalizada = InputValidator.normalizarPlaca(placa);
-        if (!InputValidator.esTextoNoVacio(placaNormalizada)) {
-            throw new ValidacionException("La placa no puede estar vacía.");
+        if (!InputValidator.esPlacaValida(placaNormalizada)) {
+            throw new ValidacionException(
+                    "Formato de placa inválido. Debe tener entre 5 y 10 caracteres alfanuméricos.");
         }
         Vehiculo vehiculo = vehiculoRepository.buscarPorPlaca(placaNormalizada);
         if (vehiculo == null) {
             throw new EntidadNoEncontradaException(
-                    "No se encontró un vehículo con la placa: " + placaNormalizada);
+                    "No se encontró ningún vehículo con la placa: " + placaNormalizada);
         }
         return vehiculo;
     }

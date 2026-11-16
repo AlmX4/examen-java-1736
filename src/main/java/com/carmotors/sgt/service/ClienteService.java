@@ -50,11 +50,12 @@ public class ClienteService {
     public Cliente buscarPorDocumento(String documento) {
         String docNormalizado = InputValidator.normalizarTexto(documento);
         if (docNormalizado.isEmpty()) {
-            throw new ValidacionException("El documento de identidad no puede estar vacío.");
+            throw new ValidacionException("Debe ingresar un documento de identidad válido.");
         }
         Cliente cliente = clienteRepository.buscarPorDocumento(docNormalizado);
         if (cliente == null) {
-            throw new EntidadNoEncontradaException("No se encontró un cliente con el documento: " + docNormalizado);
+            throw new EntidadNoEncontradaException(
+                    "No se encontró ningún cliente con el documento: " + docNormalizado);
         }
         return cliente;
     }
