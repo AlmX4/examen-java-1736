@@ -8,6 +8,15 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### Pendiente de integración — `feat(proveedores): add supplier ranking (T2.7)` (`feature/gestion-proveedores` → `develop`, cierra `#26`)
+- **Autor:** `@JopsWtD`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `RankingProveedor` (`com.carmotors.sgt.model`) como DTO de solo transporte: proveedor, promedio (`BigDecimal`, `null` si no tiene evaluaciones) y cantidad de evaluaciones.
+  - Nuevo método `generarRanking()` en `EvaluacionProveedorService` (`RF-32`, `RN-16`, `RNF-11`): una sola consulta `listarTodos()` por DAO, agrupación con `Collectors.groupingBy`, promedio de `getPuntaje()` con un decimal y `RoundingMode.HALF_UP`, orden con `Comparator` (promedio descendente y desempate por nombre) y proveedores "Sin evaluar" al final ordenados por nombre. Incluye proveedores activos e inactivos, porque sus evaluaciones forman parte del historial (`RN-17`).
+  - `EvaluacionProveedorController.generarRanking()` delega al servicio y `EvaluacionProveedorView` agrega la opción `4. Ranking de proveedores` (rango 0–4) con una tabla alineada (posición, proveedor, promedio o "Sin evaluar" y evaluaciones), capturando `CarMotorsException` sin cerrar la aplicación.
+  - Seis pruebas JUnit 5 nuevas en `EvaluacionProveedorServiceTest`: redondeo a un decimal, orden descendente, desempate por nombre, proveedores sin evaluar al final, todos sin evaluar y ningún proveedor registrado (106 pruebas en total, 0 fallos).
+
 ### PR #81 — `feat(clientes): add search by document and normalized plate (T2.2)` (`feature/gestion-clientes` → `develop`, cierra `#21`)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
