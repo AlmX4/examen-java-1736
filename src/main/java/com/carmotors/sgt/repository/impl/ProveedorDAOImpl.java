@@ -16,6 +16,16 @@ import com.carmotors.sgt.repository.ProveedorDAO;
 
 public class ProveedorDAOImpl implements ProveedorDAO {
 
+    private final Connection conexionCompartida;
+
+    public ProveedorDAOImpl() {
+        this.conexionCompartida = null;
+    }
+
+    public ProveedorDAOImpl(Connection conexionCompartida) {
+        this.conexionCompartida = conexionCompartida;
+    }
+
     @Override
     public List<Proveedor> listarTodos() {
         String sql = "SELECT id, nombre, telefono, email, direccion, activo FROM proveedores ORDER BY nombre ASC";

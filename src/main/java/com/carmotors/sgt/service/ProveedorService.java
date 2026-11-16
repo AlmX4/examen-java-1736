@@ -1,7 +1,6 @@
 package com.carmotors.sgt.service;
 
 import java.util.List;
-import java.util.Locale;
 
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
@@ -55,7 +54,7 @@ public class ProveedorService {
         proveedor.setTelefono(normalizarTelefono(proveedor.getTelefono()));
         proveedor.setDireccion(normalizarTexto(proveedor.getDireccion()));
 
-        if (!emailNormalizado.isEmpty()) {
+        if (emailNormalizado != null) {
             Proveedor existente = proveedorDAO.buscarPorEmail(emailNormalizado);
             if (existente != null) {
                 throw new DatoDuplicadoException("Ya existe un proveedor registrado con ese email.");
@@ -84,7 +83,7 @@ public class ProveedorService {
         proveedor.setTelefono(normalizarTelefono(proveedor.getTelefono()));
         proveedor.setDireccion(normalizarTexto(proveedor.getDireccion()));
 
-        if (!emailNormalizado.isEmpty()) {
+        if (emailNormalizado != null) {
             Proveedor existente = proveedorDAO.buscarPorEmail(emailNormalizado);
             if (existente != null && existente.getId() != proveedor.getId()) {
                 throw new DatoDuplicadoException("Ya existe otro proveedor registrado con ese email.");
@@ -144,10 +143,8 @@ public class ProveedorService {
     }
 
     private String normalizarEmail(String email) {
-        if (email == null) {
-            return "";
-        }
-        return InputValidator.normalizarTexto(email).toLowerCase(Locale.ROOT);
+        String limpio = InputValidator.normalizarTexto(email);
+        return limpio.isEmpty() ? null : limpio.toLowerCase();
     }
 
     private String normalizarTelefono(String telefono) {

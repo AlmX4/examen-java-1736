@@ -15,7 +15,10 @@ public class ProveedorController {
     }
 
     public ProveedorController(ProveedorService proveedorService) {
-        this.proveedorService = Objects.requireNonNull(proveedorService, "El servicio de proveedores es obligatorio.");
+        if (proveedorService == null) {
+            throw new IllegalArgumentException("El servicio de proveedores es obligatorio.");
+        }
+        this.proveedorService = proveedorService;
     }
 
     public List<Proveedor> listarTodos() {
