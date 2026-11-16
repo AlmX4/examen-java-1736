@@ -8,6 +8,16 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### Pendiente de integración — `[S2 - T2.2] Búsqueda por documento y por placa` (`feature/gestion-clientes` → `develop`, Issue `#21`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Enriquecimiento de `ClienteService` (`com.carmotors.sgt.service`) con validación y normalización estricta de documento de identidad (`InputValidator.normalizarTexto`), soporte de búsqueda para clientes activos e inactivos (`RN-17`, `HU-09`), y mensaje explícito ante no coincidencias (`EntidadNoEncontradaException`).
+  - Enriquecimiento de `VehiculoService` (`com.carmotors.sgt.service`) con normalización y validación estricta de formato alfanumérico de placas (`InputValidator.esPlacaValida` y `InputValidator.normalizarPlaca`, `RN-13`), y mensaje claro ante vehículo no encontrado.
+  - Integración en `ClienteView` (`com.carmotors.sgt.view`) añadiendo la opción `11. Buscar vehículo por placa` (rango interactivo 0–11) y mostrando la ficha completa del vehículo junto con los datos de su cliente propietario asociado (`RF-19`).
+  - Manejo amigable de excepciones capturando `EntidadNoEncontradaException` e informando al usuario sin romper el flujo de la consola ni usar `System.exit()`.
+  - Creación de suite de pruebas unitarias en JUnit 5: `BusquedaClienteVehiculoTest` (8 pruebas completas), elevando las pruebas del proyecto a 95 pruebas exitosas sin fallos.
+
 ### PR #80 — `feat(clientes): add vehicle registration and listing (T2.1)` (`feature/gestion-clientes` → `develop`, cierra `#20`)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
