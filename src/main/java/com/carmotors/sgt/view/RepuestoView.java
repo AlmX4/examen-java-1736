@@ -109,7 +109,7 @@ public class RepuestoView implements SubmenuVista {
 
             Repuesto repuesto = new Repuesto();
             repuesto.setNombre(ConsoleReader.leerTextoObligatorio("Nombre del repuesto"));
-            repuesto.setRepuestoTipoId(seleccionarTipo(repuestoController.listarTipos()));
+            repuesto.setRepuestoTipoId(seleccionarTipo(tipos));
             repuesto.setMarca(ConsoleReader.leerTextoObligatorio("Marca del repuesto"));
             repuesto.setPrecioVenta(ConsoleReader.leerBigDecimalPositivo("Precio de venta"));
             repuesto.setStockMinimo(ConsoleReader.leerEnteroNoNegativo("Stock mínimo"));
@@ -132,10 +132,17 @@ public class RepuestoView implements SubmenuVista {
             System.out.println("\n  Datos actuales:");
             imprimirDetalleRepuesto(actual);
 
+            List<RepuestoTipo> tipos = repuestoController.listarTipos();
+            if (tipos.isEmpty()) {
+                System.out.println("\n  [!] No hay tipos de repuesto registrados en la base de datos.");
+                ConsoleReader.pausar();
+                return;
+            }
+
             Repuesto actualizado = new Repuesto();
             actualizado.setId(actual.getId());
             actualizado.setNombre(ConsoleReader.leerTextoObligatorio("Nuevo nombre"));
-            actualizado.setRepuestoTipoId(seleccionarTipo(repuestoController.listarTipos()));
+            actualizado.setRepuestoTipoId(seleccionarTipo(tipos));
             actualizado.setMarca(ConsoleReader.leerTextoObligatorio("Nueva marca"));
             actualizado.setPrecioVenta(ConsoleReader.leerBigDecimalPositivo("Nuevo precio de venta"));
             actualizado.setStockMinimo(ConsoleReader.leerEnteroNoNegativo("Nuevo stock mínimo"));

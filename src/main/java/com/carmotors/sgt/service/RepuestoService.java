@@ -81,9 +81,6 @@ public class RepuestoService {
             throw new DatoDuplicadoException("Ya existe un repuesto registrado con ese nombre.");
         }
 
-        repuesto.setNombre(InputValidator.normalizarTexto(repuesto.getNombre()));
-        repuesto.setMarca(InputValidator.normalizarTexto(repuesto.getMarca()));
-        repuesto.setPrecioVenta(normalizarPrecio(repuesto.getPrecioVenta()));
         repuesto.setCantidadReservada(0);
         repuesto.setActivo(true);
 
@@ -109,9 +106,6 @@ public class RepuestoService {
             throw new DatoDuplicadoException("Ya existe otro repuesto registrado con ese nombre.");
         }
 
-        repuesto.setNombre(InputValidator.normalizarTexto(repuesto.getNombre()));
-        repuesto.setMarca(InputValidator.normalizarTexto(repuesto.getMarca()));
-        repuesto.setPrecioVenta(normalizarPrecio(repuesto.getPrecioVenta()));
         repuesto.setCantidadReservada(actual.getCantidadReservada());
         repuesto.setActivo(actual.isActivo());
 

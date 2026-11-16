@@ -16,6 +16,15 @@
   - Creación de `ServicioTipoController` y `ServicioTipoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader`, confirmación `(S/N)` antes de eliminar (`RNF-24`) y manejo limpio de `CarMotorsException` (`RNF-12`).
   - Creación de pruebas unitarias JUnit 5 en `ServicioTipoServiceTest`.
 
+### Pendiente de integración — `[S2 - T2.4] CRUD de repuestos` (`feature/gestion-inventario` → `develop`, Issue `#23`)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Creación de `Repuesto` (`com.carmotors.sgt.model`) con validación de dominio para `repuestoTipoId`, `nombre`, `marca`, `precioVenta` `BigDecimal` escala 2 `HALF_UP`, `stockMinimo >= 0`, `cantidadReservada` protegida y estado activo/inactivo sin borrar físicamente (`RN-17`, `RNF-15`).
+  - Creación de `RepuestoDAO` (`com.carmotors.sgt.repository`) y `RepuestoDAOImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, uso real de `conexionCompartida != null`, control de `null` sin `Optional` y entrega de errores a `CarMotorsException` (`RNF-07`, `RNF-08`, `RNF-12`).
+  - Creación de `RepuestoService` (`com.carmotors.sgt.service`) con validaciones estrictas, duplicados por nombre y manejo de desactivación/reactivación lógica del inventario. 
+  - Creación de `RepuestoController` y `RepuestoView` (`SubmenuVista` conectada en `Main.java`) con lista, búsqueda, alta, actualización y confirmación `(S/N)` antes de desactivar.
+  - Creación de pruebas unitarias JUnit 5 en `RepuestoServiceTest`.
+
 ### PR #73 — `feat(tecnicos): implement technician CRUD with JDBC and console submenu (T2.3)` (`feature/gestion-tecnicos` → `develop`, cierra `#22`)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
@@ -27,6 +36,14 @@
 ---
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
+
+### Pendiente de integración — `[S1 - T1.5] CRUD de clientes` (`feature/gestion-clientes` → `develop`, Issue `#18`)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Creación de `Cliente` (`com.carmotors.sgt.model`), `ClienteRepository` (`com.carmotors.sgt.repository`) y `ClienteRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `Types.VARCHAR` para `telefono` opcional, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
+  - Creación de `ClienteService` (`com.carmotors.sgt.service`) validando nombre, documento y email obligatorios, límites de longitud según `schema.sql`, formato de email con `InputValidator.esEmailValido` (normalizado a minúsculas), unicidad de documento y email (`DatoDuplicadoException`) y desactivación/reactivación lógica sin borrado físico (`RF-17`, `RN-13`, `RN-17`).
+  - Creación de `ClienteController` y `ClienteView` (`SubmenuVista` conectada en `Main.java`) con captura segura de `CarMotorsException` (`RNF-12`).
+  - Creación de pruebas unitarias JUnit 5 en `ClienteServiceTest` (9 casos).
 
 ### PR #76 — `fix(proveedores): align supplier CRUD with develop contracts and review blockers (T1.6)` (`fix/proveedores-t16` → `develop`, cierra `#19`)
 - **Autor:** `@AlmX4`
