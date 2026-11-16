@@ -24,18 +24,17 @@
   - Creación de `TecnicoController` y `TecnicoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader` con confirmación `(S/N)` antes de desactivar y captura segura de `CarMotorsException` (`RNF-12`, `RNF-24`).
   - Creación de pruebas unitarias JUnit 5 en `TecnicoServiceTest`.
 
-### PR #71 — `fix(proveedores): align supplier CRUD with develop contracts and review blockers (T1.6)` (`fix/proveedores-t16` → `develop`, cierra `#19`)
-- **Autor:** `@AlmX4`
-- **Cambios incluidos:**
-  - Reapertura limpia desde `origin/develop` en rama `fix/proveedores-t16` para evitar el revert del merge previo y dejar el historial del PR consistente con la base actual.
-  - Ajuste de `ProveedorDAOImpl` para reutilizar `conexionCompartida` cuando existe y, en caso contrario, abrir su propia conexión nueva para cada operación JDBC con `PreparedStatement` y manejo seguro de `SQLException`.
-  - Corrección de `ProveedorService` para normalizar `telefono` y `direccion` como opcionales con `null` en la capa de dominio y mantener `email` nulo cuando viene vacío, con validación de duplicados y existencia por ID.
-  - Ajuste de `ProveedorView` para listar todos los proveedores, mostrando también los inactivos, y mantener la regla de reactivación/desactivación del negocio por consola.
-  - Actualización de `ProveedorServiceTest` con casos de validación para email vacío, email duplicado, actualización conflictiva y búsqueda por ID inexistente, cumpliendo con el DoD del sprint.
-
 ---
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
+
+### PR #76 — `fix(proveedores): align supplier CRUD with develop contracts and review blockers (T1.6)` (`fix/proveedores-t16` → `develop`, cierra `#19`)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Creación de `Proveedor` (`com.carmotors.sgt.model`), `ProveedorDAO` (`com.carmotors.sgt.repository`) y `ProveedorDAOImpl` (`com.carmotors.sgt.repository.impl`) reutilizando `conexionCompartida` cuando existe (`RNF-08`), `PreparedStatement` (`RNF-07`), retorno `null` controlado y manejo de `SQLException` con `CarMotorsException`.
+  - Creación de `ProveedorService` (`com.carmotors.sgt.service`) validando nombre obligatorio, límites de longitud según `schema.sql`, normalización a `null` de opcionales vacíos (`telefono`, `email`, `direccion`), unicidad de email sin distinguir mayúsculas (`DatoDuplicadoException`) y desactivación/reactivación lógica (`RF-28`, `RN-17`).
+  - Creación de `ProveedorController` y `ProveedorView` (`SubmenuVista` conectada en `Main.java`), listando todos los proveedores con su estado (`ACTIVO`/`INACTIVO`) sin imprimir `"null"` literal, usando `ConsoleReader.leerEmailOpcional` y `ConsoleReader.leerConfirmacion` antes de desactivar (`RNF-12`, `RNF-24`).
+  - Creación de pruebas unitarias JUnit 5 en `ProveedorServiceTest`.
 
 ### Pendiente de integración — `[S1 - T1.4] Tablas de consulta (catálogos fijos)` (`feature/setup-catalogos` → `develop`, Issue `#17`)
 - **Autor:** `@Sofi11017`

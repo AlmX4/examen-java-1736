@@ -33,7 +33,10 @@ public class ProveedorController {
     }
 
     public Proveedor guardar(Proveedor proveedor) {
-        return proveedor.getId() > 0 ? proveedorService.actualizarProveedor(proveedor) : proveedorService.crearProveedor(proveedor);
+        if (proveedor != null && proveedor.getId() > 0) {
+            return proveedorService.actualizarProveedor(proveedor);
+        }
+        return proveedorService.crearProveedor(proveedor);
     }
 
     public Proveedor crear(Proveedor proveedor) {

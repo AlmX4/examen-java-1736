@@ -76,9 +76,7 @@ public class ProveedorView implements SubmenuVista {
             } else {
                 System.out.println("\n  [Lista de proveedores]");
                 for (Proveedor proveedor : proveedores) {
-                    String estado = proveedor.isActivo() ? "ACTIVO" : "INACTIVO";
-                    System.out.println("  - " + proveedor.getId() + " | " + proveedor.getNombre()
-                            + " | " + estado + " | " + proveedor.getEmail() + " | " + proveedor.getTelefono());
+                    imprimirDetalleProveedor(proveedor);
                 }
             }
         } catch (CarMotorsException e) {
@@ -92,7 +90,7 @@ public class ProveedorView implements SubmenuVista {
             int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor");
             Proveedor proveedor = proveedorController.buscarPorId(id);
             System.out.println("\n  [Proveedor encontrado]");
-            System.out.println(proveedor);
+            imprimirDetalleProveedor(proveedor);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
@@ -120,7 +118,8 @@ public class ProveedorView implements SubmenuVista {
         try {
             int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor a actualizar");
             Proveedor actual = proveedorController.buscarPorId(id);
-            System.out.println("\n  Datos actuales: " + actual);
+            System.out.println("\n  Datos actuales:");
+            imprimirDetalleProveedor(actual);
 
             Proveedor actualizado = new Proveedor();
             actualizado.setId(actual.getId());
@@ -132,7 +131,7 @@ public class ProveedorView implements SubmenuVista {
 
             Proveedor guardado = proveedorController.actualizar(actualizado);
             System.out.println("\n  [✓] Proveedor actualizado correctamente.");
-            System.out.println(guardado);
+            imprimirDetalleProveedor(guardado);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
@@ -157,7 +156,7 @@ public class ProveedorView implements SubmenuVista {
 
             Proveedor proveedor = proveedorController.desactivar(id);
             System.out.println("\n  [✓] Proveedor desactivado correctamente.");
-            System.out.println(proveedor);
+            imprimirDetalleProveedor(proveedor);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
@@ -176,10 +175,29 @@ public class ProveedorView implements SubmenuVista {
 
             Proveedor proveedor = proveedorController.reactivar(id);
             System.out.println("\n  [✓] Proveedor reactivado correctamente.");
-            System.out.println(proveedor);
+            imprimirDetalleProveedor(proveedor);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
         ConsoleReader.pausar();
+    }
+
+    private void imprimirDetalleProveedor(Proveedor proveedor) {
+        String estado = proveedor.isActivo() ? "ACTIVO" : "INACTIVO";
+        String email = (proveedor.getEmail() == null || proveedor.getEmail().isEmpty())
+                ? "Sin email"
+                : proveedor.getEmail();
+        String telefono = (proveedor.getTelefono() == null || proveedor.getTelefono().isEmpty())
+                ? "Sin teléfono"
+                : proveedor.getTelefono();
+        String direccion = (proveedor.getDireccion() == null || proveedor.getDireccion().isEmpty())
+                ? "Sin dirección"
+                : proveedor.getDireccion();
+        System.out.println("  - ID " + proveedor.getId()
+                + " | " + proveedor.getNombre()
+                + " | Estado: " + estado
+                + " | Email: " + email
+                + " | Tel: " + telefono
+                + " | Dir: " + direccion);
     }
 }

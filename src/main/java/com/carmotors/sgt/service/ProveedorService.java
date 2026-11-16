@@ -12,6 +12,11 @@ import com.carmotors.sgt.util.InputValidator;
 
 public class ProveedorService {
 
+    private static final int MAX_LONGITUD_NOMBRE = 100;
+    private static final int MAX_LONGITUD_TELEFONO = 20;
+    private static final int MAX_LONGITUD_EMAIL = 100;
+    private static final int MAX_LONGITUD_DIRECCION = 150;
+
     private final ProveedorDAO proveedorDAO;
 
     public ProveedorService() {
@@ -61,6 +66,7 @@ public class ProveedorService {
             }
         }
 
+        proveedor.setActivo(true);
         int idGenerado = proveedorDAO.guardar(proveedor);
         proveedor.setId(idGenerado);
         return proveedor;
@@ -134,11 +140,30 @@ public class ProveedorService {
         if (nombre.isEmpty()) {
             throw new ValidacionException("El nombre del proveedor es obligatorio.");
         }
+        if (nombre.length() > MAX_LONGITUD_NOMBRE) {
+            throw new ValidacionException("El nombre del proveedor no puede superar los " + MAX_LONGITUD_NOMBRE + " caracteres.");
+        }
         proveedor.setNombre(nombre);
 
         String email = proveedor.getEmail();
-        if (email != null && !email.trim().isEmpty() && !InputValidator.esEmailValido(email)) {
-            throw new ValidacionException("El email del proveedor no es válido.");
+        if (email != null && !email.trim().isEmpty()) {
+            String emailLimpio = InputValidator.normalizarTexto(email);
+            if (emailLimpio.length() > MAX_LONGITUD_EMAIL) {
+                throw new ValidacionException("El email del proveedor no puede superar los " + MAX_LONGITUD_EMAIL + " caracteres.");
+            }
+            if (!InputValidator.esEmailValido(emailLimpio)) {
+                throw new ValidacionException("El email del proveedor no es válido.");
+            }
+        }
+
+        String telefono = InputValidator.normalizarTexto(proveedor.getTelefono());
+        if (!telefono.isEmpty() && telefono.length() > MAX_LONGITUD_TELEFONO) {
+            throw new ValidacionException("El teléfono del proveedor no puede superar los " + MAX_LONGITUD_TELEFONO + " caracteres.");
+        }
+
+        String direccion = InputValidator.normalizarTexto(proveedor.getDireccion());
+        if (!direccion.isEmpty() && direccion.length() > MAX_LONGITUD_DIRECCION) {
+            throw new ValidacionException("La dirección del proveedor no puede superar los " + MAX_LONGITUD_DIRECCION + " caracteres.");
         }
     }
 
@@ -154,9 +179,5 @@ public class ProveedorService {
     private String normalizarTextoOpcional(String valor) {
         String limpio = InputValidator.normalizarTexto(valor);
         return limpio.isEmpty() ? null : limpio;
-    }
-
-    private String normalizarTexto(String valor) {
-        return InputValidator.normalizarTexto(valor);
     }
 }

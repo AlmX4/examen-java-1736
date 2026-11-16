@@ -142,6 +142,38 @@ class ProveedorServiceTest {
         assertThrows(EntidadNoEncontradaException.class, () -> service.desactivarProveedor(999));
     }
 
+    @Test
+    void crearProveedorDebeForzarEstadoActivoTrueYNulosEnOpcionalesVacios() {
+        ProveedorDAOMock dao = new ProveedorDAOMock();
+        ProveedorService service = new ProveedorService(dao);
+        Proveedor proveedor = new Proveedor();
+        proveedor.setNombre("  Repuestos Centro  ");
+        proveedor.setTelefono("   ");
+        proveedor.setEmail("");
+        proveedor.setDireccion("   ");
+        proveedor.setActivo(false);
+
+        Proveedor creado = service.crearProveedor(proveedor);
+
+        assertTrue(creado.isActivo());
+        assertNull(creado.getTelefono());
+        assertNull(creado.getEmail());
+        assertNull(creado.getDireccion());
+    }
+
+    @Test
+    void crearProveedorConCamposQueSuperanLongitudMaximaDebeLanzarExcepcion() {
+        ProveedorService service = new ProveedorService(new ProveedorDAOMock());
+        Proveedor proveedor = new Proveedor();
+        proveedor.setNombre("Distribuidora Límite");
+        proveedor.setTelefono("123456789012345678901");
+
+        ValidacionException ex = assertThrows(ValidacionException.class,
+                () -> service.crearProveedor(proveedor));
+
+        assertTrue(ex.getMessage().toLowerCase().contains("teléfono"));
+    }
+
     private static class ProveedorDAOMock implements ProveedorDAO {
         private final List<Proveedor> datos = new ArrayList<>();
 
