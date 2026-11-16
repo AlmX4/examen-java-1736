@@ -1,12 +1,14 @@
 package com.carmotors.sgt;
 
 import com.carmotors.sgt.controller.ClienteController;
+import com.carmotors.sgt.controller.EvaluacionProveedorController;
 import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.controller.RepuestoController;
 import com.carmotors.sgt.controller.ServicioTipoController;
 import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.repository.ClienteRepository;
 import com.carmotors.sgt.repository.EspecialidadRepository;
+import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
 import com.carmotors.sgt.repository.MantenimientoTipoRepository;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
@@ -14,18 +16,21 @@ import com.carmotors.sgt.repository.ServicioTipoRepository;
 import com.carmotors.sgt.repository.TecnicoRepository;
 import com.carmotors.sgt.repository.impl.ClienteRepositoryImpl;
 import com.carmotors.sgt.repository.impl.EspecialidadRepositoryImpl;
+import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.MantenimientoTipoRepositoryImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.ServicioTipoRepositoryImpl;
 import com.carmotors.sgt.repository.impl.TecnicoRepositoryImpl;
 import com.carmotors.sgt.service.ClienteService;
+import com.carmotors.sgt.service.EvaluacionProveedorService;
 import com.carmotors.sgt.service.ProveedorService;
 import com.carmotors.sgt.service.RepuestoService;
 import com.carmotors.sgt.service.ServicioTipoService;
 import com.carmotors.sgt.service.TecnicoService;
 import com.carmotors.sgt.view.ClienteView;
 import com.carmotors.sgt.view.ConsolaMenuView;
+import com.carmotors.sgt.view.EvaluacionProveedorView;
 import com.carmotors.sgt.view.ProveedorView;
 import com.carmotors.sgt.view.RepuestoView;
 import com.carmotors.sgt.view.ServicioTipoView;
@@ -49,7 +54,12 @@ public class Main {
         ProveedorDAO proveedorDAO = new ProveedorDAOImpl();
         ProveedorService proveedorService = new ProveedorService(proveedorDAO);
         ProveedorController proveedorController = new ProveedorController(proveedorService);
-        menuPrincipal.setSubmenuProveedores(new ProveedorView(proveedorController));
+
+        EvaluacionProveedorDAO evaluacionProveedorDAO = new EvaluacionProveedorDAOImpl();
+        EvaluacionProveedorService evaluacionProveedorService = new EvaluacionProveedorService(evaluacionProveedorDAO, proveedorDAO);
+        EvaluacionProveedorController evaluacionProveedorController = new EvaluacionProveedorController(evaluacionProveedorService);
+        EvaluacionProveedorView evaluacionProveedorView = new EvaluacionProveedorView(evaluacionProveedorController, proveedorController);
+        menuPrincipal.setSubmenuProveedores(new ProveedorView(proveedorController, evaluacionProveedorView));
 
         RepuestoDAO repuestoDAO = new RepuestoDAOImpl();
         RepuestoService repuestoService = new RepuestoService(repuestoDAO);
