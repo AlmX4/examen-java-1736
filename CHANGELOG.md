@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
-### Pendiente de integración — `[S2 - T2.2] Búsqueda por documento y por placa` (`feature/gestion-clientes` → `develop`, Issue `#21`)
+### PR #81 — `feat(clientes): add search by document and normalized plate (T2.2)` (`feature/gestion-clientes` → `develop`, cierra `#21`)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
