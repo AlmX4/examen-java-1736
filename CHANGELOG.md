@@ -8,6 +8,16 @@
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
 
+### Pendiente de integración — `[S1 - T1.4] Tablas de consulta (catálogos fijos)` (`feature/setup-catalogos` → `develop`, Issue `#17`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de 4 entidades POJO clásicas en `com.carmotors.sgt.model`: `RepuestoTipo`, `Especialidad`, `MantenimientoTipo` y `ServicioEstado` con constructores, getters, setters y `toString()`.
+  - Creación de 4 interfaces de persistencia de solo lectura en `com.carmotors.sgt.repository`: `RepuestoTipoRepository`, `EspecialidadRepository`, `MantenimientoTipoRepository` y `ServicioEstadoRepository` con métodos `listarTodos()` y `buscarPorId(int id)` retornando `null` controlado (sin `Optional`, respetando la regla de no crear paquete `dao`).
+  - Creación de 4 implementaciones JDBC en `com.carmotors.sgt.repository.impl`: `RepuestoTipoRepositoryImpl`, `EspecialidadRepositoryImpl`, `MantenimientoTipoRepositoryImpl` y `ServicioEstadoRepositoryImpl` usando `ConnectionFactory.getInstance().getConnection()`, constructor opcional para conexión compartida (`RNF-08`), `PreparedStatement` y envoltorio seguro de `SQLException` en `CarMotorsException` sin `System.exit()`.
+  - Pruebas unitarias JUnit 5 en `CatalogosModelTest` y `CatalogosRepositoryTest` con verificación condicional de base de datos.
+
+
 ### Pendiente de integración — `[S1 - T1.2] Excepciones propias y manejo de errores` (`feature/setup-excepciones` → `develop`, Issue `#15`)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
