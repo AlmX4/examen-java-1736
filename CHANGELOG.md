@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
-### Pendiente de integración — `[S2 - T2.1] Registro y consulta de vehículos` (`feature/gestion-clientes` → `develop`, Issue `#20`)
+### PR #80 — `feat(clientes): add vehicle registration and listing (T2.1)` (`feature/gestion-clientes` → `develop`, cierra `#20`)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
