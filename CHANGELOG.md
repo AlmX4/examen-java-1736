@@ -6,6 +6,18 @@
 
 ---
 
+## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
+
+### Pendiente de integración — `[S2 - T2.3] CRUD de técnicos` (`feature/gestion-tecnicos` → `develop`, Issue `#22`)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `Tecnico` (`com.carmotors.sgt.model`), `TecnicoRepository` (`com.carmotors.sgt.repository`) y `TecnicoRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
+  - Creación de `TecnicoService` (`com.carmotors.sgt.service`) con validación de nombre obligatorio, documento único (`DatoDuplicadoException`), especialidad válida contra `EspecialidadRepository` (`T1.4`) y desactivación lógica sin borrado físico (`RF-33`, `RN-17`).
+  - Creación de `TecnicoController` y `TecnicoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader` con confirmación `(S/N)` antes de desactivar y captura segura de `CarMotorsException` (`RNF-12`, `RNF-24`).
+  - Creación de pruebas unitarias JUnit 5 en `TecnicoServiceTest`.
+
+---
+
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
 
 ### Pendiente de integración — `[S1 - T1.4] Tablas de consulta (catálogos fijos)` (`feature/setup-catalogos` → `develop`, Issue `#17`)
