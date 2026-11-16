@@ -1,0 +1,222 @@
+package com.carmotors.sgt.view;
+
+import com.carmotors.sgt.controller.ClienteController;
+import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.util.ConsoleReader;
+
+import java.util.List;
+
+/**
+ * Submenú de consola para la gestión de clientes (RF-17, RN-13, RN-17, RNF-03, RNF-24).
+ */
+public class ClienteView implements SubmenuVista {
+
+    private final ClienteController clienteController;
+
+    public ClienteView(ClienteController clienteController) {
+        if (clienteController == null) {
+            throw new IllegalArgumentException("El controlador de clientes es obligatorio.");
+        }
+        this.clienteController = clienteController;
+    }
+
+    @Override
+    public String obtenerTitulo() {
+        return "Clientes";
+    }
+
+    @Override
+    public void mostrarMenu() {
+        boolean ejecutando = true;
+        while (ejecutando) {
+            System.out.println("\n==================================================");
+            System.out.println("              GESTIÓN DE CLIENTES                 ");
+            System.out.println("==================================================");
+            System.out.println("  1. Listar clientes activos");
+            System.out.println("  2. Listar todos los clientes (incluye inactivos)");
+            System.out.println("  3. Buscar cliente por ID");
+            System.out.println("  4. Buscar cliente por documento");
+            System.out.println("  5. Registrar cliente");
+            System.out.println("  6. Actualizar cliente");
+            System.out.println("  7. Desactivar cliente");
+            System.out.println("  8. Reactivar cliente");
+            System.out.println("  0. Volver al menú principal");
+            System.out.println("==================================================");
+
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
+            switch (opcion) {
+                case 1:
+                    listarClientes(true);
+                    break;
+                case 2:
+                    listarClientes(false);
+                    break;
+                case 3:
+                    buscarPorId();
+                    break;
+                case 4:
+                    buscarPorDocumento();
+                    break;
+                case 5:
+                    registrarCliente();
+                    break;
+                case 6:
+                    actualizarCliente();
+                    break;
+                case 7:
+                    desactivarCliente();
+                    break;
+                case 8:
+                    reactivarCliente();
+                    break;
+                case 0:
+                    ejecutando = false;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    private void listarClientes(boolean soloActivos) {
+        try {
+            List<Cliente> clientes = soloActivos
+                    ? clienteController.listarActivos()
+                    : clienteController.listarTodos();
+            if (clientes.isEmpty()) {
+                System.out.println("\n  [i] No hay clientes registrados para el filtro seleccionado.");
+            } else {
+                System.out.println(soloActivos ? "\n--- Clientes Activos ---" : "\n--- Todos los Clientes ---");
+                for (Cliente cliente : clientes) {
+                    imprimirDetalleCliente(cliente);
+                }
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void buscarPorId() {
+        try {
+            int id = ConsoleReader.leerEnteroPositivo("ID del cliente");
+            Cliente cliente = clienteController.buscarPorId(id);
+            System.out.println("\n--- Cliente Encontrado ---");
+            imprimirDetalleCliente(cliente);
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void buscarPorDocumento() {
+        try {
+            String documento = ConsoleReader.leerTextoObligatorio("Documento de identidad");
+            Cliente cliente = clienteController.buscarPorDocumento(documento);
+            System.out.println("\n--- Cliente Encontrado ---");
+            imprimirDetalleCliente(cliente);
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void registrarCliente() {
+        try {
+            Cliente cliente = new Cliente();
+            cliente.setNombre(ConsoleReader.leerTextoObligatorio("Nombre completo del cliente"));
+            cliente.setDocumentoIdentidad(ConsoleReader.leerTextoObligatorio("Documento de identidad"));
+            String telefono = ConsoleReader.leerTextoOpcional("Teléfono (opcional)");
+            cliente.setTelefono(telefono.isEmpty() ? null : telefono);
+            cliente.setEmail(ConsoleReader.leerEmail("Email"));
+
+            Cliente creado = clienteController.registrar(cliente);
+            System.out.println("\n  [✓] Cliente registrado exitosamente con ID " + creado.getId() + ".");
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al registrar cliente: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void actualizarCliente() {
+        try {
+            int id = ConsoleReader.leerEnteroPositivo("ID del cliente a actualizar");
+            Cliente actual = clienteController.buscarPorId(id);
+            System.out.println("\n  Registro actual:");
+            imprimirDetalleCliente(actual);
+
+            Cliente actualizado = new Cliente();
+            actualizado.setId(actual.getId());
+            actualizado.setNombre(ConsoleReader.leerTextoObligatorio("Nuevo nombre completo"));
+            actualizado.setDocumentoIdentidad(ConsoleReader.leerTextoObligatorio("Nuevo documento de identidad"));
+            String telefono = ConsoleReader.leerTextoOpcional("Nuevo teléfono (opcional)");
+            actualizado.setTelefono(telefono.isEmpty() ? null : telefono);
+            actualizado.setEmail(ConsoleReader.leerEmail("Nuevo email"));
+            actualizado.setActivo(actual.isActivo());
+
+            clienteController.actualizar(actualizado);
+            System.out.println("\n  [✓] Cliente actualizado correctamente.");
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al actualizar cliente: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void desactivarCliente() {
+        try {
+            int id = ConsoleReader.leerEnteroPositivo("ID del cliente a desactivar");
+            Cliente actual = clienteController.buscarPorId(id);
+            imprimirDetalleCliente(actual);
+
+            if (!actual.isActivo()) {
+                System.out.println("\n  [i] El cliente ya se encuentra inactivo.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            if (!ConsoleReader.leerConfirmacion("¿Confirma desactivar al cliente '" + actual.getNombre() + "'?")) {
+                System.out.println("\n  [i] Operación cancelada.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            clienteController.desactivar(id);
+            System.out.println("\n  [✓] Cliente desactivado lógicamente (su historial permanece intacto).");
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al desactivar cliente: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void reactivarCliente() {
+        try {
+            int id = ConsoleReader.leerEnteroPositivo("ID del cliente a reactivar");
+            Cliente actual = clienteController.buscarPorId(id);
+            if (actual.isActivo()) {
+                System.out.println("\n  [i] El cliente ya se encuentra activo.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            clienteController.reactivar(id);
+            System.out.println("\n  [✓] Cliente reactivado correctamente.");
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al reactivar cliente: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void imprimirDetalleCliente(Cliente cliente) {
+        String estado = cliente.isActivo() ? "Activo" : "Inactivo";
+        String tel = (cliente.getTelefono() == null || cliente.getTelefono().isEmpty())
+                ? "Sin teléfono"
+                : cliente.getTelefono();
+        System.out.println("  - ID " + cliente.getId()
+                + " | " + cliente.getNombre()
+                + " | Doc: " + cliente.getDocumentoIdentidad()
+                + " | Tel: " + tel
+                + " | Email: " + cliente.getEmail()
+                + " | Estado: " + estado);
+    }
+}
