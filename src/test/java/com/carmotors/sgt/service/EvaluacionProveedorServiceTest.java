@@ -2,9 +2,11 @@ package com.carmotors.sgt.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +19,7 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
+import com.carmotors.sgt.model.RankingProveedor;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
 
@@ -123,6 +126,107 @@ class EvaluacionProveedorServiceTest {
                 () -> service.registrarEvaluacion(evaluacion));
 
         assertTrue(ex.getMessage().contains("255"));
+    }
+
+    @Test
+    @DisplayName("Ranking: promedio del proveedor con un decimal y HALF_UP")
+    void rankingRedondeaPromedioAUnDecimal() {
+        evaluacionDAO.guardar(nuevaEvaluacion(1, 5, 4)); // 4.5
+        evaluacionDAO.guardar(nuevaEvaluacion(1, 4, 4)); // 4.0 -> (4.5 + 4.0) / 2 = 4.25 -> 4.3
+
+        List<RankingProveedor> ranking = service.generarRanking();
+
+        RankingProveedor fila = ranking.get(0);
+        assertEquals("AutoPartes del Norte", fila.getProveedor().getNombre());
+        assertEquals(new BigDecimal("4.3"), fila.getPromedio());
+        assertEquals(2, fila.getCantidadEvaluaciones());
+    }
+
+    @Test
+    @DisplayName("Ranking: ordena por promedio de mayor a menor")
+    void rankingOrdenaPorPromedioDescendente() {
+        proveedorDAO.agregar(new Proveedor(3, "Lubricantes Andinos", "5775550103", "c@l.com", "Calle 3", true));
+        evaluacionDAO.guardar(nuevaEvaluacion(1, 3, 3)); // 3.0
+        evaluacionDAO.guardar(nuevaEvaluacion(2, 5, 5)); // 5.0
+        evaluacionDAO.guardar(nuevaEvaluacion(3, 4, 5)); // 4.5
+
+        List<RankingProveedor> ranking = service.generarRanking();
+
+        assertEquals(3, ranking.size());
+        assertEquals("Frenos y Más", ranking.get(0).getProveedor().getNombre());
+        assertEquals(new BigDecimal("5.0"), ranking.get(0).getPromedio());
+        assertEquals("Lubricantes Andinos", ranking.get(1).getProveedor().getNombre());
+        assertEquals(new BigDecimal("4.5"), ranking.get(1).getPromedio());
+        assertEquals("AutoPartes del Norte", ranking.get(2).getProveedor().getNombre());
+        assertEquals(new BigDecimal("3.0"), ranking.get(2).getPromedio());
+    }
+
+    @Test
+    @DisplayName("Ranking: en empate de promedio ordena por nombre ascendente")
+    void rankingDesempataPorNombre() {
+        proveedorDAO.agregar(new Proveedor(3, "Lubricantes Andinos", "5775550103", "c@l.com", "Calle 3", true));
+        proveedorDAO.agregar(new Proveedor(4, "ElectroCar Colombia", "6015550104", "i@e.co", "Calle 4", true));
+        evaluacionDAO.guardar(nuevaEvaluacion(3, 4, 3)); // 3.5
+        evaluacionDAO.guardar(nuevaEvaluacion(4, 3, 4)); // 3.5
+
+        List<RankingProveedor> ranking = service.generarRanking();
+
+        assertEquals("ElectroCar Colombia", ranking.get(0).getProveedor().getNombre());
+        assertEquals("Lubricantes Andinos", ranking.get(1).getProveedor().getNombre());
+        assertEquals(ranking.get(0).getPromedio(), ranking.get(1).getPromedio());
+    }
+
+    @Test
+    @DisplayName("Ranking: proveedores sin evaluar al final, ordenados por nombre")
+    void rankingProveedoresSinEvaluarAlFinal() {
+        proveedorDAO.agregar(new Proveedor(3, "Importadora Sur", "6025550105", null, "Calle 9", true));
+        proveedorDAO.agregar(new Proveedor(4, "Baterías Express", "6015550199", "b@e.co", "Calle 7", true));
+        evaluacionDAO.guardar(nuevaEvaluacion(1, 1, 2)); // 1.5, el evaluado más bajo
+
+        List<RankingProveedor> ranking = service.generarRanking();
+
+        assertEquals(4, ranking.size());
+        assertEquals("AutoPartes del Norte", ranking.get(0).getProveedor().getNombre());
+        assertEquals(new BigDecimal("1.5"), ranking.get(0).getPromedio());
+        assertEquals("Baterías Express", ranking.get(1).getProveedor().getNombre());
+        assertEquals("Frenos y Más", ranking.get(2).getProveedor().getNombre());
+        assertEquals("Importadora Sur", ranking.get(3).getProveedor().getNombre());
+        for (int i = 1; i < ranking.size(); i++) {
+            assertNull(ranking.get(i).getPromedio());
+            assertEquals(0, ranking.get(i).getCantidadEvaluaciones());
+        }
+    }
+
+    @Test
+    @DisplayName("Ranking: si nadie tiene evaluaciones, todos aparecen sin evaluar por nombre")
+    void rankingTodosSinEvaluar() {
+        List<RankingProveedor> ranking = service.generarRanking();
+
+        assertEquals(2, ranking.size());
+        assertEquals("AutoPartes del Norte", ranking.get(0).getProveedor().getNombre());
+        assertEquals("Frenos y Más", ranking.get(1).getProveedor().getNombre());
+        assertNull(ranking.get(0).getPromedio());
+        assertNull(ranking.get(1).getPromedio());
+    }
+
+    @Test
+    @DisplayName("Ranking: sin proveedores registrados devuelve una lista vacía")
+    void rankingSinProveedores() {
+        EvaluacionProveedorService servicioVacio =
+                new EvaluacionProveedorService(new EvaluacionProveedorDAOMock(), new ProveedorDAOMock());
+
+        List<RankingProveedor> ranking = servicioVacio.generarRanking();
+
+        assertNotNull(ranking);
+        assertTrue(ranking.isEmpty());
+    }
+
+    private EvaluacionProveedor nuevaEvaluacion(int proveedorId, int calidad, int puntualidad) {
+        EvaluacionProveedor evaluacion = new EvaluacionProveedor();
+        evaluacion.setProveedorId(proveedorId);
+        evaluacion.setCalidad(calidad);
+        evaluacion.setPuntualidad(puntualidad);
+        return evaluacion;
     }
 
     private static class ProveedorDAOMock implements ProveedorDAO {
