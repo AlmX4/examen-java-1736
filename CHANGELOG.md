@@ -28,6 +28,14 @@
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
 
+### Pendiente de integración — `[S1 - T1.5] CRUD de clientes` (`feature/gestion-clientes` → `develop`, Issue `#18`)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Creación de `Cliente` (`com.carmotors.sgt.model`), `ClienteRepository` (`com.carmotors.sgt.repository`) y `ClienteRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `Types.VARCHAR` para `telefono` opcional, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
+  - Creación de `ClienteService` (`com.carmotors.sgt.service`) validando nombre, documento y email obligatorios, límites de longitud según `schema.sql`, formato de email con `InputValidator.esEmailValido` (normalizado a minúsculas), unicidad de documento y email (`DatoDuplicadoException`) y desactivación/reactivación lógica sin borrado físico (`RF-17`, `RN-13`, `RN-17`).
+  - Creación de `ClienteController` y `ClienteView` (`SubmenuVista` conectada en `Main.java`) con captura segura de `CarMotorsException` (`RNF-12`).
+  - Creación de pruebas unitarias JUnit 5 en `ClienteServiceTest` (9 casos).
+
 ### PR #76 — `fix(proveedores): align supplier CRUD with develop contracts and review blockers (T1.6)` (`fix/proveedores-t16` → `develop`, cierra `#19`)
 - **Autor:** `@AlmX4`
 - **Cambios incluidos:**
