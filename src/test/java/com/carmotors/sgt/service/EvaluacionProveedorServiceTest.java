@@ -105,6 +105,26 @@ class EvaluacionProveedorServiceTest {
         assertTrue(historial.get(0).getFecha().compareTo(historial.get(1).getFecha()) >= 0);
     }
 
+    @Test
+    @DisplayName("Debe rechazar comentarios que superen los 255 caracteres")
+    void rechazarComentarioMayorA255Caracteres() {
+        StringBuilder textoLargo = new StringBuilder();
+        for (int i = 0; i < 256; i++) {
+            textoLargo.append('a');
+        }
+
+        EvaluacionProveedor evaluacion = new EvaluacionProveedor();
+        evaluacion.setProveedorId(1);
+        evaluacion.setCalidad(5);
+        evaluacion.setPuntualidad(5);
+        evaluacion.setComentario(textoLargo.toString());
+
+        ValidacionException ex = assertThrows(ValidacionException.class,
+                () -> service.registrarEvaluacion(evaluacion));
+
+        assertTrue(ex.getMessage().contains("255"));
+    }
+
     private static class ProveedorDAOMock implements ProveedorDAO {
         private final List<Proveedor> datos = new ArrayList<>();
 

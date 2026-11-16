@@ -19,6 +19,7 @@ public class EvaluacionProveedorService {
 
     private static final int MIN_CALIFICACION = 1;
     private static final int MAX_CALIFICACION = 5;
+    private static final int MAX_LONGITUD_COMENTARIO = 255;
 
     private final EvaluacionProveedorDAO evaluacionDAO;
     private final ProveedorDAO proveedorDAO;
@@ -59,9 +60,6 @@ public class EvaluacionProveedorService {
             evaluacion.setFecha(LocalDate.now());
         }
 
-        String comentario = normalizarComentario(evaluacion.getComentario());
-        evaluacion.setComentario(comentario);
-
         int idGenerado = evaluacionDAO.guardar(evaluacion);
         evaluacion.setId(idGenerado);
         return evaluacion;
@@ -93,6 +91,12 @@ public class EvaluacionProveedorService {
 
         validarRango(evaluacion.getCalidad(), "calidad");
         validarRango(evaluacion.getPuntualidad(), "puntualidad");
+
+        String comentario = normalizarComentario(evaluacion.getComentario());
+        if (comentario != null && comentario.length() > MAX_LONGITUD_COMENTARIO) {
+            throw new ValidacionException("El comentario no puede superar los " + MAX_LONGITUD_COMENTARIO + " caracteres.");
+        }
+        evaluacion.setComentario(comentario);
     }
 
     private void validarRango(int valor, String campo) {
