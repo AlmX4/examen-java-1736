@@ -6,7 +6,66 @@
 
 ---
 
+## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
+
+### Pendiente de integración — `[S2 - T2.5] Catálogo de tipos de servicio` (`feature/gestion-servicios` → `develop`, Issue `#24`)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `ServicioTipo` (`com.carmotors.sgt.model`), `ServicioTipoRepository` (`com.carmotors.sgt.repository`) y `ServicioTipoRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `BigDecimal` escala 2 `HALF_UP`, `Types.INTEGER` para `intervalo_meses` opcional y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`, `RNF-15`).
+  - Creación de `ServicioTipoService` (`com.carmotors.sgt.service`) validando nombre único sin distinguir mayúsculas (`DatoDuplicadoException`), existencia de `MantenimientoTipo` y `Especialidad` (`T1.4`), precio no negativo y la regla de dominio Preventivo (`intervaloMeses > 0`) vs. Correctivo (`intervaloMeses == null`).
+  - Creación de `ServicioTipoController` y `ServicioTipoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader`, confirmación `(S/N)` antes de eliminar (`RNF-24`) y manejo limpio de `CarMotorsException` (`RNF-12`).
+  - Creación de pruebas unitarias JUnit 5 en `ServicioTipoServiceTest`.
+
+### PR #73 — `feat(tecnicos): implement technician CRUD with JDBC and console submenu (T2.3)` (`feature/gestion-tecnicos` → `develop`, cierra `#22`)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `Tecnico` (`com.carmotors.sgt.model`), `TecnicoRepository` (`com.carmotors.sgt.repository`) y `TecnicoRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
+  - Creación de `TecnicoService` (`com.carmotors.sgt.service`) con validación de nombre obligatorio, documento único (`DatoDuplicadoException`), especialidad válida contra `EspecialidadRepository` (`T1.4`) y desactivación lógica sin borrado físico (`RF-33`, `RN-17`).
+  - Creación de `TecnicoController` y `TecnicoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader` con confirmación `(S/N)` antes de desactivar y captura segura de `CarMotorsException` (`RNF-12`, `RNF-24`).
+  - Creación de pruebas unitarias JUnit 5 en `TecnicoServiceTest`.
+
+### PR #71 — `fix(proveedores): align supplier CRUD with develop contracts and review blockers (T1.6)` (`feature/gestion-proveedores` → `develop`, cierra `#19`)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Resolución del conflicto de merge con `origin/develop` en `Main.java` conservando la conexión del submenú de proveedores junto a los módulos ya integrados.
+  - Ajuste de `ProveedorDAO` y `ProveedorDAOImpl` a la convención del repositorio del proyecto: retorno directo `null` controlado, `PreparedStatement`, validación de parámetros y manejo de `SQLException` con `CarMotorsException` sin `RuntimeException` ni `Optional`.
+  - Corrección de `ProveedorService` para usar `ValidacionException`, `DatoDuplicadoException` y `EntidadNoEncontradaException`, aceptar email opcional válido y normalizar el flujo de desactivación/reactivación sin romper la capa de negocio.
+  - Ajuste de `ProveedorView` para solicitar `leerEmailOpcional` y confirmar la desactivación con `ConsoleReader.leerConfirmacion` antes de ejecutar la acción.
+  - Actualización de `ProveedorServiceTest` para validar los contratos del dominio con JUnit 5 y sin `Optional` ni `toList()` en la lógica de prueba.
+
+---
+
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
+
+### Pendiente de integración — `[S1 - T1.4] Tablas de consulta (catálogos fijos)` (`feature/setup-catalogos` → `develop`, Issue `#17`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de 4 entidades POJO clásicas en `com.carmotors.sgt.model`: `RepuestoTipo`, `Especialidad`, `MantenimientoTipo` y `ServicioEstado` con constructores, getters, setters y `toString()`.
+  - Creación de 4 interfaces de persistencia de solo lectura en `com.carmotors.sgt.repository`: `RepuestoTipoRepository`, `EspecialidadRepository`, `MantenimientoTipoRepository` y `ServicioEstadoRepository` con métodos `listarTodos()` y `buscarPorId(int id)` retornando `null` controlado (sin `Optional`, respetando la regla de no crear paquete `dao`).
+  - Creación de 4 implementaciones JDBC en `com.carmotors.sgt.repository.impl`: `RepuestoTipoRepositoryImpl`, `EspecialidadRepositoryImpl`, `MantenimientoTipoRepositoryImpl` y `ServicioEstadoRepositoryImpl` usando `ConnectionFactory.getInstance().getConnection()`, constructor opcional para conexión compartida (`RNF-08`), `PreparedStatement` y envoltorio seguro de `SQLException` en `CarMotorsException` sin `System.exit()`.
+  - Pruebas unitarias JUnit 5 en `CatalogosModelTest` y `CatalogosRepositoryTest` con verificación condicional de base de datos.
+
+
+### Pendiente de integración — `[S1 - T1.2] Excepciones propias y manejo de errores` (`feature/setup-excepciones` → `develop`, Issue `#15`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `CarMotorsException` (`com.carmotors.sgt.exception`) como excepción raíz no chequeada (`RuntimeException`) del dominio con constructores estándar `(mensaje)` y `(mensaje, causa)` y documentación Javadoc del flujo Service -> Controller (RNF-12, RNF-23).
+  - Creación de subclases específicas del dominio: `EntidadNoEncontradaException`, `DatoDuplicadoException` y `ValidacionException` bajo `com.carmotors.sgt.exception`.
+  - Integración de `ConfiguracionException` como subclase de `CarMotorsException`, manteniendo total compatibilidad con la fábrica de conexiones.
+  - Creación de pruebas unitarias JUnit 5 en `CarMotorsExceptionTest` validando jerarquía `instanceof`, constructores y simulación del flujo Service (lanza) -> Controller (captura sin abortar la aplicación ni usar `System.exit()`).
+
+
+### Pendiente de integración — `[S0 - T0.8] Conexión a la base de datos` (`feature/setup-conexion-db` → `develop`, Issue `#11`)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `src/main/resources/config.properties.example` con plantilla segura (`db.url`, `db.user`, `db.password`, `factura.carpeta=output`, sin tasa de IVA ni secretos reales) cumpliendo con `RNF-14`.
+  - Creación de `ConfiguracionException.java` (`com.carmotors.sgt.exception`) extendiendo `RuntimeException` con constructores estándar `(mensaje)` y `(mensaje, causa)` para evitar `System.exit()`.
+  - Implementación de `ConnectionFactory.java` (`com.carmotors.sgt.config`) bajo el patrón creacional Singleton (`getInstance()` sincronizado), carga única de `config.properties` en codificación UTF-8 vía `Properties`, validación de propiedades obligatorias y método `getConnection()` retornando una `Connection` nueva en cada llamado para transacciones atómicas multi-tabla (`RN-04`, `RNF-08`).
+  - Creación de pruebas unitarias JUnit 5 en `ConnectionFactoryTest` validando el Singleton, `getCarpetaFacturas()` y verificación condicional de conexión (SELECT 1 con `Assumptions.assumeTrue`) asegurando ejecución limpia de `mvn clean test` sin depender de MySQL activo localmente.
+
 
 ### Pendiente de integración — `refactor(setup): remove T0.8 connection files` (`refactor/remove-t08-from-t07` → `develop`)
 - **Autor:** `@JopsWtD`

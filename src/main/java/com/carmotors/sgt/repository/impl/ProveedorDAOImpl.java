@@ -7,9 +7,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import com.carmotors.sgt.config.ConnectionFactory;
+import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.repository.ProveedorDAO;
 
@@ -27,7 +28,7 @@ public class ProveedorDAOImpl implements ProveedorDAO {
                 proveedores.add(mapearProveedor(resultSet));
             }
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudieron listar los proveedores.", e);
+            throw new CarMotorsException("Error al listar proveedores: " + e.getMessage(), e);
         }
         return proveedores;
     }
@@ -44,49 +45,57 @@ public class ProveedorDAOImpl implements ProveedorDAO {
                 proveedores.add(mapearProveedor(resultSet));
             }
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudieron listar los proveedores activos.", e);
+            throw new CarMotorsException("Error al listar proveedores activos: " + e.getMessage(), e);
         }
         return proveedores;
     }
 
     @Override
-    public Optional<Proveedor> buscarPorId(int id) {
+    public Proveedor buscarPorId(int id) {
+        if (id <= 0) {
+            throw new ValidacionException("El ID del proveedor debe ser un número positivo.");
+        }
+
         String sql = "SELECT id, nombre, telefono, email, direccion, activo FROM proveedores WHERE id = ?";
         try (Connection connection = ConnectionFactory.getInstance().getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setInt(1, id);
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
-                    return Optional.of(mapearProveedor(resultSet));
+                    return mapearProveedor(resultSet);
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo consultar el proveedor por id.", e);
+            throw new CarMotorsException("Error al buscar proveedor por ID " + id + ": " + e.getMessage(), e);
         }
-        return Optional.empty();
+        return null;
     }
 
     @Override
-    public Optional<Proveedor> buscarPorEmail(String email) {
+    public Proveedor buscarPorEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return null;
+        }
+
         String sql = "SELECT id, nombre, telefono, email, direccion, activo FROM proveedores WHERE LOWER(email) = LOWER(?)";
         try (Connection connection = ConnectionFactory.getInstance().getConnection();
              PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-            preparedStatement.setString(1, email);
+            preparedStatement.setString(1, email.trim());
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
-                    return Optional.of(mapearProveedor(resultSet));
+                    return mapearProveedor(resultSet);
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo consultar el proveedor por email.", e);
+            throw new CarMotorsException("Error al buscar proveedor por email: " + e.getMessage(), e);
         }
-        return Optional.empty();
+        return null;
     }
 
     @Override
     public int guardar(Proveedor proveedor) {
         if (proveedor == null) {
-            throw new IllegalArgumentException("El proveedor no puede ser nulo.");
+            throw new ValidacionException("El proveedor no puede ser nulo.");
         }
 
         String sql = "INSERT INTO proveedores (nombre, telefono, email, direccion, activo) VALUES (?, ?, ?, ?, ?)";
@@ -101,7 +110,7 @@ public class ProveedorDAOImpl implements ProveedorDAO {
 
             int filas = preparedStatement.executeUpdate();
             if (filas == 0) {
-                throw new RuntimeException("No se insertó ningún proveedor.");
+                throw new CarMotorsException("No se insertó ningún proveedor en la base de datos.");
             }
 
             try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
@@ -110,15 +119,15 @@ public class ProveedorDAOImpl implements ProveedorDAO {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo guardar el proveedor.", e);
+            throw new CarMotorsException("Error al registrar el proveedor: " + e.getMessage(), e);
         }
-        throw new RuntimeException("No se obtuvo el id generado del proveedor.");
+        throw new CarMotorsException("No se obtuvo el ID generado al registrar el proveedor.");
     }
 
     @Override
     public boolean actualizar(Proveedor proveedor) {
         if (proveedor == null || proveedor.getId() <= 0) {
-            throw new IllegalArgumentException("El proveedor a actualizar es inválido.");
+            throw new ValidacionException("El proveedor a actualizar es inválido.");
         }
 
         String sql = "UPDATE proveedores SET nombre = ?, telefono = ?, email = ?, direccion = ?, activo = ? WHERE id = ?";
@@ -134,7 +143,7 @@ public class ProveedorDAOImpl implements ProveedorDAO {
 
             return preparedStatement.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo actualizar el proveedor.", e);
+            throw new CarMotorsException("Error al actualizar el proveedor: " + e.getMessage(), e);
         }
     }
 
@@ -146,7 +155,7 @@ public class ProveedorDAOImpl implements ProveedorDAO {
             preparedStatement.setInt(1, id);
             return preparedStatement.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo desactivar el proveedor.", e);
+            throw new CarMotorsException("Error al desactivar el proveedor: " + e.getMessage(), e);
         }
     }
 
@@ -158,7 +167,7 @@ public class ProveedorDAOImpl implements ProveedorDAO {
             preparedStatement.setInt(1, id);
             return preparedStatement.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("No se pudo reactivar el proveedor.", e);
+            throw new CarMotorsException("Error al reactivar el proveedor: " + e.getMessage(), e);
         }
     }
 

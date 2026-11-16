@@ -1,14 +1,15 @@
 package com.carmotors.sgt.service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
+import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.repository.ProveedorDAO;
 
@@ -21,7 +22,7 @@ class ProveedorServiceTest {
         proveedor.setNombre(" ");
         proveedor.setEmail("proveedor@dominio.com");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidacionException ex = assertThrows(ValidacionException.class,
                 () -> service.crearProveedor(proveedor));
 
         assertTrue(ex.getMessage().toLowerCase().contains("nombre"));
@@ -34,7 +35,7 @@ class ProveedorServiceTest {
         proveedor.setNombre("Distribuidora Uno");
         proveedor.setEmail("correo-no-valido");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidacionException ex = assertThrows(ValidacionException.class,
                 () -> service.crearProveedor(proveedor));
 
         assertTrue(ex.getMessage().toLowerCase().contains("email"));
@@ -62,17 +63,33 @@ class ProveedorServiceTest {
 
         @Override
         public List<Proveedor> listarActivos() {
-            return datos.stream().filter(Proveedor::isActivo).toList();
+            List<Proveedor> activos = new ArrayList<>();
+            for (Proveedor proveedor : datos) {
+                if (proveedor.isActivo()) {
+                    activos.add(proveedor);
+                }
+            }
+            return activos;
         }
 
         @Override
-        public Optional<Proveedor> buscarPorId(int id) {
-            return datos.stream().filter(p -> p.getId() == id).findFirst();
+        public Proveedor buscarPorId(int id) {
+            for (Proveedor proveedor : datos) {
+                if (proveedor.getId() == id) {
+                    return proveedor;
+                }
+            }
+            return null;
         }
 
         @Override
-        public Optional<Proveedor> buscarPorEmail(String email) {
-            return datos.stream().filter(p -> p.getEmail().equalsIgnoreCase(email)).findFirst();
+        public Proveedor buscarPorEmail(String email) {
+            for (Proveedor proveedor : datos) {
+                if (proveedor.getEmail() != null && proveedor.getEmail().equalsIgnoreCase(email)) {
+                    return proveedor;
+                }
+            }
+            return null;
         }
 
         @Override
@@ -80,7 +97,12 @@ class ProveedorServiceTest {
             if (proveedor.getId() == 0) {
                 proveedor.setId(datos.size() + 1);
             }
-            datos.removeIf(p -> p.getId() == proveedor.getId());
+            for (int i = 0; i < datos.size(); i++) {
+                if (datos.get(i).getId() == proveedor.getId()) {
+                    datos.remove(i);
+                    break;
+                }
+            }
             datos.add(proveedor);
             return proveedor.getId();
         }
@@ -92,18 +114,22 @@ class ProveedorServiceTest {
 
         @Override
         public boolean desactivar(int id) {
-            return datos.stream().filter(p -> p.getId() == id).findFirst().map(p -> {
-                p.setActivo(false);
-                return true;
-            }).orElse(false);
+            Proveedor proveedor = buscarPorId(id);
+            if (proveedor == null) {
+                return false;
+            }
+            proveedor.setActivo(false);
+            return true;
         }
 
         @Override
         public boolean reactivar(int id) {
-            return datos.stream().filter(p -> p.getId() == id).findFirst().map(p -> {
-                p.setActivo(true);
-                return true;
-            }).orElse(false);
+            Proveedor proveedor = buscarPorId(id);
+            if (proveedor == null) {
+                return false;
+            }
+            proveedor.setActivo(true);
+            return true;
         }
 
         public List<Proveedor> getDatos() {

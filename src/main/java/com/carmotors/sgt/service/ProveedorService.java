@@ -2,9 +2,10 @@ package com.carmotors.sgt.service;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
 
+import com.carmotors.sgt.exception.DatoDuplicadoException;
+import com.carmotors.sgt.exception.EntidadNoEncontradaException;
+import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
@@ -19,7 +20,10 @@ public class ProveedorService {
     }
 
     public ProveedorService(ProveedorDAO proveedorDAO) {
-        this.proveedorDAO = Objects.requireNonNull(proveedorDAO, "El DAO de proveedores es obligatorio.");
+        if (proveedorDAO == null) {
+            throw new ValidacionException("El DAO de proveedores es obligatorio.");
+        }
+        this.proveedorDAO = proveedorDAO;
     }
 
     public List<Proveedor> listarTodos() {
@@ -31,20 +35,31 @@ public class ProveedorService {
     }
 
     public Proveedor buscarPorId(int id) {
-        return proveedorDAO.buscarPorId(id).orElse(null);
+        if (id <= 0) {
+            throw new ValidacionException("El ID del proveedor debe ser un número positivo.");
+        }
+
+        Proveedor proveedor = proveedorDAO.buscarPorId(id);
+        if (proveedor == null) {
+            throw new EntidadNoEncontradaException("No se encontró un proveedor con el ID: " + id);
+        }
+        return proveedor;
     }
 
     public Proveedor crearProveedor(Proveedor proveedor) {
         validarProveedor(proveedor);
+
         String emailNormalizado = normalizarEmail(proveedor.getEmail());
-        proveedor.setNombre(proveedor.getNombre().trim());
+        proveedor.setNombre(InputValidator.normalizarTexto(proveedor.getNombre()));
         proveedor.setEmail(emailNormalizado);
         proveedor.setTelefono(normalizarTelefono(proveedor.getTelefono()));
         proveedor.setDireccion(normalizarTexto(proveedor.getDireccion()));
 
-        Optional<Proveedor> existente = proveedorDAO.buscarPorEmail(emailNormalizado);
-        if (existente.isPresent()) {
-            throw new IllegalArgumentException("Ya existe un proveedor registrado con ese email.");
+        if (!emailNormalizado.isEmpty()) {
+            Proveedor existente = proveedorDAO.buscarPorEmail(emailNormalizado);
+            if (existente != null) {
+                throw new DatoDuplicadoException("Ya existe un proveedor registrado con ese email.");
+            }
         }
 
         int idGenerado = proveedorDAO.guardar(proveedor);
@@ -54,39 +69,44 @@ public class ProveedorService {
 
     public Proveedor actualizarProveedor(Proveedor proveedor) {
         if (proveedor == null || proveedor.getId() <= 0) {
-            throw new IllegalArgumentException("Debe indicar el identificador del proveedor a actualizar.");
+            throw new ValidacionException("Debe indicar el identificador del proveedor a actualizar.");
+        }
+
+        Proveedor actual = proveedorDAO.buscarPorId(proveedor.getId());
+        if (actual == null) {
+            throw new EntidadNoEncontradaException("No existe un proveedor con el ID: " + proveedor.getId());
         }
 
         validarProveedor(proveedor);
         String emailNormalizado = normalizarEmail(proveedor.getEmail());
-        proveedor.setNombre(proveedor.getNombre().trim());
+        proveedor.setNombre(InputValidator.normalizarTexto(proveedor.getNombre()));
         proveedor.setEmail(emailNormalizado);
         proveedor.setTelefono(normalizarTelefono(proveedor.getTelefono()));
         proveedor.setDireccion(normalizarTexto(proveedor.getDireccion()));
 
-        Optional<Proveedor> existente = proveedorDAO.buscarPorEmail(emailNormalizado);
-        if (existente.isPresent() && existente.get().getId() != proveedor.getId()) {
-            throw new IllegalArgumentException("Ya existe otro proveedor registrado con ese email.");
+        if (!emailNormalizado.isEmpty()) {
+            Proveedor existente = proveedorDAO.buscarPorEmail(emailNormalizado);
+            if (existente != null && existente.getId() != proveedor.getId()) {
+                throw new DatoDuplicadoException("Ya existe otro proveedor registrado con ese email.");
+            }
         }
 
         boolean actualizado = proveedorDAO.actualizar(proveedor);
         if (!actualizado) {
-            throw new IllegalArgumentException("No se pudo actualizar el proveedor indicado.");
+            throw new ValidacionException("No se pudo actualizar el proveedor indicado.");
         }
         return proveedor;
     }
 
     public Proveedor desactivarProveedor(int id) {
         Proveedor proveedor = buscarPorId(id);
-        if (proveedor == null) {
-            throw new IllegalArgumentException("El proveedor no existe.");
-        }
         if (!proveedor.isActivo()) {
             return proveedor;
         }
+
         boolean actualizado = proveedorDAO.desactivar(id);
         if (!actualizado) {
-            throw new IllegalArgumentException("No se pudo desactivar el proveedor.");
+            throw new ValidacionException("No se pudo desactivar el proveedor.");
         }
         proveedor.setActivo(false);
         return proveedor;
@@ -94,15 +114,13 @@ public class ProveedorService {
 
     public Proveedor reactivarProveedor(int id) {
         Proveedor proveedor = buscarPorId(id);
-        if (proveedor == null) {
-            throw new IllegalArgumentException("El proveedor no existe.");
-        }
         if (proveedor.isActivo()) {
             return proveedor;
         }
+
         boolean actualizado = proveedorDAO.reactivar(id);
         if (!actualizado) {
-            throw new IllegalArgumentException("No se pudo reactivar el proveedor.");
+            throw new ValidacionException("No se pudo reactivar el proveedor.");
         }
         proveedor.setActivo(true);
         return proveedor;
@@ -110,28 +128,30 @@ public class ProveedorService {
 
     private void validarProveedor(Proveedor proveedor) {
         if (proveedor == null) {
-            throw new IllegalArgumentException("El proveedor no puede ser nulo.");
+            throw new ValidacionException("El proveedor no puede ser nulo.");
         }
 
-        if (!InputValidator.esTextoNoVacio(proveedor.getNombre())) {
-            throw new IllegalArgumentException("El nombre del proveedor es obligatorio.");
+        String nombre = InputValidator.normalizarTexto(proveedor.getNombre());
+        if (nombre.isEmpty()) {
+            throw new ValidacionException("El nombre del proveedor es obligatorio.");
         }
+        proveedor.setNombre(nombre);
 
         String email = proveedor.getEmail();
-        if (!InputValidator.esEmailValido(email)) {
-            throw new IllegalArgumentException("El email del proveedor no es válido.");
+        if (email != null && !email.trim().isEmpty() && !InputValidator.esEmailValido(email)) {
+            throw new ValidacionException("El email del proveedor no es válido.");
         }
     }
 
     private String normalizarEmail(String email) {
+        if (email == null) {
+            return "";
+        }
         return InputValidator.normalizarTexto(email).toLowerCase(Locale.ROOT);
     }
 
     private String normalizarTelefono(String telefono) {
-        if (telefono == null) {
-            return "";
-        }
-        return InputValidator.normalizarTexto(telefono);
+        return telefono == null ? "" : InputValidator.normalizarTexto(telefono);
     }
 
     private String normalizarTexto(String valor) {

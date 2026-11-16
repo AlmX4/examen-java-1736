@@ -1,7 +1,6 @@
 package com.carmotors.sgt.repository;
 
 import java.util.List;
-import java.util.Optional;
 
 import com.carmotors.sgt.model.Proveedor;
 
@@ -11,9 +10,9 @@ public interface ProveedorDAO {
 
     List<Proveedor> listarActivos();
 
-    Optional<Proveedor> buscarPorId(int id);
+    Proveedor buscarPorId(int id);
 
-    Optional<Proveedor> buscarPorEmail(String email);
+    Proveedor buscarPorEmail(String email);
 
     int guardar(Proveedor proveedor);
 
