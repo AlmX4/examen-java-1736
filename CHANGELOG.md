@@ -24,6 +24,15 @@
   - Creación de `TecnicoController` y `TecnicoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader` con confirmación `(S/N)` antes de desactivar y captura segura de `CarMotorsException` (`RNF-12`, `RNF-24`).
   - Creación de pruebas unitarias JUnit 5 en `TecnicoServiceTest`.
 
+### PR #71 — `fix(proveedores): align supplier CRUD with develop contracts and review blockers (T1.6)` (`feature/gestion-proveedores` → `develop`, cierra `#19`)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Resolución del conflicto de merge con `origin/develop` en `Main.java` conservando la conexión del submenú de proveedores junto a los módulos ya integrados.
+  - Ajuste de `ProveedorDAO` y `ProveedorDAOImpl` a la convención del repositorio del proyecto: retorno directo `null` controlado, `PreparedStatement`, validación de parámetros y manejo de `SQLException` con `CarMotorsException` sin `RuntimeException` ni `Optional`.
+  - Corrección de `ProveedorService` para usar `ValidacionException`, `DatoDuplicadoException` y `EntidadNoEncontradaException`, aceptar email opcional válido y normalizar el flujo de desactivación/reactivación sin romper la capa de negocio.
+  - Ajuste de `ProveedorView` para solicitar `leerEmailOpcional` y confirmar la desactivación con `ConsoleReader.leerConfirmacion` antes de ejecutar la acción.
+  - Actualización de `ProveedorServiceTest` para validar los contratos del dominio con JUnit 5 y sin `Optional` ni `toList()` en la lógica de prueba.
+
 ---
 
 ## [En curso] — Sprint 1: Piezas comunes (`develop`)
