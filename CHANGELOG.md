@@ -8,6 +8,17 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### Pendiente de integración — `feat(servicios): add service order creation (T4.2)` (`feature/gestion-servicios` → `develop`, cierra `#36`, RF-08 / RN-11 / RN-18 / HU-04)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Creación de las entidades `OrdenServicio` y `OrdenServicioDetalle` (`com.carmotors.sgt.model`) según `ordenes_servicio` y `orden_servicio_detalle`, con `costoManoObra` en `BigDecimal` y fechas en `LocalDateTime`.
+  - Creación de `OrdenServicioDAO` / `OrdenServicioDAOImpl` (guardar, buscar por ID) y `OrdenServicioDetalleDAO` / `OrdenServicioDetalleDAOImpl` (guardar, listar líneas por orden) con `PreparedStatement`, try-with-resources, `RETURN_GENERATED_KEYS` y constructor con `Connection` compartida.
+  - Creación de `OrdenServicioService.crearOrden(...)`: valida antes de abrir la transacción que el vehículo exista y su cliente dueño esté activo, la descripción del problema (obligatoria, máx. 255), al menos una línea (`RN-18`) y que cada tipo de servicio exista; congela `nombre_servicio_snapshot` y `costo_mano_obra` = `precio_mano_obra_base` (escala 2, `HALF_UP`); asigna `fecha_recepcion` actual y estado inicial desde `EstadoPendiente.getEstadoId()`.
+  - Cabecera y líneas guardadas en una única transacción JDBC (una `Connection`, `setAutoCommit(false)`, `commit()` / `rollback()` ante cualquier error, restauración de auto-commit y cierre con try-with-resources) (`RNF-08`, sección 5.6).
+  - Creación de `OrdenServicioController` (solo delega) y `OrdenServicioView` con la opción "Crear orden de servicio": búsqueda por placa, descripción, captura de líneas en ciclo mostrando el precio base y resumen final (ID, placa, estado, recepción y líneas con mano de obra).
+  - Nuevo `ServiciosMenuView` en la opción `5` del menú principal con los submenús "Tipos de servicio" (vista existente sin cambios) y "Órdenes de servicio"; cableado en `Main.java`.
+  - Creación de `OrdenServicioServiceTest` con DAOs en memoria: orden con una y varias líneas, vehículo inexistente, cliente inactivo, descripción vacía y de más de 255 caracteres, orden sin líneas y tipo de servicio inexistente (165 pruebas en total, 0 fallos).
+
 ### PR #89 — `feat(servicios): add order state pattern base (T4.1)` (`feature/gestion-servicios` → `develop`, cierra `#35`, RF-12 / RN-06)
 - **Autor:** `@AlmX4`
 - **Cambios incluidos:**
