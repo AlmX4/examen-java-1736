@@ -7,6 +7,8 @@ public interface EstadoOrden {
 
     String getNombre();
 
+    int getEstadoId();
+
     boolean puedeTransicionarA(EstadoOrden destino);
 
     EstadoOrden transicionarA(EstadoOrden destino);

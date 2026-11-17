@@ -117,4 +117,37 @@ class EstadoOrdenTest {
 
         assertTrue(error.getMessage().contains("estado nulo"));
     }
+
+    @Test
+    @DisplayName("Debe exponer los IDs oficiales de servicio_estados")
+    void debeExponerIdsOficiales() {
+        assertEquals(1, new EstadoPendiente().getEstadoId());
+        assertEquals(2, new EstadoEnProceso().getEstadoId());
+        assertEquals(3, new EstadoCompletado().getEstadoId());
+        assertEquals(4, new EstadoFacturado().getEstadoId());
+        assertEquals(5, new EstadoEntregado().getEstadoId());
+        assertEquals(6, new EstadoCancelada().getEstadoId());
+    }
+
+    @Test
+    @DisplayName("Debe mapear desde cada ID válido de servicio_estados")
+    void debeMapearIdsValidos() {
+        assertTrue(EstadoOrdenFactory.desdeId(1) instanceof EstadoPendiente);
+        assertTrue(EstadoOrdenFactory.desdeId(2) instanceof EstadoEnProceso);
+        assertTrue(EstadoOrdenFactory.desdeId(3) instanceof EstadoCompletado);
+        assertTrue(EstadoOrdenFactory.desdeId(4) instanceof EstadoFacturado);
+        assertTrue(EstadoOrdenFactory.desdeId(5) instanceof EstadoEntregado);
+        assertTrue(EstadoOrdenFactory.desdeId(6) instanceof EstadoCancelada);
+    }
+
+    @Test
+    @DisplayName("Debe rechazar IDs desconocidos de servicio_estados")
+    void debeRechazarIdDesconocido() {
+        TransicionEstadoInvalidaException error = assertThrows(
+                TransicionEstadoInvalidaException.class,
+                () -> EstadoOrdenFactory.desdeId(99)
+        );
+
+        assertTrue(error.getMessage().contains("ID: 99"));
+    }
 }

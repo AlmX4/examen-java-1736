@@ -1,8 +1,6 @@
 package com.carmotors.sgt.service.state;
 
-import com.carmotors.sgt.exception.TransicionEstadoInvalidaException;
-
-public class EstadoCancelada implements EstadoOrden {
+public class EstadoCancelada extends EstadoOrdenBase {
 
     @Override
     public String getNombre() {
@@ -10,14 +8,13 @@ public class EstadoCancelada implements EstadoOrden {
     }
 
     @Override
-    public boolean puedeTransicionarA(EstadoOrden destino) {
-        return false;
+    public int getEstadoId() {
+        return 6;
     }
 
     @Override
-    public EstadoOrden transicionarA(EstadoOrden destino) {
-        lanzarTransicionInvalida(destino);
-        return this;
+    public boolean puedeTransicionarA(EstadoOrden destino) {
+        return false;
     }
 
     @Override
@@ -53,12 +50,5 @@ public class EstadoCancelada implements EstadoOrden {
     @Override
     public boolean permiteEdicion() {
         return false;
-    }
-
-    private void lanzarTransicionInvalida(EstadoOrden destino) {
-        String nombreDestino = destino == null ? "estado nulo" : destino.getNombre();
-        throw new TransicionEstadoInvalidaException(
-                "Transición de estado inválida: no se puede pasar de Cancelada a " + nombreDestino + "."
-        );
     }
 }

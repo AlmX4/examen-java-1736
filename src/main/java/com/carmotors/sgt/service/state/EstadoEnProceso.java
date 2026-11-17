@@ -1,8 +1,6 @@
 package com.carmotors.sgt.service.state;
 
-import com.carmotors.sgt.exception.TransicionEstadoInvalidaException;
-
-public class EstadoEnProceso implements EstadoOrden {
+public class EstadoEnProceso extends EstadoOrdenBase {
 
     @Override
     public String getNombre() {
@@ -10,17 +8,13 @@ public class EstadoEnProceso implements EstadoOrden {
     }
 
     @Override
-    public boolean puedeTransicionarA(EstadoOrden destino) {
-        return destino instanceof EstadoCompletado || destino instanceof EstadoCancelada;
+    public int getEstadoId() {
+        return 2;
     }
 
     @Override
-    public EstadoOrden transicionarA(EstadoOrden destino) {
-        if (destino != null && puedeTransicionarA(destino)) {
-            return destino;
-        }
-        lanzarTransicionInvalida(destino);
-        return this;
+    public boolean puedeTransicionarA(EstadoOrden destino) {
+        return destino instanceof EstadoCompletado || destino instanceof EstadoCancelada;
     }
 
     @Override
@@ -54,12 +48,5 @@ public class EstadoEnProceso implements EstadoOrden {
     @Override
     public boolean permiteEdicion() {
         return true;
-    }
-
-    private void lanzarTransicionInvalida(EstadoOrden destino) {
-        String nombreDestino = destino == null ? "estado nulo" : destino.getNombre();
-        throw new TransicionEstadoInvalidaException(
-                "Transición de estado inválida: no se puede pasar de En Proceso a " + nombreDestino + "."
-        );
     }
 }

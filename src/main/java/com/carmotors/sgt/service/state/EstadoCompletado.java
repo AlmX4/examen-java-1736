@@ -1,8 +1,6 @@
 package com.carmotors.sgt.service.state;
 
-import com.carmotors.sgt.exception.TransicionEstadoInvalidaException;
-
-public class EstadoCompletado implements EstadoOrden {
+public class EstadoCompletado extends EstadoOrdenBase {
 
     @Override
     public String getNombre() {
@@ -10,17 +8,13 @@ public class EstadoCompletado implements EstadoOrden {
     }
 
     @Override
-    public boolean puedeTransicionarA(EstadoOrden destino) {
-        return destino instanceof EstadoFacturado;
+    public int getEstadoId() {
+        return 3;
     }
 
     @Override
-    public EstadoOrden transicionarA(EstadoOrden destino) {
-        if (destino != null && puedeTransicionarA(destino)) {
-            return destino;
-        }
-        lanzarTransicionInvalida(destino);
-        return this;
+    public boolean puedeTransicionarA(EstadoOrden destino) {
+        return destino instanceof EstadoFacturado;
     }
 
     @Override
@@ -55,12 +49,5 @@ public class EstadoCompletado implements EstadoOrden {
     @Override
     public boolean permiteEdicion() {
         return false;
-    }
-
-    private void lanzarTransicionInvalida(EstadoOrden destino) {
-        String nombreDestino = destino == null ? "estado nulo" : destino.getNombre();
-        throw new TransicionEstadoInvalidaException(
-                "Transición de estado inválida: no se puede pasar de Completado a " + nombreDestino + "."
-        );
     }
 }
