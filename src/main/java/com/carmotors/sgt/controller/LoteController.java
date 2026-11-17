@@ -1,5 +1,7 @@
 package com.carmotors.sgt.controller;
 
+import java.util.List;
+
 import com.carmotors.sgt.model.Lote;
 import com.carmotors.sgt.service.LoteService;
 
@@ -24,5 +26,9 @@ public class LoteController {
 
     public Lote buscarPorCodigo(String codigo) {
         return loteService.buscarPorCodigo(codigo);
+    }
+
+    public List<Lote> listarPorRepuesto(int repuestoId) {
+        return loteService.listarPorRepuesto(repuestoId);
     }
 }

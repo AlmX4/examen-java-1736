@@ -2,6 +2,9 @@ package com.carmotors.sgt.service;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
@@ -23,10 +26,7 @@ import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
 import com.carmotors.sgt.util.InputValidator;
 
 /**
- * Reglas de negocio para el ingreso de inventario por lotes.
- *
- * <p>La validación de código único, proveedor activo, repuesto activo y vínculo proveedor-repuesto se realiza
- * dentro de una única transacción JDBC para cumplir con RN-14, RN-17 y RNF-08.</p>
+ * Reglas de negocio para el ingreso y consulta de inventario por lotes.
  */
 public class LoteService {
 
@@ -77,6 +77,26 @@ public class LoteService {
             throw new ValidacionException("El código del lote es obligatorio para la búsqueda.");
         }
         return loteDAO.buscarPorCodigo(codigoLote.trim());
+    }
+
+    public List<Lote> listarPorRepuesto(int repuestoId) {
+        if (repuestoId <= 0) {
+            throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
+        }
+
+        Repuesto repuesto = repuestoDAO.buscarPorId(repuestoId);
+        if (repuesto == null) {
+            throw new EntidadNoEncontradaException("No existe un repuesto con el ID: " + repuestoId);
+        }
+
+        List<Lote> lotes = loteDAO.listarPorRepuesto(repuestoId);
+        List<Lote> resultado = new ArrayList<>(lotes);
+        resultado.sort(Comparator
+                .comparing((Lote lote) -> lote.getFechaCaducidad() == null)
+                .thenComparing(Lote::getFechaCaducidad, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Lote::getFechaIngreso, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparingInt(Lote::getId));
+        return resultado;
     }
 
     public Lote registrarLote(Lote lote) {

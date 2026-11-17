@@ -51,6 +51,15 @@
   - Ajuste de la ruta de validación para permitir pruebas unitarias con DAOs inyectados y mantener el comportamiento transaccional real cuando se usa la implementación JDBC del proyecto.
   - Creación de `LoteServiceTest` con pruebas JUnit 5 cubriendo lote válido, código duplicado, cantidad inválida, caducidad inválida, proveedor inactivo, proveedor inexistente, repuesto inexistente y repuesto inactivo; validación con `mvn test -Dtest=LoteServiceTest` y `mvn clean compile`.
 
+### Pendiente de integración — `feat(inventario): add lot traceability (T3.4)` (`feature/gestion-inventario` → `develop`, cierra `#30`)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Ampliación de `LoteDAO` / `LoteDAOImpl` con consulta por repuesto y consulta por código mediante `PreparedStatement`.
+  - Consulta de lotes ordenada deterministamente: lotes con caducidad más próxima primero, después lotes sin caducidad por fecha de ingreso y ID (`RF-03`, sección 2.6).
+  - Extensión de `LoteService` y `LoteController` para listar lotes por repuesto y consultar trazabilidad por código, validando el ID y la existencia del repuesto.
+  - Integración de la opción `3. Listar lotes por repuesto` en `LoteView`, mostrando proveedor, fechas, cantidad inicial y cantidad restante; la búsqueda inexistente informa claramente sin cerrar la consola.
+  - Creación de pruebas JUnit 5 para trazabilidad por código, lote inexistente, orden determinista y repuesto inexistente en `LoteServiceTest`.
+
 ### PR #82 — `feat(proveedores): add supplier ranking (T2.7)` (`feature/gestion-proveedores` → `develop`, cierra `#26`)
 - **Autor:** `@JopsWtD`
 - **Revisión solicitada:** `@julio7879`
