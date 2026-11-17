@@ -18,14 +18,15 @@
   - Creación de `ProveedorRepuestoController` y `CatalogoProveedorView` (`com.carmotors.sgt.view`): opción `8. Catálogo de repuestos del proveedor` en `ProveedorView` (listar, asociar, actualizar condiciones, quitar con confirmación `(S/N)` y marcar habitual) y opción `7. Ver proveedores del repuesto` en `RepuestoView`. Cableado en `Main.java`, conservando los constructores existentes de ambas vistas.
   - Creación de `ProveedorRepuestoServiceTest` con 15 pruebas JUnit 5 en memoria: asociación válida, entidades inexistentes, proveedor inactivo, costo y tiempo inválidos, par duplicado, marcar y cambiar habitual, habitual inactivo, actualización, eliminación y listados (121 pruebas en total, 0 fallos).
 
-### Pendiente de integración — `feat(inventario): lot intake registration (T3.2)` (`feature/gestion-inventario` → `develop`)
+### PR #84 — `feat(inventario): lot intake registration (T3.3)` (`feature/gestion-inventario` → `develop`, cierra `#29`)
 - **Autor:** `@AlmX4`
 - **Cambios incluidos:**
   - Creación de `Lote` (`com.carmotors.sgt.model`) con `id`, `codigoLote`, `proveedorId`, `repuestoId`, `fechaIngreso`, `fechaCaducidad`, `cantidadInicial` y `cantidadActual` siguiendo el modelo persistente del esquema `lotes`.
   - Creación de `LoteDAO` (`com.carmotors.sgt.repository`) y `LoteDAOImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `RETURN_GENERATED_KEYS` y validación de `codigo_lote` único en la capa de servicio.
-  - Creación de `LoteService` (`com.carmotors.sgt.service`) validando código obligatorio, cantidad inicial mayor que cero, fecha de ingreso obligatoria, caducidad estrictamente posterior, proveedor activo y vínculo real entre proveedor y repuesto en `proveedor_repuestos` (`RN-14`, `RNF-08`). La operación se ejecuta dentro de una sola transacción JDBC con `setAutoCommit(false)`, `commit` y `rollback`.
+  - Creación de `LoteService` (`com.carmotors.sgt.service`) validando código obligatorio, cantidad inicial mayor que cero, fecha de ingreso obligatoria, caducidad estrictamente posterior, proveedor activo, repuesto existente y activo, y vínculo real entre proveedor y repuesto en `proveedor_repuestos` (`RF-02`, `RN-14`, `RN-17`, `RNF-08`). La operación se ejecuta dentro de una sola transacción JDBC con `setAutoCommit(false)`, `commit` y `rollback`.
+  - Integración de `LoteController` y `LoteView` en el flujo MVC estándar, con acceso desde el submenú de inventario y manejo seguro de `CarMotorsException` sin cerrar la consola.
   - Ajuste de la ruta de validación para permitir pruebas unitarias con DAOs inyectados y mantener el comportamiento transaccional real cuando se usa la implementación JDBC del proyecto.
-  - Creación de `LoteServiceTest` con 6 pruebas JUnit 5 cubriendo lote válido, código duplicado, cantidad inválida, caducidad inválida, proveedor inactivo y proveedor inexistente; todas pasan con `mvn test -Dtest=LoteServiceTest` y `mvn clean compile`.
+  - Creación de `LoteServiceTest` con pruebas JUnit 5 cubriendo lote válido, código duplicado, cantidad inválida, caducidad inválida, proveedor inactivo, proveedor inexistente, repuesto inexistente y repuesto inactivo; validación con `mvn test -Dtest=LoteServiceTest` y `mvn clean compile`.
 
 ### PR #82 — `feat(proveedores): add supplier ranking (T2.7)` (`feature/gestion-proveedores` → `develop`, cierra `#26`)
 - **Autor:** `@JopsWtD`
@@ -56,7 +57,7 @@
   - Integración en `ClienteController` (`com.carmotors.sgt.controller`) y `ClienteView` (`com.carmotors.sgt.view`), añadiendo opciones 9 (registrar vehículo) y 10 (listar vehículos de cliente) al menú de consola, conectado en `Main.java`.
   - Creación de pruebas unitarias completas en JUnit 5: `VehiculoTest` (4 pruebas), `VehiculoServiceTest` (16 pruebas en memoria) y `ClienteControllerTest` (3 pruebas), totalizando 87 pruebas unitarias en el proyecto sin fallos.
 
-### PR #79 — `feat(proveedores): add supplier evaluation registration (T2.6)` (`feature/gestion-proveedores` → `develop`, cierra `#25`)
+### PR #79 — `feat(proveedores): add supplier evaluation registration (T2.6)` (`feature/gestion-proveedores` → `develop`, cierra `#29`)
 - **Autor:** `@AlmX4`
 - **Cambios incluidos:**
   - Creación de `EvaluacionProveedor` (`com.carmotors.sgt.model`) con `id`, `proveedor_id`, `fecha` por defecto en la fecha actual, `calidad` y `puntualidad` como enteros del 1 al 5 y `comentario` opcional con normalización segura.

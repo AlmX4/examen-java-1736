@@ -1,13 +1,12 @@
 package com.carmotors.sgt.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,9 +17,11 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Lote;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
+import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.repository.LoteDAO;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
+import com.carmotors.sgt.repository.RepuestoDAO;
 
 class LoteServiceTest {
 
@@ -28,6 +29,7 @@ class LoteServiceTest {
     private LoteDAOMock loteDAO;
     private ProveedorDAOMock proveedorDAO;
     private ProveedorRepuestoDAOMock proveedorRepuestoDAO;
+    private RepuestoDAOMock repuestoDAO;
 
     @BeforeEach
     void setUp() {
@@ -39,7 +41,11 @@ class LoteServiceTest {
         proveedorRepuestoDAO = new ProveedorRepuestoDAOMock();
         proveedorRepuestoDAO.agregar(new ProveedorRepuesto(1, 10, java.math.BigDecimal.valueOf(55000), 4, true));
 
-        service = new LoteService(loteDAO, proveedorDAO, proveedorRepuestoDAO);
+        repuestoDAO = new RepuestoDAOMock();
+        repuestoDAO.agregar(new Repuesto(10, 1, "Filtro de aire", "Bosch", java.math.BigDecimal.valueOf(45000), 0, 5, true));
+        repuestoDAO.agregar(new Repuesto(11, 1, "Bujía", "NGK", java.math.BigDecimal.valueOf(15000), 0, 2, false));
+
+        service = new LoteService(loteDAO, proveedorDAO, proveedorRepuestoDAO, repuestoDAO);
     }
 
     @Test
@@ -131,6 +137,34 @@ class LoteServiceTest {
         assertThrows(EntidadNoEncontradaException.class, () -> service.registrarLote(lote));
     }
 
+    @Test
+    @DisplayName("Debe rechazar un repuesto inexistente")
+    void rechazarRepuestoInexistente() {
+        Lote lote = new Lote();
+        lote.setCodigoLote("LOT-TEST-006");
+        lote.setProveedorId(1);
+        lote.setRepuestoId(99);
+        lote.setFechaIngreso(LocalDate.of(2026, 11, 1));
+        lote.setCantidadInicial(8);
+
+        assertThrows(EntidadNoEncontradaException.class, () -> service.registrarLote(lote));
+    }
+
+    @Test
+    @DisplayName("Debe rechazar un repuesto inactivo")
+    void rechazarRepuestoInactivo() {
+        proveedorRepuestoDAO.agregar(new ProveedorRepuesto(1, 11, java.math.BigDecimal.valueOf(14000), 3, true));
+
+        Lote lote = new Lote();
+        lote.setCodigoLote("LOT-TEST-007");
+        lote.setProveedorId(1);
+        lote.setRepuestoId(11);
+        lote.setFechaIngreso(LocalDate.of(2026, 11, 2));
+        lote.setCantidadInicial(5);
+
+        assertThrows(ValidacionException.class, () -> service.registrarLote(lote));
+    }
+
     private static class LoteDAOMock implements LoteDAO {
         private final List<Lote> datos = new ArrayList<>();
         private int nextId = 1;
@@ -203,6 +237,67 @@ class LoteServiceTest {
 
         @Override
         public boolean actualizar(Proveedor proveedor) {
+            return true;
+        }
+
+        @Override
+        public boolean desactivar(int id) {
+            return true;
+        }
+
+        @Override
+        public boolean reactivar(int id) {
+            return true;
+        }
+    }
+
+    private static class RepuestoDAOMock implements RepuestoDAO {
+        private final List<Repuesto> datos = new ArrayList<>();
+
+        void agregar(Repuesto repuesto) {
+            datos.add(repuesto);
+        }
+
+        @Override
+        public List<Repuesto> listarTodos() {
+            return new ArrayList<>(datos);
+        }
+
+        @Override
+        public List<Repuesto> listarActivos() {
+            List<Repuesto> activos = new ArrayList<>();
+            for (Repuesto repuesto : datos) {
+                if (repuesto.isActivo()) {
+                    activos.add(repuesto);
+                }
+            }
+            return activos;
+        }
+
+        @Override
+        public Repuesto buscarPorId(int id) {
+            for (Repuesto repuesto : datos) {
+                if (repuesto.getId() == id) {
+                    return repuesto;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public Repuesto buscarPorNombre(String nombre) {
+            return null;
+        }
+
+        @Override
+        public int guardar(Repuesto repuesto) {
+            repuesto.setId(datos.size() + 1);
+            datos.add(repuesto);
+            return repuesto.getId();
+        }
+
+        @Override
+        public boolean actualizar(Repuesto repuesto) {
             return true;
         }
 

@@ -2,6 +2,7 @@ package com.carmotors.sgt;
 
 import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.controller.EvaluacionProveedorController;
+import com.carmotors.sgt.controller.LoteController;
 import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.controller.ProveedorRepuestoController;
 import com.carmotors.sgt.controller.RepuestoController;
@@ -10,6 +11,7 @@ import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.repository.ClienteRepository;
 import com.carmotors.sgt.repository.EspecialidadRepository;
 import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
+import com.carmotors.sgt.repository.LoteDAO;
 import com.carmotors.sgt.repository.MantenimientoTipoRepository;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
@@ -20,6 +22,7 @@ import com.carmotors.sgt.repository.VehiculoRepository;
 import com.carmotors.sgt.repository.impl.ClienteRepositoryImpl;
 import com.carmotors.sgt.repository.impl.EspecialidadRepositoryImpl;
 import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
+import com.carmotors.sgt.repository.impl.LoteDAOImpl;
 import com.carmotors.sgt.repository.impl.MantenimientoTipoRepositoryImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
@@ -29,6 +32,7 @@ import com.carmotors.sgt.repository.impl.TecnicoRepositoryImpl;
 import com.carmotors.sgt.repository.impl.VehiculoRepositoryImpl;
 import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
+import com.carmotors.sgt.service.LoteService;
 import com.carmotors.sgt.service.ProveedorService;
 import com.carmotors.sgt.service.ProveedorRepuestoService;
 import com.carmotors.sgt.service.RepuestoService;
@@ -39,6 +43,7 @@ import com.carmotors.sgt.view.CatalogoProveedorView;
 import com.carmotors.sgt.view.ClienteView;
 import com.carmotors.sgt.view.ConsolaMenuView;
 import com.carmotors.sgt.view.EvaluacionProveedorView;
+import com.carmotors.sgt.view.LoteView;
 import com.carmotors.sgt.view.ProveedorView;
 import com.carmotors.sgt.view.RepuestoView;
 import com.carmotors.sgt.view.ServicioTipoView;
@@ -81,8 +86,13 @@ public class Main {
         CatalogoProveedorView catalogoProveedorView =
                 new CatalogoProveedorView(proveedorRepuestoController, proveedorController, repuestoController);
 
+        LoteDAO loteDAO = new LoteDAOImpl();
+        LoteService loteService = new LoteService(loteDAO, proveedorDAO, proveedorRepuestoDAO, repuestoDAO, true);
+        LoteController loteController = new LoteController(loteService);
+        LoteView loteView = new LoteView(loteController, proveedorController, repuestoController);
+
         menuPrincipal.setSubmenuProveedores(new ProveedorView(proveedorController, evaluacionProveedorView, catalogoProveedorView));
-        menuPrincipal.setSubmenuInventario(new RepuestoView(repuestoController, catalogoProveedorView));
+        menuPrincipal.setSubmenuInventario(new RepuestoView(repuestoController, catalogoProveedorView, loteView));
 
         EspecialidadRepository especialidadRepository = new EspecialidadRepositoryImpl();
         MantenimientoTipoRepository mantenimientoTipoRepository = new MantenimientoTipoRepositoryImpl();
