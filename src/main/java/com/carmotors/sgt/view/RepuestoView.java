@@ -63,10 +63,11 @@ public class RepuestoView implements SubmenuVista {
             System.out.println("  8. Ingreso de lotes");
             System.out.println("  9. Ver stock del repuesto");
             System.out.println(" 10. Buscar y filtrar repuestos");
+            System.out.println(" 11. Reporte de stock bajo");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 10);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 11);
             switch (opcion) {
                 case 1:
                     listarRepuestos();
@@ -107,6 +108,9 @@ public class RepuestoView implements SubmenuVista {
                     break;
                 case 10:
                     buscarPorFiltros();
+                    break;
+                case 11:
+                    generarReporteStockBajo();
                     break;
                 case 0:
                     ejecutando = false;
@@ -318,6 +322,41 @@ public class RepuestoView implements SubmenuVista {
             guia.append(tipos.get(i).getNombre());
         }
         System.out.println(guia);
+    }
+
+    private void generarReporteStockBajo() {
+        if (inventarioController == null) {
+            System.out.println("\n  [i] El reporte de stock bajo aún no está conectado.");
+            ConsoleReader.pausar();
+            return;
+        }
+
+        try {
+            List<StockRepuesto> bajoMinimo = inventarioController.generarReporteStockBajo();
+            if (bajoMinimo.isEmpty()) {
+                System.out.println("\n  [i] No hay repuestos activos con stock bajo mínimo.");
+            } else {
+                System.out.println("\n  [Reporte de stock bajo: " + bajoMinimo.size() + " repuesto(s)]");
+                for (StockRepuesto stock : bajoMinimo) {
+                    Repuesto repuesto = stock.getRepuesto();
+                    System.out.println("  - ID " + repuesto.getId()
+                            + " | " + repuesto.getNombre()
+                            + " | Físico: " + stock.getStockFisico()
+                            + " | Operativo: " + stock.getStockOperativo()
+                            + " | Reservado: " + stock.getReservado()
+                            + " | Disponible: " + stock.getDisponible()
+                            + " | Mínimo: " + stock.getStockMinimo()
+                            + " | Proveedor habitual: " + stock.getProveedorHabitual());
+                    if (stock.getDeficit() > 0) {
+                        System.out.println("      [!] ALERTA: déficit de " + stock.getDeficit()
+                                + " unidad(es) para cubrir reservas vigentes.");
+                    }
+                }
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
     }
 
     private int seleccionarTipo(List<RepuestoTipo> tipos) {

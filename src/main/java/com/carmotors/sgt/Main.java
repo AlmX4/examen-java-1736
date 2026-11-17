@@ -95,7 +95,8 @@ public class Main {
         LoteController loteController = new LoteController(loteService);
         LoteView loteView = new LoteView(loteController, proveedorController, repuestoController);
 
-        InventarioService inventarioService = new InventarioService(repuestoDAO, loteDAO);
+        InventarioService inventarioService = new InventarioService(
+                repuestoDAO, loteDAO, proveedorRepuestoDAO, proveedorDAO);
         InventarioController inventarioController = new InventarioController(inventarioService);
 
         menuPrincipal.setSubmenuProveedores(new ProveedorView(proveedorController, evaluacionProveedorView, catalogoProveedorView));
