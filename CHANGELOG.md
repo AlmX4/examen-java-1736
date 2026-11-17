@@ -57,7 +57,7 @@
   - Integración en `ClienteController` (`com.carmotors.sgt.controller`) y `ClienteView` (`com.carmotors.sgt.view`), añadiendo opciones 9 (registrar vehículo) y 10 (listar vehículos de cliente) al menú de consola, conectado en `Main.java`.
   - Creación de pruebas unitarias completas en JUnit 5: `VehiculoTest` (4 pruebas), `VehiculoServiceTest` (16 pruebas en memoria) y `ClienteControllerTest` (3 pruebas), totalizando 87 pruebas unitarias en el proyecto sin fallos.
 
-### PR #79 — `feat(proveedores): add supplier evaluation registration (T2.6)` (`feature/gestion-proveedores` → `develop`, cierra `#29`)
+### PR #79 — `feat(proveedores): add supplier evaluation registration (T2.6)` (`feature/gestion-proveedores` → `develop`, cierra `#25`)
 - **Autor:** `@AlmX4`
 - **Cambios incluidos:**
   - Creación de `EvaluacionProveedor` (`com.carmotors.sgt.model`) con `id`, `proveedor_id`, `fecha` por defecto en la fecha actual, `calidad` y `puntualidad` como enteros del 1 al 5 y `comentario` opcional con normalización segura.
