@@ -34,6 +34,21 @@ public final class InputValidator {
     }
 
     /**
+     * Normaliza un texto para búsquedas en memoria: recorta espacios, convierte a minúsculas
+     * y quita tildes y diéresis comunes en español.
+     */
+    public static String normalizarParaBusqueda(String entrada) {
+        String texto = normalizarTexto(entrada).toLowerCase();
+        return texto
+                .replace('á', 'a')
+                .replace('é', 'e')
+                .replace('í', 'i')
+                .replace('ó', 'o')
+                .replace('ú', 'u')
+                .replace('ü', 'u');
+    }
+
+    /**
      * Verifica si la entrada contiene al menos un carácter visible tras aplicar {@code trim()}.
      */
     public static boolean esTextoNoVacio(String entrada) {

@@ -14,8 +14,12 @@ import org.junit.jupiter.api.Test;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.Proveedor;
+import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.RepuestoTipo;
+import com.carmotors.sgt.repository.ProveedorDAO;
+import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoTipoDAO;
 
@@ -23,6 +27,8 @@ class RepuestoServiceTest {
 
     private RepuestoDAOMock repuestoDAO;
     private RepuestoTipoDAOEnMemoria tipoRepository;
+    private ProveedorRepuestoDAOMock proveedorRepuestoDAO;
+    private ProveedorDAOMock proveedorDAO;
     private RepuestoService service;
 
     @BeforeEach
@@ -31,7 +37,10 @@ class RepuestoServiceTest {
         tipoRepository = new RepuestoTipoDAOEnMemoria();
         tipoRepository.agregar(new RepuestoTipo(1, "Filtro"));
         tipoRepository.agregar(new RepuestoTipo(2, "Batería"));
-        service = new RepuestoService(repuestoDAO, tipoRepository);
+        tipoRepository.agregar(new RepuestoTipo(3, "Mecánico"));
+        proveedorRepuestoDAO = new ProveedorRepuestoDAOMock();
+        proveedorDAO = new ProveedorDAOMock();
+        service = new RepuestoService(repuestoDAO, tipoRepository, proveedorRepuestoDAO, proveedorDAO);
     }
 
     @Test
@@ -185,6 +194,59 @@ class RepuestoServiceTest {
         assertTrue(reactivado.isActivo());
     }
 
+    @Test
+    @DisplayName("Debe filtrar repuestos por nombre, tipo, marca y proveedor de forma insensible a mayúsculas y tildes")
+    void filtraRepuestosPorCadaCriterioYCombinaciones() {
+        Repuesto r1 = crearRepuestoBase(1, "Filtro de aceite sintético", "Bosch");
+        Repuesto r2 = crearRepuestoBase(2, "Batería 12V 45Ah", "Varta");
+        Repuesto r3 = crearRepuestoBase(3, "Pastillas de freno delanteras", "Bosch");
+
+        proveedorDAO.agregar(new Proveedor(1, "AutoPartes del Norte", "5775550101", "ventas@norte.com", "Av 5", true));
+        proveedorDAO.agregar(new Proveedor(2, "Frenos y Más", "5775550102", "ventas@frenos.com", "Cll 10", true));
+
+        proveedorRepuestoDAO.agregar(new ProveedorRepuesto(1, r1.getId(), new BigDecimal("20000.00"), 2, true));
+        proveedorRepuestoDAO.agregar(new ProveedorRepuesto(2, r3.getId(), new BigDecimal("78000.00"), 3, true));
+        proveedorRepuestoDAO.agregar(new ProveedorRepuesto(1, r3.getId(), new BigDecimal("85000.00"), 4, false));
+
+        List<Repuesto> porNombre = service.buscarPorFiltros("SINTETICO", null, "", null);
+        assertEquals(1, porNombre.size());
+        assertEquals(r1.getId(), porNombre.get(0).getId());
+
+        List<Repuesto> porTipo = service.buscarPorFiltros(null, "bateria", null, null);
+        assertEquals(1, porTipo.size());
+        assertEquals(r2.getId(), porTipo.get(0).getId());
+
+        List<Repuesto> porMarca = service.buscarPorFiltros("", "", "bOsCh", "");
+        assertEquals(2, porMarca.size());
+
+        List<Repuesto> porProveedor = service.buscarPorFiltros(null, null, null, "frenos y mas");
+        assertEquals(1, porProveedor.size());
+        assertEquals(r3.getId(), porProveedor.get(0).getId());
+
+        List<Repuesto> combinado = service.buscarPorFiltros("pastillas", "mecanico", "BOSCH", "AutoPartes");
+        assertEquals(1, combinado.size());
+        assertEquals(r3.getId(), combinado.get(0).getId());
+
+        List<Repuesto> sinFiltros = service.buscarPorFiltros(null, "", "  ", null);
+        assertEquals(3, sinFiltros.size());
+
+        List<Repuesto> sinCoincidencias = service.buscarPorFiltros("amortiguador", null, null, "Frenos");
+        assertTrue(sinCoincidencias.isEmpty());
+
+        List<Repuesto> proveedorInexistente = service.buscarPorFiltros(null, null, null, "NoExiste");
+        assertTrue(proveedorInexistente.isEmpty());
+    }
+
+    private Repuesto crearRepuestoBase(int tipoId, String nombre, String marca) {
+        Repuesto repuesto = new Repuesto();
+        repuesto.setRepuestoTipoId(tipoId);
+        repuesto.setNombre(nombre);
+        repuesto.setMarca(marca);
+        repuesto.setPrecioVenta(new BigDecimal("50000.00"));
+        repuesto.setStockMinimo(2);
+        return service.crearRepuesto(repuesto);
+    }
+
     private static class RepuestoTipoDAOEnMemoria implements RepuestoTipoDAO {
         private final List<RepuestoTipo> datos = new ArrayList<>();
 
@@ -306,6 +368,131 @@ class RepuestoServiceTest {
                 }
             }
             return false;
+        }
+    }
+
+    private static class ProveedorDAOMock implements ProveedorDAO {
+        private final List<Proveedor> datos = new ArrayList<>();
+
+        void agregar(Proveedor proveedor) {
+            datos.add(proveedor);
+        }
+
+        @Override
+        public List<Proveedor> listarTodos() {
+            return new ArrayList<>(datos);
+        }
+
+        @Override
+        public List<Proveedor> listarActivos() {
+            List<Proveedor> activos = new ArrayList<>();
+            for (Proveedor proveedor : datos) {
+                if (proveedor.isActivo()) {
+                    activos.add(proveedor);
+                }
+            }
+            return activos;
+        }
+
+        @Override
+        public Proveedor buscarPorId(int id) {
+            for (Proveedor proveedor : datos) {
+                if (proveedor.getId() == id) {
+                    return proveedor;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public Proveedor buscarPorEmail(String email) {
+            return null;
+        }
+
+        @Override
+        public int guardar(Proveedor proveedor) {
+            datos.add(proveedor);
+            return proveedor.getId();
+        }
+
+        @Override
+        public boolean actualizar(Proveedor proveedor) {
+            return true;
+        }
+
+        @Override
+        public boolean desactivar(int id) {
+            return true;
+        }
+
+        @Override
+        public boolean reactivar(int id) {
+            return true;
+        }
+    }
+
+    private static class ProveedorRepuestoDAOMock implements ProveedorRepuestoDAO {
+        private final List<ProveedorRepuesto> datos = new ArrayList<>();
+
+        void agregar(ProveedorRepuesto asociacion) {
+            datos.add(asociacion);
+        }
+
+        @Override
+        public List<ProveedorRepuesto> listarPorProveedor(int proveedorId) {
+            List<ProveedorRepuesto> resultado = new ArrayList<>();
+            for (ProveedorRepuesto item : datos) {
+                if (item.getProveedorId() == proveedorId) {
+                    resultado.add(item);
+                }
+            }
+            return resultado;
+        }
+
+        @Override
+        public List<ProveedorRepuesto> listarPorRepuesto(int repuestoId) {
+            List<ProveedorRepuesto> resultado = new ArrayList<>();
+            for (ProveedorRepuesto item : datos) {
+                if (item.getRepuestoId() == repuestoId) {
+                    resultado.add(item);
+                }
+            }
+            return resultado;
+        }
+
+        @Override
+        public ProveedorRepuesto buscarPorProveedorYRepuesto(int proveedorId, int repuestoId) {
+            for (ProveedorRepuesto item : datos) {
+                if (item.getProveedorId() == proveedorId && item.getRepuestoId() == repuestoId) {
+                    return item;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public boolean guardar(ProveedorRepuesto proveedorRepuesto) {
+            return datos.add(proveedorRepuesto);
+        }
+
+        @Override
+        public boolean actualizarCondiciones(ProveedorRepuesto proveedorRepuesto) {
+            return true;
+        }
+
+        @Override
+        public boolean eliminar(int proveedorId, int repuestoId) {
+            return true;
+        }
+
+        @Override
+        public int desmarcarHabitual(int repuestoId) {
+            return 0;
+        }
+
+        @Override
+        public boolean marcarHabitual(int proveedorId, int repuestoId) {
+            return true;
         }
     }
 }

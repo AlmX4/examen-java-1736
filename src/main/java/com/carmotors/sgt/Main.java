@@ -28,6 +28,7 @@ import com.carmotors.sgt.repository.impl.MantenimientoTipoDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
+import com.carmotors.sgt.repository.impl.RepuestoTipoDAOImpl;
 import com.carmotors.sgt.repository.impl.ServicioTipoDAOImpl;
 import com.carmotors.sgt.repository.impl.TecnicoDAOImpl;
 import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
@@ -78,10 +79,11 @@ public class Main {
         EvaluacionProveedorView evaluacionProveedorView = new EvaluacionProveedorView(evaluacionProveedorController, proveedorController);
 
         RepuestoDAO repuestoDAO = new RepuestoDAOImpl();
-        RepuestoService repuestoService = new RepuestoService(repuestoDAO);
+        ProveedorRepuestoDAO proveedorRepuestoDAO = new ProveedorRepuestoDAOImpl();
+        RepuestoService repuestoService = new RepuestoService(
+                repuestoDAO, new RepuestoTipoDAOImpl(), proveedorRepuestoDAO, proveedorDAO);
         RepuestoController repuestoController = new RepuestoController(repuestoService);
 
-        ProveedorRepuestoDAO proveedorRepuestoDAO = new ProveedorRepuestoDAOImpl();
         ProveedorRepuestoService proveedorRepuestoService =
                 new ProveedorRepuestoService(proveedorRepuestoDAO, proveedorDAO, repuestoDAO);
         ProveedorRepuestoController proveedorRepuestoController = new ProveedorRepuestoController(proveedorRepuestoService);

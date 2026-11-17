@@ -62,10 +62,11 @@ public class RepuestoView implements SubmenuVista {
             System.out.println("  7. Ver proveedores del repuesto");
             System.out.println("  8. Ingreso de lotes");
             System.out.println("  9. Ver stock del repuesto");
+            System.out.println(" 10. Buscar y filtrar repuestos");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 9);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 10);
             switch (opcion) {
                 case 1:
                     listarRepuestos();
@@ -103,6 +104,9 @@ public class RepuestoView implements SubmenuVista {
                     break;
                 case 9:
                     verStockRepuesto();
+                    break;
+                case 10:
+                    buscarPorFiltros();
                     break;
                 case 0:
                     ejecutando = false;
@@ -275,6 +279,45 @@ public class RepuestoView implements SubmenuVista {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
         ConsoleReader.pausar();
+    }
+
+    private void buscarPorFiltros() {
+        try {
+            System.out.println("\n  [Buscar y filtrar repuestos] (deje vacío cualquier criterio para omitirlo)");
+            mostrarGuiaTipos();
+            String nombre = ConsoleReader.leerTextoOpcional("Nombre");
+            String tipo = ConsoleReader.leerTextoOpcional("Tipo");
+            String marca = ConsoleReader.leerTextoOpcional("Marca");
+            String proveedor = ConsoleReader.leerTextoOpcional("Proveedor");
+
+            List<Repuesto> resultados = repuestoController.buscarPorFiltros(nombre, tipo, marca, proveedor);
+            if (resultados.isEmpty()) {
+                System.out.println("\n  [i] No se encontraron repuestos que coincidan con los filtros indicados.");
+            } else {
+                System.out.println("\n  [Resultados encontrados: " + resultados.size() + "]");
+                for (Repuesto repuesto : resultados) {
+                    imprimirDetalleRepuesto(repuesto);
+                }
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void mostrarGuiaTipos() {
+        List<RepuestoTipo> tipos = repuestoController.listarTipos();
+        if (tipos.isEmpty()) {
+            return;
+        }
+        StringBuilder guia = new StringBuilder("  Tipos disponibles: ");
+        for (int i = 0; i < tipos.size(); i++) {
+            if (i > 0) {
+                guia.append(", ");
+            }
+            guia.append(tipos.get(i).getNombre());
+        }
+        System.out.println(guia);
     }
 
     private int seleccionarTipo(List<RepuestoTipo> tipos) {

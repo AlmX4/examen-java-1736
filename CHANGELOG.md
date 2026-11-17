@@ -8,6 +8,14 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### Pendiente de integración — `feat(inventario): add multi-criteria parts search and filters (T3.6)` (`feature/gestion-inventario` → `develop`, cierra `#32`)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Adición de `InputValidator.normalizarParaBusqueda(String)` (`com.carmotors.sgt.util`) para normalizar búsquedas sin distinguir mayúsculas ni tildes usando métodos estándar de `String`.
+  - Extensión de `RepuestoService` (`com.carmotors.sgt.service`) inyectando `ProveedorRepuestoDAO` y `ProveedorDAO` (conservando constructores existentes) y agregando `buscarPorFiltros(nombre, tipo, marca, proveedor)` con carga previa SQL (`repuestoDAO`, `repuestoTipoDAO`, `proveedorDAO`, `proveedorRepuestoDAO`) y filtrado combinable en memoria mediante Lambdas y `Stream API` (`RF-04`, `RNF-11`).
+  - Exposición en `RepuestoController.buscarPorFiltros(...)`, cableado en `Main.java` y nueva opción `10. Buscar y filtrar repuestos` en `RepuestoView` (rango `0–10`) con mensajes claros cuando no existen coincidencias.
+  - Ampliación de `RepuestoServiceTest` cubriendo búsqueda individual por cada criterio, combinaciones múltiples, insensibilidad a mayúsculas y tildes, filtros vacíos y casos sin coincidencias.
+
 ### PR #86 — `refactor: rename repository classes to dao convention` (`refactor/rename-repository-classes` → `develop`)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**

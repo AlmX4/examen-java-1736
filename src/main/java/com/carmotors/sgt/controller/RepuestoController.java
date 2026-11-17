@@ -41,6 +41,10 @@ public class RepuestoController {
         return repuestoService.buscarPorId(id);
     }
 
+    public List<Repuesto> buscarPorFiltros(String nombre, String tipo, String marca, String proveedor) {
+        return repuestoService.buscarPorFiltros(nombre, tipo, marca, proveedor);
+    }
+
     public Repuesto crear(Repuesto repuesto) {
         return repuestoService.crearRepuesto(repuesto);
     }

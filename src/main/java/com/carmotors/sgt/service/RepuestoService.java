@@ -1,15 +1,26 @@
 package com.carmotors.sgt.service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.Proveedor;
+import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.RepuestoTipo;
+import com.carmotors.sgt.repository.ProveedorDAO;
+import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoTipoDAO;
+import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
+import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoTipoDAOImpl;
 import com.carmotors.sgt.util.InputValidator;
@@ -21,24 +32,39 @@ public class RepuestoService {
 
     private final RepuestoDAO repuestoDAO;
     private final RepuestoTipoDAO repuestoTipoDAO;
+    private final ProveedorRepuestoDAO proveedorRepuestoDAO;
+    private final ProveedorDAO proveedorDAO;
 
     public RepuestoService() {
-        this(new RepuestoDAOImpl(), new RepuestoTipoDAOImpl());
+        this(new RepuestoDAOImpl(), new RepuestoTipoDAOImpl(), new ProveedorRepuestoDAOImpl(), new ProveedorDAOImpl());
     }
 
     public RepuestoService(RepuestoDAO repuestoDAO) {
-        this(repuestoDAO, new RepuestoTipoDAOImpl());
+        this(repuestoDAO, new RepuestoTipoDAOImpl(), new ProveedorRepuestoDAOImpl(), new ProveedorDAOImpl());
     }
 
     public RepuestoService(RepuestoDAO repuestoDAO, RepuestoTipoDAO repuestoTipoDAO) {
+        this(repuestoDAO, repuestoTipoDAO, new ProveedorRepuestoDAOImpl(), new ProveedorDAOImpl());
+    }
+
+    public RepuestoService(RepuestoDAO repuestoDAO, RepuestoTipoDAO repuestoTipoDAO,
+                           ProveedorRepuestoDAO proveedorRepuestoDAO, ProveedorDAO proveedorDAO) {
         if (repuestoDAO == null) {
             throw new ValidacionException("El DAO de repuestos es obligatorio.");
         }
         if (repuestoTipoDAO == null) {
-            throw new ValidacionException("El repositorio de tipos de repuesto es obligatorio.");
+            throw new ValidacionException("El DAO de tipos de repuesto es obligatorio.");
+        }
+        if (proveedorRepuestoDAO == null) {
+            throw new ValidacionException("El DAO del catálogo proveedor-repuesto es obligatorio.");
+        }
+        if (proveedorDAO == null) {
+            throw new ValidacionException("El DAO de proveedores es obligatorio.");
         }
         this.repuestoDAO = repuestoDAO;
         this.repuestoTipoDAO = repuestoTipoDAO;
+        this.proveedorRepuestoDAO = proveedorRepuestoDAO;
+        this.proveedorDAO = proveedorDAO;
     }
 
     public List<Repuesto> listarTodos() {
@@ -71,6 +97,64 @@ public class RepuestoService {
             throw new EntidadNoEncontradaException("No se encontró un repuesto con el ID: " + id);
         }
         return repuesto;
+    }
+
+    /**
+     * Busca y filtra repuestos por nombre, tipo, marca o proveedor (RF-04, RNF-11).
+     * Los criterios son opcionales, combinables e insensibles a mayúsculas y tildes.
+     */
+    public List<Repuesto> buscarPorFiltros(String nombre, String tipo, String marca, String proveedor) {
+        String filtroNombre = InputValidator.normalizarParaBusqueda(nombre);
+        String filtroTipo = InputValidator.normalizarParaBusqueda(tipo);
+        String filtroMarca = InputValidator.normalizarParaBusqueda(marca);
+        String filtroProveedor = InputValidator.normalizarParaBusqueda(proveedor);
+
+        List<Repuesto> catalogo = repuestoDAO.listarTodos();
+        Map<Integer, String> tiposPorId = construirMapaTipos(filtroTipo);
+        Set<Integer> repuestoIdsProveedor = obtenerRepuestoIdsPorProveedor(filtroProveedor);
+
+        return catalogo.stream()
+                .filter(repuesto -> coincideTexto(repuesto.getNombre(), filtroNombre))
+                .filter(repuesto -> filtroTipo.isEmpty()
+                        || coincideTexto(tiposPorId.get(repuesto.getRepuestoTipoId()), filtroTipo))
+                .filter(repuesto -> coincideTexto(repuesto.getMarca(), filtroMarca))
+                .filter(repuesto -> filtroProveedor.isEmpty()
+                        || repuestoIdsProveedor.contains(repuesto.getId()))
+                .collect(Collectors.toList());
+    }
+
+    private Map<Integer, String> construirMapaTipos(String filtroTipo) {
+        Map<Integer, String> tiposPorId = new HashMap<>();
+        if (filtroTipo.isEmpty()) {
+            return tiposPorId;
+        }
+        for (RepuestoTipo repuestoTipo : repuestoTipoDAO.listarTodos()) {
+            tiposPorId.put(repuestoTipo.getId(), repuestoTipo.getNombre());
+        }
+        return tiposPorId;
+    }
+
+    private Set<Integer> obtenerRepuestoIdsPorProveedor(String filtroProveedor) {
+        Set<Integer> repuestoIds = new HashSet<>();
+        if (filtroProveedor.isEmpty()) {
+            return repuestoIds;
+        }
+        List<Proveedor> proveedoresCoincidentes = proveedorDAO.listarTodos().stream()
+                .filter(proveedor -> coincideTexto(proveedor.getNombre(), filtroProveedor))
+                .collect(Collectors.toList());
+        for (Proveedor proveedor : proveedoresCoincidentes) {
+            for (ProveedorRepuesto asociacion : proveedorRepuestoDAO.listarPorProveedor(proveedor.getId())) {
+                repuestoIds.add(asociacion.getRepuestoId());
+            }
+        }
+        return repuestoIds;
+    }
+
+    private boolean coincideTexto(String valor, String filtroNormalizado) {
+        if (filtroNormalizado.isEmpty()) {
+            return true;
+        }
+        return InputValidator.normalizarParaBusqueda(valor).contains(filtroNormalizado);
     }
 
     public Repuesto crearRepuesto(Repuesto repuesto) {
