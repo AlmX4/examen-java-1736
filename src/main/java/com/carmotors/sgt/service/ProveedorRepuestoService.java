@@ -100,8 +100,10 @@ public class ProveedorRepuestoService {
     public ProveedorRepuesto actualizarCondiciones(int proveedorId, int repuestoId, BigDecimal costo,
                                                    int tiempoEntregaDias) {
         ProveedorRepuesto actual = buscarAsociacion(proveedorId, repuestoId);
-        actual.setCosto(validarCosto(costo));
+        BigDecimal costoValidado = validarCosto(costo);
         validarTiempoEntrega(tiempoEntregaDias);
+
+        actual.setCosto(costoValidado);
         actual.setTiempoEntregaDias(tiempoEntregaDias);
 
         if (!proveedorRepuestoDAO.actualizarCondiciones(actual)) {
@@ -155,7 +157,9 @@ public class ProveedorRepuestoService {
             } catch (SQLException e) {
                 conexion.rollback();
                 throw e;
-            } catch (CarMotorsException e) {
+            } catch (RuntimeException e) {
+                // Cualquier error (incluidas las CarMotorsException del DAO) deshace la transacción;
+                // si no, el setAutoCommit(true) del finally confirmaría un cambio a medias.
                 conexion.rollback();
                 throw e;
             } finally {

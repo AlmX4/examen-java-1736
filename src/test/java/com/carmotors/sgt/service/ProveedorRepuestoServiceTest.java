@@ -199,6 +199,7 @@ class ProveedorRepuestoServiceTest {
                 () -> service.actualizarCondiciones(1, 1, BigDecimal.ZERO, 5));
         assertThrows(ValidacionException.class,
                 () -> service.actualizarCondiciones(1, 1, new BigDecimal("1000"), -2));
+        assertEquals(new BigDecimal("27000.56"), catalogoDAO.buscarPorProveedorYRepuesto(1, 1).getCosto());
         assertThrows(EntidadNoEncontradaException.class,
                 () -> service.actualizarCondiciones(2, 1, new BigDecimal("1000"), 1));
     }
