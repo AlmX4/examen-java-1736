@@ -8,6 +8,15 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### Pendiente de integración — `feat(inventario): add stock calculation (T3.5)` (`feature/gestion-inventario` → `develop`, cierra `#31`)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Dos consultas de agregación nuevas en `LoteDAO` / `LoteDAOImpl` con `PreparedStatement` y `COALESCE(SUM(cantidad_actual), 0)`: `sumarStockFisico(repuestoId)` (todos los lotes) y `sumarStockOperativo(repuestoId, fecha)` (lotes con `fecha_caducidad` `NULL` o igual/posterior a la fecha). No se agrega columna de stock a `repuestos` (sección 2.5).
+  - Creación de `StockRepuesto` (`com.carmotors.sgt.model`) como DTO de solo transporte: repuesto, stock físico, stock operativo, reservado, disponible, déficit y stock mínimo.
+  - Creación de `InventarioService` (`com.carmotors.sgt.service`) con DAOs inyectados por constructor (`RF-07`, `RN-01`, sección 2.5): reservado = `repuestos.cantidad_reservada`, disponible = `MAX(0, operativo - reservado)` y déficit = `MAX(0, reservado - operativo)`, con `LocalDate.now()` como fecha de referencia. Valida ID positivo (`ValidacionException`) y existencia del repuesto (`EntidadNoEncontradaException`). `calcularStockActivos()` devuelve las métricas de todos los repuestos activos con Stream API (`stream()`, `map()`, `collect(Collectors.toList())`) para reutilizarlas en T3.7.
+  - Creación de `InventarioController` (solo delega) y opción `9. Ver stock del repuesto` en `RepuestoView` (rango 0–9): muestra físico, operativo, reservado, disponible y mínimo, y una **ALERTA** con las unidades faltantes cuando hay reservas sin respaldo por lotes vencidos; captura `CarMotorsException` sin cerrar la aplicación. Se conservan los constructores existentes de la vista y se cablea en `Main.java`.
+  - Creación de `InventarioServiceTest` con 9 pruebas JUnit 5 en memoria y fechas relativas a `LocalDate.now()`: repuesto sin lotes, solo lotes vigentes, lotes sin caducidad, lote que vence hoy y lote vencido ayer, disponible con reservas, déficit, repuesto inexistente, ID inválido y métricas de activos sin inactivos. `LoteServiceTest` actualiza su DAO en memoria con los dos métodos nuevos (138 pruebas en total, 0 fallos).
+
 ### Pendiente de integración — `feat(proveedores): add supplier-part catalog (T3.1)` (`feature/gestion-proveedores` → `develop`, cierra `#27`)
 - **Autor:** `@JopsWtD`
 - **Revisión solicitada:** `@julio7879`
