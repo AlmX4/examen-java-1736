@@ -8,7 +8,17 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
-### Pendiente de integración — `feat(proveedores): add supplier ranking (T2.7)` (`feature/gestion-proveedores` → `develop`, cierra `#26`)
+### Pendiente de integración — `feat(proveedores): add supplier-part catalog (T3.1)` (`feature/gestion-proveedores` → `develop`, cierra `#27`)
+- **Autor:** `@JopsWtD`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de `ProveedorRepuesto` (`com.carmotors.sgt.model`) con clave compuesta `proveedorId` + `repuestoId`, `costo` (`BigDecimal`), `tiempoEntregaDias` y `esHabitual`.
+  - Creación de `ProveedorRepuestoDAO` (`com.carmotors.sgt.repository`) y `ProveedorRepuestoDAOImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, try-with-resources y constructor dual con `Connection` compartida: guardar, actualizar costo y tiempo de entrega, eliminar, buscar por par, listar por proveedor o por repuesto, desmarcar y marcar habitual (`RNF-07`).
+  - Creación de `ProveedorRepuestoService` (`com.carmotors.sgt.service`) con las reglas de `RF-29` y `RN-18`: proveedor y repuesto existentes, proveedor activo para asociarlo o marcarlo habitual, costo mayor que cero (escala 2, `HALF_UP`), tiempo de entrega no negativo, par único (`DatoDuplicadoException`) y como máximo un habitual por repuesto. El cambio de habitual desmarca el anterior y marca el nuevo en **una sola transacción JDBC** (`setAutoCommit(false)`, misma `Connection` para el DAO, `commit`/`rollback`, cierre con try-with-resources; `RNF-08`, sección 5.6).
+  - Creación de `ProveedorRepuestoController` y `CatalogoProveedorView` (`com.carmotors.sgt.view`): opción `8. Catálogo de repuestos del proveedor` en `ProveedorView` (listar, asociar, actualizar condiciones, quitar con confirmación `(S/N)` y marcar habitual) y opción `7. Ver proveedores del repuesto` en `RepuestoView`. Cableado en `Main.java`, conservando los constructores existentes de ambas vistas.
+  - Creación de `ProveedorRepuestoServiceTest` con 15 pruebas JUnit 5 en memoria: asociación válida, entidades inexistentes, proveedor inactivo, costo y tiempo inválidos, par duplicado, marcar y cambiar habitual, habitual inactivo, actualización, eliminación y listados (121 pruebas en total, 0 fallos).
+
+### PR #82 — `feat(proveedores): add supplier ranking (T2.7)` (`feature/gestion-proveedores` → `develop`, cierra `#26`)
 - **Autor:** `@JopsWtD`
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
