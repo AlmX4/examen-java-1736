@@ -4,6 +4,7 @@ import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.controller.EvaluacionProveedorController;
 import com.carmotors.sgt.controller.InventarioController;
 import com.carmotors.sgt.controller.LoteController;
+import com.carmotors.sgt.controller.OrdenServicioController;
 import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.controller.ProveedorRepuestoController;
 import com.carmotors.sgt.controller.RepuestoController;
@@ -36,6 +37,7 @@ import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
 import com.carmotors.sgt.service.InventarioService;
 import com.carmotors.sgt.service.LoteService;
+import com.carmotors.sgt.service.OrdenServicioService;
 import com.carmotors.sgt.service.ProveedorService;
 import com.carmotors.sgt.service.ProveedorRepuestoService;
 import com.carmotors.sgt.service.RepuestoService;
@@ -47,9 +49,11 @@ import com.carmotors.sgt.view.ClienteView;
 import com.carmotors.sgt.view.ConsolaMenuView;
 import com.carmotors.sgt.view.EvaluacionProveedorView;
 import com.carmotors.sgt.view.LoteView;
+import com.carmotors.sgt.view.OrdenServicioView;
 import com.carmotors.sgt.view.ProveedorView;
 import com.carmotors.sgt.view.RepuestoView;
 import com.carmotors.sgt.view.ServicioTipoView;
+import com.carmotors.sgt.view.ServiciosMenuView;
 import com.carmotors.sgt.view.TecnicoView;
 
 /**
@@ -114,7 +118,13 @@ public class Main {
         ServicioTipoService servicioTipoService = new ServicioTipoService(
                 servicioTipoDAO, mantenimientoTipoDAO, especialidadDAO);
         ServicioTipoController servicioTipoController = new ServicioTipoController(servicioTipoService);
-        menuPrincipal.setSubmenuServicios(new ServicioTipoView(servicioTipoController));
+        ServicioTipoView servicioTipoView = new ServicioTipoView(servicioTipoController);
+
+        OrdenServicioService ordenServicioService = new OrdenServicioService(vehiculoDAO, clienteDAO, servicioTipoDAO);
+        OrdenServicioController ordenServicioController = new OrdenServicioController(ordenServicioService);
+        OrdenServicioView ordenServicioView =
+                new OrdenServicioView(ordenServicioController, clienteController, servicioTipoController);
+        menuPrincipal.setSubmenuServicios(new ServiciosMenuView(servicioTipoView, ordenServicioView));
 
         // Conexión de submenús por módulo (implementar SubmenuVista en com.carmotors.sgt.view):
         // menuPrincipal.setSubmenuFacturacion(new FacturacionView(facturacionController));
