@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia para el catálogo de tipos de servicio ({@code servicio_tipos}).
  */
-public interface ServicioTipoRepository {
+public interface ServicioTipoDAO {
 
     /**
      * Retorna todos los tipos de servicio ordenados por ID ascendente.

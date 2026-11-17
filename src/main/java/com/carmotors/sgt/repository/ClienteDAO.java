@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia para la gestión de clientes del taller (RF-17, RN-13, RN-17).
  */
-public interface ClienteRepository {
+public interface ClienteDAO {
 
     /**
      * Retorna todos los clientes registrados ordenados por ID ascendente.

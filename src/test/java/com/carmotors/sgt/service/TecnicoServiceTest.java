@@ -5,8 +5,8 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
-import com.carmotors.sgt.repository.EspecialidadRepository;
-import com.carmotors.sgt.repository.TecnicoRepository;
+import com.carmotors.sgt.repository.EspecialidadDAO;
+import com.carmotors.sgt.repository.TecnicoDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,14 +24,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class TecnicoServiceTest {
 
-    private TecnicoRepositoryEnMemoria tecnicoRepository;
-    private EspecialidadRepositoryEnMemoria especialidadRepository;
+    private TecnicoDAOEnMemoria tecnicoRepository;
+    private EspecialidadDAOEnMemoria especialidadRepository;
     private TecnicoService tecnicoService;
 
     @BeforeEach
     void configurar() {
-        tecnicoRepository = new TecnicoRepositoryEnMemoria();
-        especialidadRepository = new EspecialidadRepositoryEnMemoria();
+        tecnicoRepository = new TecnicoDAOEnMemoria();
+        especialidadRepository = new EspecialidadDAOEnMemoria();
         especialidadRepository.agregar(new Especialidad(1, "Mecánica general"));
         especialidadRepository.agregar(new Especialidad(3, "Frenos"));
         tecnicoService = new TecnicoService(tecnicoRepository, especialidadRepository);
@@ -112,7 +112,7 @@ class TecnicoServiceTest {
         assertThrows(EntidadNoEncontradaException.class, () -> tecnicoService.buscarPorId(999));
     }
 
-    private static class EspecialidadRepositoryEnMemoria implements EspecialidadRepository {
+    private static class EspecialidadDAOEnMemoria implements EspecialidadDAO {
 
         private final List<Especialidad> datos = new ArrayList<>();
 
@@ -136,7 +136,7 @@ class TecnicoServiceTest {
         }
     }
 
-    private static class TecnicoRepositoryEnMemoria implements TecnicoRepository {
+    private static class TecnicoDAOEnMemoria implements TecnicoDAO {
 
         private final List<Tecnico> datos = new ArrayList<>();
         private int secuenciaId = 1;

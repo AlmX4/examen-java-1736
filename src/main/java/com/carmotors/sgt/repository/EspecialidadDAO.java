@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia de solo lectura para las especialidades técnicas.
  */
-public interface EspecialidadRepository {
+public interface EspecialidadDAO {
 
     /**
      * Retorna todas las especialidades técnicas ordenadas por ID ascendente.

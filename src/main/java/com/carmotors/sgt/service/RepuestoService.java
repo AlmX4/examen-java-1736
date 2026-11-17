@@ -9,9 +9,9 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.RepuestoTipo;
 import com.carmotors.sgt.repository.RepuestoDAO;
-import com.carmotors.sgt.repository.RepuestoTipoRepository;
+import com.carmotors.sgt.repository.RepuestoTipoDAO;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
-import com.carmotors.sgt.repository.impl.RepuestoTipoRepositoryImpl;
+import com.carmotors.sgt.repository.impl.RepuestoTipoDAOImpl;
 import com.carmotors.sgt.util.InputValidator;
 
 public class RepuestoService {
@@ -20,25 +20,25 @@ public class RepuestoService {
     private static final int MAX_LONGITUD_MARCA = 50;
 
     private final RepuestoDAO repuestoDAO;
-    private final RepuestoTipoRepository repuestoTipoRepository;
+    private final RepuestoTipoDAO repuestoTipoDAO;
 
     public RepuestoService() {
-        this(new RepuestoDAOImpl(), new RepuestoTipoRepositoryImpl());
+        this(new RepuestoDAOImpl(), new RepuestoTipoDAOImpl());
     }
 
     public RepuestoService(RepuestoDAO repuestoDAO) {
-        this(repuestoDAO, new RepuestoTipoRepositoryImpl());
+        this(repuestoDAO, new RepuestoTipoDAOImpl());
     }
 
-    public RepuestoService(RepuestoDAO repuestoDAO, RepuestoTipoRepository repuestoTipoRepository) {
+    public RepuestoService(RepuestoDAO repuestoDAO, RepuestoTipoDAO repuestoTipoDAO) {
         if (repuestoDAO == null) {
             throw new ValidacionException("El DAO de repuestos es obligatorio.");
         }
-        if (repuestoTipoRepository == null) {
+        if (repuestoTipoDAO == null) {
             throw new ValidacionException("El repositorio de tipos de repuesto es obligatorio.");
         }
         this.repuestoDAO = repuestoDAO;
-        this.repuestoTipoRepository = repuestoTipoRepository;
+        this.repuestoTipoDAO = repuestoTipoDAO;
     }
 
     public List<Repuesto> listarTodos() {
@@ -50,14 +50,14 @@ public class RepuestoService {
     }
 
     public List<RepuestoTipo> listarTipos() {
-        return repuestoTipoRepository.listarTodos();
+        return repuestoTipoDAO.listarTodos();
     }
 
     public String obtenerNombreTipo(int tipoId) {
         if (tipoId <= 0) {
             return "Sin tipo";
         }
-        RepuestoTipo tipo = repuestoTipoRepository.buscarPorId(tipoId);
+        RepuestoTipo tipo = repuestoTipoDAO.buscarPorId(tipoId);
         return tipo == null ? "Sin tipo" : tipo.getNombre();
     }
 
@@ -149,7 +149,7 @@ public class RepuestoService {
             throw new ValidacionException("El repuesto no puede ser nulo.");
         }
 
-        if (repuesto.getRepuestoTipoId() <= 0 || repuestoTipoRepository.buscarPorId(repuesto.getRepuestoTipoId()) == null) {
+        if (repuesto.getRepuestoTipoId() <= 0 || repuestoTipoDAO.buscarPorId(repuesto.getRepuestoTipoId()) == null) {
             throw new ValidacionException("Debe seleccionar un tipo de repuesto válido.");
         }
 

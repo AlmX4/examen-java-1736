@@ -4,7 +4,7 @@ import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
-import com.carmotors.sgt.repository.ClienteRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.util.List;
@@ -19,28 +19,28 @@ public class ClienteService {
     private static final int MAX_LONGITUD_TELEFONO = 20;
     private static final int MAX_LONGITUD_EMAIL = 100;
 
-    private final ClienteRepository clienteRepository;
+    private final ClienteDAO clienteDAO;
 
-    public ClienteService(ClienteRepository clienteRepository) {
-        if (clienteRepository == null) {
+    public ClienteService(ClienteDAO clienteDAO) {
+        if (clienteDAO == null) {
             throw new IllegalArgumentException("El repositorio de clientes es obligatorio.");
         }
-        this.clienteRepository = clienteRepository;
+        this.clienteDAO = clienteDAO;
     }
 
     public List<Cliente> listarTodos() {
-        return clienteRepository.listarTodos();
+        return clienteDAO.listarTodos();
     }
 
     public List<Cliente> listarActivos() {
-        return clienteRepository.listarActivos();
+        return clienteDAO.listarActivos();
     }
 
     public Cliente buscarPorId(int id) {
         if (id <= 0) {
             throw new ValidacionException("El ID del cliente debe ser un número positivo.");
         }
-        Cliente cliente = clienteRepository.buscarPorId(id);
+        Cliente cliente = clienteDAO.buscarPorId(id);
         if (cliente == null) {
             throw new EntidadNoEncontradaException("No se encontró un cliente con el ID: " + id);
         }
@@ -52,7 +52,7 @@ public class ClienteService {
         if (docNormalizado.isEmpty()) {
             throw new ValidacionException("Debe ingresar un documento de identidad válido.");
         }
-        Cliente cliente = clienteRepository.buscarPorDocumento(docNormalizado);
+        Cliente cliente = clienteDAO.buscarPorDocumento(docNormalizado);
         if (cliente == null) {
             throw new EntidadNoEncontradaException(
                     "No se encontró ningún cliente con el documento: " + docNormalizado);
@@ -63,19 +63,19 @@ public class ClienteService {
     public Cliente registrarCliente(Cliente cliente) {
         validarYNormalizarDatos(cliente);
 
-        Cliente conMismoDoc = clienteRepository.buscarPorDocumento(cliente.getDocumentoIdentidad());
+        Cliente conMismoDoc = clienteDAO.buscarPorDocumento(cliente.getDocumentoIdentidad());
         if (conMismoDoc != null) {
             throw new DatoDuplicadoException(
                     "Ya existe un cliente registrado con el documento: " + cliente.getDocumentoIdentidad());
         }
-        Cliente conMismoEmail = clienteRepository.buscarPorEmail(cliente.getEmail());
+        Cliente conMismoEmail = clienteDAO.buscarPorEmail(cliente.getEmail());
         if (conMismoEmail != null) {
             throw new DatoDuplicadoException(
                     "Ya existe un cliente registrado con el email: " + cliente.getEmail());
         }
 
         cliente.setActivo(true);
-        int idGenerado = clienteRepository.guardar(cliente);
+        int idGenerado = clienteDAO.guardar(cliente);
         cliente.setId(idGenerado);
         return cliente;
     }
@@ -84,19 +84,19 @@ public class ClienteService {
         if (cliente == null || cliente.getId() <= 0) {
             throw new ValidacionException("Debe indicar un cliente válido con ID mayor que cero.");
         }
-        Cliente actual = clienteRepository.buscarPorId(cliente.getId());
+        Cliente actual = clienteDAO.buscarPorId(cliente.getId());
         if (actual == null) {
             throw new EntidadNoEncontradaException("No existe un cliente con el ID: " + cliente.getId());
         }
 
         validarYNormalizarDatos(cliente);
 
-        Cliente conMismoDoc = clienteRepository.buscarPorDocumento(cliente.getDocumentoIdentidad());
+        Cliente conMismoDoc = clienteDAO.buscarPorDocumento(cliente.getDocumentoIdentidad());
         if (conMismoDoc != null && conMismoDoc.getId() != cliente.getId()) {
             throw new DatoDuplicadoException(
                     "Ya existe otro cliente registrado con el documento: " + cliente.getDocumentoIdentidad());
         }
-        Cliente conMismoEmail = clienteRepository.buscarPorEmail(cliente.getEmail());
+        Cliente conMismoEmail = clienteDAO.buscarPorEmail(cliente.getEmail());
         if (conMismoEmail != null && conMismoEmail.getId() != cliente.getId()) {
             throw new DatoDuplicadoException(
                     "Ya existe otro cliente registrado con el email: " + cliente.getEmail());
@@ -104,7 +104,7 @@ public class ClienteService {
 
         // El estado de activación solo cambia mediante desactivar/reactivar (RN-17).
         cliente.setActivo(actual.isActivo());
-        boolean actualizado = clienteRepository.actualizar(cliente);
+        boolean actualizado = clienteDAO.actualizar(cliente);
         if (!actualizado) {
             throw new ValidacionException("No se pudo actualizar el cliente con ID: " + cliente.getId());
         }
@@ -119,7 +119,7 @@ public class ClienteService {
         if (!cliente.isActivo()) {
             return cliente;
         }
-        boolean actualizado = clienteRepository.actualizarEstadoActivo(id, false);
+        boolean actualizado = clienteDAO.actualizarEstadoActivo(id, false);
         if (!actualizado) {
             throw new ValidacionException("No se pudo desactivar el cliente con ID: " + id);
         }
@@ -132,7 +132,7 @@ public class ClienteService {
         if (cliente.isActivo()) {
             return cliente;
         }
-        boolean actualizado = clienteRepository.actualizarEstadoActivo(id, true);
+        boolean actualizado = clienteDAO.actualizarEstadoActivo(id, true);
         if (!actualizado) {
             throw new ValidacionException("No se pudo reactivar el cliente con ID: " + id);
         }

@@ -3,7 +3,7 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.ServicioEstado;
-import com.carmotors.sgt.repository.ServicioEstadoRepository;
+import com.carmotors.sgt.repository.ServicioEstadoDAO;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,14 +15,14 @@ import java.util.List;
 /**
  * Implementación JDBC para la consulta de estados de servicio.
  */
-public class ServicioEstadoRepositoryImpl implements ServicioEstadoRepository {
+public class ServicioEstadoDAOImpl implements ServicioEstadoDAO {
 
     private final Connection conexionCompartida;
 
     /**
      * Constructor por defecto que obtiene conexiones desde {@link ConnectionFactory}.
      */
-    public ServicioEstadoRepositoryImpl() {
+    public ServicioEstadoDAOImpl() {
         this.conexionCompartida = null;
     }
 
@@ -31,7 +31,7 @@ public class ServicioEstadoRepositoryImpl implements ServicioEstadoRepository {
      *
      * @param conexion conexión JDBC compartida
      */
-    public ServicioEstadoRepositoryImpl(Connection conexion) {
+    public ServicioEstadoDAOImpl(Connection conexion) {
         this.conexionCompartida = conexion;
     }
 

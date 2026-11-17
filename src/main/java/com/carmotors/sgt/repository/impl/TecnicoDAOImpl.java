@@ -3,7 +3,7 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Tecnico;
-import com.carmotors.sgt.repository.TecnicoRepository;
+import com.carmotors.sgt.repository.TecnicoDAO;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Implementación JDBC para la persistencia de técnicos (RF-33, RNF-07, RNF-08).
  */
-public class TecnicoRepositoryImpl implements TecnicoRepository {
+public class TecnicoDAOImpl implements TecnicoDAO {
 
     private static final String COLUMNAS_SELECT =
             "SELECT id, nombre, documento_identidad, especialidad_id, telefono, activo FROM tecnicos";
@@ -27,7 +27,7 @@ public class TecnicoRepositoryImpl implements TecnicoRepository {
     /**
      * Constructor por defecto que obtiene conexiones desde {@link ConnectionFactory}.
      */
-    public TecnicoRepositoryImpl() {
+    public TecnicoDAOImpl() {
         this.conexionCompartida = null;
     }
 
@@ -36,7 +36,7 @@ public class TecnicoRepositoryImpl implements TecnicoRepository {
      *
      * @param conexion conexión JDBC compartida
      */
-    public TecnicoRepositoryImpl(Connection conexion) {
+    public TecnicoDAOImpl(Connection conexion) {
         this.conexionCompartida = conexion;
     }
 

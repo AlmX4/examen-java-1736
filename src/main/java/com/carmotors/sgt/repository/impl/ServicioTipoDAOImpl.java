@@ -4,7 +4,7 @@ import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.ServicioTipo;
-import com.carmotors.sgt.repository.ServicioTipoRepository;
+import com.carmotors.sgt.repository.ServicioTipoDAO;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * Implementación JDBC para el catálogo de tipos de servicio (RNF-07, RNF-08, RNF-15).
  */
-public class ServicioTipoRepositoryImpl implements ServicioTipoRepository {
+public class ServicioTipoDAOImpl implements ServicioTipoDAO {
 
     private static final String COLUMNAS_SELECT =
             "SELECT id, nombre, mantenimiento_tipo_id, especialidad_id, precio_mano_obra_base, intervalo_meses "
@@ -31,7 +31,7 @@ public class ServicioTipoRepositoryImpl implements ServicioTipoRepository {
     /**
      * Constructor por defecto que obtiene conexiones desde {@link ConnectionFactory}.
      */
-    public ServicioTipoRepositoryImpl() {
+    public ServicioTipoDAOImpl() {
         this.conexionCompartida = null;
     }
 
@@ -40,7 +40,7 @@ public class ServicioTipoRepositoryImpl implements ServicioTipoRepository {
      *
      * @param conexion conexión JDBC compartida
      */
-    public ServicioTipoRepositoryImpl(Connection conexion) {
+    public ServicioTipoDAOImpl(Connection conexion) {
         this.conexionCompartida = conexion;
     }
 

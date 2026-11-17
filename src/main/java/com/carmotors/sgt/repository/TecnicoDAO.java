@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia para la gestión de técnicos del taller (RF-33, RN-17).
  */
-public interface TecnicoRepository {
+public interface TecnicoDAO {
 
     /**
      * Retorna todos los técnicos registrados ordenados por ID ascendente.

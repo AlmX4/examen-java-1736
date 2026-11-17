@@ -2,8 +2,8 @@ package com.carmotors.sgt.repository.impl;
 
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
-import com.carmotors.sgt.model.Especialidad;
-import com.carmotors.sgt.repository.EspecialidadRepository;
+import com.carmotors.sgt.model.RepuestoTipo;
+import com.carmotors.sgt.repository.RepuestoTipoDAO;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,16 +13,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Implementación JDBC para la consulta de especialidades técnicas.
+ * Implementación JDBC para la consulta de tipos de repuesto.
  */
-public class EspecialidadRepositoryImpl implements EspecialidadRepository {
+public class RepuestoTipoDAOImpl implements RepuestoTipoDAO {
 
     private final Connection conexionCompartida;
 
     /**
      * Constructor por defecto que obtiene conexiones desde {@link ConnectionFactory}.
      */
-    public EspecialidadRepositoryImpl() {
+    public RepuestoTipoDAOImpl() {
         this.conexionCompartida = null;
     }
 
@@ -31,60 +31,60 @@ public class EspecialidadRepositoryImpl implements EspecialidadRepository {
      *
      * @param conexion conexión JDBC compartida
      */
-    public EspecialidadRepositoryImpl(Connection conexion) {
+    public RepuestoTipoDAOImpl(Connection conexion) {
         this.conexionCompartida = conexion;
     }
 
     @Override
-    public List<Especialidad> listarTodos() {
-        String sql = "SELECT id, nombre FROM especialidades ORDER BY id ASC";
+    public List<RepuestoTipo> listarTodos() {
+        String sql = "SELECT id, nombre FROM repuesto_tipos ORDER BY id ASC";
         if (conexionCompartida != null) {
             return consultarLista(conexionCompartida, sql);
         }
         try (Connection conn = ConnectionFactory.getInstance().getConnection()) {
             return consultarLista(conn, sql);
         } catch (SQLException e) {
-            throw new CarMotorsException("Error al listar especialidades: " + e.getMessage(), e);
+            throw new CarMotorsException("Error al listar tipos de repuesto: " + e.getMessage(), e);
         }
     }
 
     @Override
-    public Especialidad buscarPorId(int id) {
-        String sql = "SELECT id, nombre FROM especialidades WHERE id = ?";
+    public RepuestoTipo buscarPorId(int id) {
+        String sql = "SELECT id, nombre FROM repuesto_tipos WHERE id = ?";
         if (conexionCompartida != null) {
             return consultarPorId(conexionCompartida, sql, id);
         }
         try (Connection conn = ConnectionFactory.getInstance().getConnection()) {
             return consultarPorId(conn, sql, id);
         } catch (SQLException e) {
-            throw new CarMotorsException("Error al buscar especialidad por ID " + id + ": " + e.getMessage(), e);
+            throw new CarMotorsException("Error al buscar tipo de repuesto por ID " + id + ": " + e.getMessage(), e);
         }
     }
 
-    private List<Especialidad> consultarLista(Connection conn, String sql) {
-        List<Especialidad> lista = new ArrayList<>();
+    private List<RepuestoTipo> consultarLista(Connection conn, String sql) {
+        List<RepuestoTipo> lista = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                lista.add(new Especialidad(rs.getInt("id"), rs.getString("nombre")));
+                lista.add(new RepuestoTipo(rs.getInt("id"), rs.getString("nombre")));
             }
             return lista;
         } catch (SQLException e) {
-            throw new CarMotorsException("Error al consultar especialidades: " + e.getMessage(), e);
+            throw new CarMotorsException("Error al consultar tipos de repuesto: " + e.getMessage(), e);
         }
     }
 
-    private Especialidad consultarPorId(Connection conn, String sql, int id) {
+    private RepuestoTipo consultarPorId(Connection conn, String sql, int id) {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new Especialidad(rs.getInt("id"), rs.getString("nombre"));
+                    return new RepuestoTipo(rs.getInt("id"), rs.getString("nombre"));
                 }
                 return null;
             }
         } catch (SQLException e) {
-            throw new CarMotorsException("Error al consultar especialidad con ID " + id + ": " + e.getMessage(), e);
+            throw new CarMotorsException("Error al consultar tipo de repuesto con ID " + id + ": " + e.getMessage(), e);
         }
     }
 }

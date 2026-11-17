@@ -3,7 +3,7 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Cliente;
-import com.carmotors.sgt.repository.ClienteRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Implementación JDBC para la persistencia de clientes (RF-17, RNF-07, RNF-08).
  */
-public class ClienteRepositoryImpl implements ClienteRepository {
+public class ClienteDAOImpl implements ClienteDAO {
 
     private static final String COLUMNAS_SELECT =
             "SELECT id, nombre, documento_identidad, telefono, email, activo FROM clientes";
@@ -27,7 +27,7 @@ public class ClienteRepositoryImpl implements ClienteRepository {
     /**
      * Constructor por defecto que obtiene conexiones desde {@link ConnectionFactory}.
      */
-    public ClienteRepositoryImpl() {
+    public ClienteDAOImpl() {
         this.conexionCompartida = null;
     }
 
@@ -36,7 +36,7 @@ public class ClienteRepositoryImpl implements ClienteRepository {
      *
      * @param conexion conexión JDBC compartida
      */
-    public ClienteRepositoryImpl(Connection conexion) {
+    public ClienteDAOImpl(Connection conexion) {
         this.conexionCompartida = conexion;
     }
 

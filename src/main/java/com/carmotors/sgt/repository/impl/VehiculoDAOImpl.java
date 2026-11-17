@@ -3,7 +3,7 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Vehiculo;
-import com.carmotors.sgt.repository.VehiculoRepository;
+import com.carmotors.sgt.repository.VehiculoDAO;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,15 +16,15 @@ import java.util.List;
 /**
  * Implementación JDBC para la gestión de vehículos (RF-18, RN-13, RN-17).
  */
-public class VehiculoRepositoryImpl implements VehiculoRepository {
+public class VehiculoDAOImpl implements VehiculoDAO {
 
     private final Connection conexionCompartida;
 
-    public VehiculoRepositoryImpl() {
+    public VehiculoDAOImpl() {
         this.conexionCompartida = null;
     }
 
-    public VehiculoRepositoryImpl(Connection conexionCompartida) {
+    public VehiculoDAOImpl(Connection conexionCompartida) {
         this.conexionCompartida = conexionCompartida;
     }
 

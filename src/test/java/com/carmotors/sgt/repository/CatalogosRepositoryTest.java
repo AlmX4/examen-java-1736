@@ -5,10 +5,10 @@ import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.MantenimientoTipo;
 import com.carmotors.sgt.model.RepuestoTipo;
 import com.carmotors.sgt.model.ServicioEstado;
-import com.carmotors.sgt.repository.impl.EspecialidadRepositoryImpl;
-import com.carmotors.sgt.repository.impl.MantenimientoTipoRepositoryImpl;
-import com.carmotors.sgt.repository.impl.RepuestoTipoRepositoryImpl;
-import com.carmotors.sgt.repository.impl.ServicioEstadoRepositoryImpl;
+import com.carmotors.sgt.repository.impl.EspecialidadDAOImpl;
+import com.carmotors.sgt.repository.impl.MantenimientoTipoDAOImpl;
+import com.carmotors.sgt.repository.impl.RepuestoTipoDAOImpl;
+import com.carmotors.sgt.repository.impl.ServicioEstadoDAOImpl;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,10 +29,10 @@ class CatalogosRepositoryTest {
     @Test
     @DisplayName("Los repositorios deben instanciarse correctamente sin conexión compartida")
     void testInstanciacionRepositorios() {
-        assertNotNull(new RepuestoTipoRepositoryImpl());
-        assertNotNull(new EspecialidadRepositoryImpl());
-        assertNotNull(new MantenimientoTipoRepositoryImpl());
-        assertNotNull(new ServicioEstadoRepositoryImpl());
+        assertNotNull(new RepuestoTipoDAOImpl());
+        assertNotNull(new EspecialidadDAOImpl());
+        assertNotNull(new MantenimientoTipoDAOImpl());
+        assertNotNull(new ServicioEstadoDAOImpl());
     }
 
     @Test
@@ -44,7 +44,7 @@ class CatalogosRepositoryTest {
 
         try {
             // 1. RepuestoTipoRepository
-            RepuestoTipoRepository repRepo = new RepuestoTipoRepositoryImpl();
+            RepuestoTipoDAO repRepo = new RepuestoTipoDAOImpl();
             List<RepuestoTipo> tipos = repRepo.listarTodos();
             assertNotNull(tipos, "La lista de tipos de repuesto no debe ser nula");
             assertFalse(tipos.isEmpty(), "La lista de tipos de repuesto debe contener registros de data.sql");
@@ -52,7 +52,7 @@ class CatalogosRepositoryTest {
             assertNull(repRepo.buscarPorId(9999), "Un ID inexistente debe retornar null");
 
             // 2. EspecialidadRepository
-            EspecialidadRepository espRepo = new EspecialidadRepositoryImpl();
+            EspecialidadDAO espRepo = new EspecialidadDAOImpl();
             List<Especialidad> especialidades = espRepo.listarTodos();
             assertNotNull(especialidades, "La lista de especialidades no debe ser nula");
             assertFalse(especialidades.isEmpty(), "La lista de especialidades debe contener registros");
@@ -60,7 +60,7 @@ class CatalogosRepositoryTest {
             assertNull(espRepo.buscarPorId(9999));
 
             // 3. MantenimientoTipoRepository
-            MantenimientoTipoRepository mantRepo = new MantenimientoTipoRepositoryImpl();
+            MantenimientoTipoDAO mantRepo = new MantenimientoTipoDAOImpl();
             List<MantenimientoTipo> mantenimientos = mantRepo.listarTodos();
             assertNotNull(mantenimientos, "La lista de tipos de mantenimiento no debe ser nula");
             assertFalse(mantenimientos.isEmpty(), "La lista de tipos de mantenimiento debe contener registros");
@@ -68,7 +68,7 @@ class CatalogosRepositoryTest {
             assertNull(mantRepo.buscarPorId(9999));
 
             // 4. ServicioEstadoRepository
-            ServicioEstadoRepository estadoRepo = new ServicioEstadoRepositoryImpl();
+            ServicioEstadoDAO estadoRepo = new ServicioEstadoDAOImpl();
             List<ServicioEstado> estados = estadoRepo.listarTodos();
             assertNotNull(estados, "La lista de estados no debe ser nula");
             assertFalse(estados.isEmpty(), "La lista de estados debe contener registros");
