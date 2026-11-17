@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia para la gestión de vehículos (RF-18, RN-13, RN-17).
  */
-public interface VehiculoRepository {
+public interface VehiculoDAO {
 
     /**
      * Inserta un nuevo vehículo y retorna el ID autogenerado.

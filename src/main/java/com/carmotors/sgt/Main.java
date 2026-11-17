@@ -9,28 +9,28 @@ import com.carmotors.sgt.controller.ProveedorRepuestoController;
 import com.carmotors.sgt.controller.RepuestoController;
 import com.carmotors.sgt.controller.ServicioTipoController;
 import com.carmotors.sgt.controller.TecnicoController;
-import com.carmotors.sgt.repository.ClienteRepository;
-import com.carmotors.sgt.repository.EspecialidadRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.EspecialidadDAO;
 import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
 import com.carmotors.sgt.repository.LoteDAO;
-import com.carmotors.sgt.repository.MantenimientoTipoRepository;
+import com.carmotors.sgt.repository.MantenimientoTipoDAO;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
-import com.carmotors.sgt.repository.ServicioTipoRepository;
-import com.carmotors.sgt.repository.TecnicoRepository;
-import com.carmotors.sgt.repository.VehiculoRepository;
-import com.carmotors.sgt.repository.impl.ClienteRepositoryImpl;
-import com.carmotors.sgt.repository.impl.EspecialidadRepositoryImpl;
+import com.carmotors.sgt.repository.ServicioTipoDAO;
+import com.carmotors.sgt.repository.TecnicoDAO;
+import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.repository.impl.ClienteDAOImpl;
+import com.carmotors.sgt.repository.impl.EspecialidadDAOImpl;
 import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.LoteDAOImpl;
-import com.carmotors.sgt.repository.impl.MantenimientoTipoRepositoryImpl;
+import com.carmotors.sgt.repository.impl.MantenimientoTipoDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
-import com.carmotors.sgt.repository.impl.ServicioTipoRepositoryImpl;
-import com.carmotors.sgt.repository.impl.TecnicoRepositoryImpl;
-import com.carmotors.sgt.repository.impl.VehiculoRepositoryImpl;
+import com.carmotors.sgt.repository.impl.ServicioTipoDAOImpl;
+import com.carmotors.sgt.repository.impl.TecnicoDAOImpl;
+import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
 import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
 import com.carmotors.sgt.service.InventarioService;
@@ -61,10 +61,10 @@ public class Main {
 
         ConsolaMenuView menuPrincipal = new ConsolaMenuView();
 
-        ClienteRepository clienteRepository = new ClienteRepositoryImpl();
-        ClienteService clienteService = new ClienteService(clienteRepository);
-        VehiculoRepository vehiculoRepository = new VehiculoRepositoryImpl();
-        VehiculoService vehiculoService = new VehiculoService(vehiculoRepository, clienteRepository);
+        ClienteDAO clienteDAO = new ClienteDAOImpl();
+        ClienteService clienteService = new ClienteService(clienteDAO);
+        VehiculoDAO vehiculoDAO = new VehiculoDAOImpl();
+        VehiculoService vehiculoService = new VehiculoService(vehiculoDAO, clienteDAO);
         ClienteController clienteController = new ClienteController(clienteService, vehiculoService);
         menuPrincipal.setSubmenuClientes(new ClienteView(clienteController));
 
@@ -99,17 +99,17 @@ public class Main {
         menuPrincipal.setSubmenuProveedores(new ProveedorView(proveedorController, evaluacionProveedorView, catalogoProveedorView));
         menuPrincipal.setSubmenuInventario(new RepuestoView(repuestoController, catalogoProveedorView, loteView, inventarioController));
 
-        EspecialidadRepository especialidadRepository = new EspecialidadRepositoryImpl();
-        MantenimientoTipoRepository mantenimientoTipoRepository = new MantenimientoTipoRepositoryImpl();
+        EspecialidadDAO especialidadDAO = new EspecialidadDAOImpl();
+        MantenimientoTipoDAO mantenimientoTipoDAO = new MantenimientoTipoDAOImpl();
 
-        TecnicoRepository tecnicoRepository = new TecnicoRepositoryImpl();
-        TecnicoService tecnicoService = new TecnicoService(tecnicoRepository, especialidadRepository);
+        TecnicoDAO tecnicoDAO = new TecnicoDAOImpl();
+        TecnicoService tecnicoService = new TecnicoService(tecnicoDAO, especialidadDAO);
         TecnicoController tecnicoController = new TecnicoController(tecnicoService);
         menuPrincipal.setSubmenuTecnicos(new TecnicoView(tecnicoController));
 
-        ServicioTipoRepository servicioTipoRepository = new ServicioTipoRepositoryImpl();
+        ServicioTipoDAO servicioTipoDAO = new ServicioTipoDAOImpl();
         ServicioTipoService servicioTipoService = new ServicioTipoService(
-                servicioTipoRepository, mantenimientoTipoRepository, especialidadRepository);
+                servicioTipoDAO, mantenimientoTipoDAO, especialidadDAO);
         ServicioTipoController servicioTipoController = new ServicioTipoController(servicioTipoService);
         menuPrincipal.setSubmenuServicios(new ServicioTipoView(servicioTipoController));
 

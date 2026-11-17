@@ -6,9 +6,9 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.MantenimientoTipo;
 import com.carmotors.sgt.model.ServicioTipo;
-import com.carmotors.sgt.repository.EspecialidadRepository;
-import com.carmotors.sgt.repository.MantenimientoTipoRepository;
-import com.carmotors.sgt.repository.ServicioTipoRepository;
+import com.carmotors.sgt.repository.EspecialidadDAO;
+import com.carmotors.sgt.repository.MantenimientoTipoDAO;
+import com.carmotors.sgt.repository.ServicioTipoDAO;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.math.BigDecimal;
@@ -22,53 +22,53 @@ import java.util.List;
  */
 public class ServicioTipoService {
 
-    private final ServicioTipoRepository servicioTipoRepository;
-    private final MantenimientoTipoRepository mantenimientoTipoRepository;
-    private final EspecialidadRepository especialidadRepository;
+    private final ServicioTipoDAO servicioTipoDAO;
+    private final MantenimientoTipoDAO mantenimientoTipoDAO;
+    private final EspecialidadDAO especialidadDAO;
 
     public ServicioTipoService(
-            ServicioTipoRepository servicioTipoRepository,
-            MantenimientoTipoRepository mantenimientoTipoRepository,
-            EspecialidadRepository especialidadRepository) {
-        if (servicioTipoRepository == null) {
+            ServicioTipoDAO servicioTipoDAO,
+            MantenimientoTipoDAO mantenimientoTipoDAO,
+            EspecialidadDAO especialidadDAO) {
+        if (servicioTipoDAO == null) {
             throw new IllegalArgumentException("El repositorio de tipos de servicio es obligatorio.");
         }
-        if (mantenimientoTipoRepository == null) {
+        if (mantenimientoTipoDAO == null) {
             throw new IllegalArgumentException("El repositorio de tipos de mantenimiento es obligatorio.");
         }
-        if (especialidadRepository == null) {
+        if (especialidadDAO == null) {
             throw new IllegalArgumentException("El repositorio de especialidades es obligatorio.");
         }
-        this.servicioTipoRepository = servicioTipoRepository;
-        this.mantenimientoTipoRepository = mantenimientoTipoRepository;
-        this.especialidadRepository = especialidadRepository;
+        this.servicioTipoDAO = servicioTipoDAO;
+        this.mantenimientoTipoDAO = mantenimientoTipoDAO;
+        this.especialidadDAO = especialidadDAO;
     }
 
     public List<ServicioTipo> listarTodos() {
-        return servicioTipoRepository.listarTodos();
+        return servicioTipoDAO.listarTodos();
     }
 
     public List<MantenimientoTipo> listarTiposMantenimiento() {
-        return mantenimientoTipoRepository.listarTodos();
+        return mantenimientoTipoDAO.listarTodos();
     }
 
     public List<Especialidad> listarEspecialidades() {
-        return especialidadRepository.listarTodos();
+        return especialidadDAO.listarTodos();
     }
 
     public MantenimientoTipo buscarTipoMantenimientoPorId(int mantenimientoTipoId) {
-        return mantenimientoTipoRepository.buscarPorId(mantenimientoTipoId);
+        return mantenimientoTipoDAO.buscarPorId(mantenimientoTipoId);
     }
 
     public Especialidad buscarEspecialidadPorId(int especialidadId) {
-        return especialidadRepository.buscarPorId(especialidadId);
+        return especialidadDAO.buscarPorId(especialidadId);
     }
 
     public ServicioTipo buscarPorId(int id) {
         if (id <= 0) {
             throw new ValidacionException("El ID del tipo de servicio debe ser un número positivo.");
         }
-        ServicioTipo servicioTipo = servicioTipoRepository.buscarPorId(id);
+        ServicioTipo servicioTipo = servicioTipoDAO.buscarPorId(id);
         if (servicioTipo == null) {
             throw new EntidadNoEncontradaException("No se encontró un tipo de servicio con el ID: " + id);
         }
@@ -78,13 +78,13 @@ public class ServicioTipoService {
     public ServicioTipo registrarServicioTipo(ServicioTipo servicioTipo) {
         validarYNormalizar(servicioTipo);
 
-        ServicioTipo existente = servicioTipoRepository.buscarPorNombre(servicioTipo.getNombre());
+        ServicioTipo existente = servicioTipoDAO.buscarPorNombre(servicioTipo.getNombre());
         if (existente != null) {
             throw new DatoDuplicadoException(
                     "Ya existe un tipo de servicio registrado con el nombre: " + servicioTipo.getNombre());
         }
 
-        int idGenerado = servicioTipoRepository.guardar(servicioTipo);
+        int idGenerado = servicioTipoDAO.guardar(servicioTipo);
         servicioTipo.setId(idGenerado);
         return servicioTipo;
     }
@@ -93,20 +93,20 @@ public class ServicioTipoService {
         if (servicioTipo == null || servicioTipo.getId() <= 0) {
             throw new ValidacionException("Debe indicar un tipo de servicio válido con ID mayor que cero.");
         }
-        ServicioTipo actual = servicioTipoRepository.buscarPorId(servicioTipo.getId());
+        ServicioTipo actual = servicioTipoDAO.buscarPorId(servicioTipo.getId());
         if (actual == null) {
             throw new EntidadNoEncontradaException("No existe un tipo de servicio con el ID: " + servicioTipo.getId());
         }
 
         validarYNormalizar(servicioTipo);
 
-        ServicioTipo conMismoNombre = servicioTipoRepository.buscarPorNombre(servicioTipo.getNombre());
+        ServicioTipo conMismoNombre = servicioTipoDAO.buscarPorNombre(servicioTipo.getNombre());
         if (conMismoNombre != null && conMismoNombre.getId() != servicioTipo.getId()) {
             throw new DatoDuplicadoException(
                     "Ya existe otro tipo de servicio con el nombre: " + servicioTipo.getNombre());
         }
 
-        boolean actualizado = servicioTipoRepository.actualizar(servicioTipo);
+        boolean actualizado = servicioTipoDAO.actualizar(servicioTipo);
         if (!actualizado) {
             throw new ValidacionException("No se pudo actualizar el tipo de servicio con ID: " + servicioTipo.getId());
         }
@@ -115,7 +115,7 @@ public class ServicioTipoService {
 
     public void eliminarServicioTipo(int id) {
         buscarPorId(id);
-        boolean eliminado = servicioTipoRepository.eliminar(id);
+        boolean eliminado = servicioTipoDAO.eliminar(id);
         if (!eliminado) {
             throw new ValidacionException("No se pudo eliminar el tipo de servicio con ID: " + id);
         }
@@ -136,7 +136,7 @@ public class ServicioTipoService {
             throw new ValidacionException("Debe seleccionar un tipo de mantenimiento válido.");
         }
         MantenimientoTipo mantenimientoTipo =
-                mantenimientoTipoRepository.buscarPorId(servicioTipo.getMantenimientoTipoId());
+                mantenimientoTipoDAO.buscarPorId(servicioTipo.getMantenimientoTipoId());
         if (mantenimientoTipo == null) {
             throw new EntidadNoEncontradaException(
                     "El tipo de mantenimiento seleccionado (ID " + servicioTipo.getMantenimientoTipoId() + ") no existe.");
@@ -145,7 +145,7 @@ public class ServicioTipoService {
         if (servicioTipo.getEspecialidadId() <= 0) {
             throw new ValidacionException("Debe seleccionar una especialidad válida.");
         }
-        Especialidad especialidad = especialidadRepository.buscarPorId(servicioTipo.getEspecialidadId());
+        Especialidad especialidad = especialidadDAO.buscarPorId(servicioTipo.getEspecialidadId());
         if (especialidad == null) {
             throw new EntidadNoEncontradaException(
                     "La especialidad seleccionada (ID " + servicioTipo.getEspecialidadId() + ") no existe.");

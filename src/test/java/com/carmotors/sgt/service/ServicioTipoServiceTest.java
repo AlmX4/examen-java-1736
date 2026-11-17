@@ -6,9 +6,9 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.MantenimientoTipo;
 import com.carmotors.sgt.model.ServicioTipo;
-import com.carmotors.sgt.repository.EspecialidadRepository;
-import com.carmotors.sgt.repository.MantenimientoTipoRepository;
-import com.carmotors.sgt.repository.ServicioTipoRepository;
+import com.carmotors.sgt.repository.EspecialidadDAO;
+import com.carmotors.sgt.repository.MantenimientoTipoDAO;
+import com.carmotors.sgt.repository.ServicioTipoDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,16 +26,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class ServicioTipoServiceTest {
 
-    private ServicioTipoRepositoryEnMemoria servicioTipoRepository;
-    private MantenimientoTipoRepositoryEnMemoria mantenimientoTipoRepository;
-    private EspecialidadRepositoryEnMemoria especialidadRepository;
+    private ServicioTipoDAOEnMemoria servicioTipoRepository;
+    private MantenimientoTipoDAOEnMemoria mantenimientoTipoRepository;
+    private EspecialidadDAOEnMemoria especialidadRepository;
     private ServicioTipoService servicioTipoService;
 
     @BeforeEach
     void configurar() {
-        servicioTipoRepository = new ServicioTipoRepositoryEnMemoria();
-        mantenimientoTipoRepository = new MantenimientoTipoRepositoryEnMemoria();
-        especialidadRepository = new EspecialidadRepositoryEnMemoria();
+        servicioTipoRepository = new ServicioTipoDAOEnMemoria();
+        mantenimientoTipoRepository = new MantenimientoTipoDAOEnMemoria();
+        especialidadRepository = new EspecialidadDAOEnMemoria();
 
         mantenimientoTipoRepository.agregar(new MantenimientoTipo(1, "Preventivo"));
         mantenimientoTipoRepository.agregar(new MantenimientoTipo(2, "Correctivo"));
@@ -141,7 +141,7 @@ class ServicioTipoServiceTest {
         assertEquals(0, servicioTipoService.listarTodos().size());
     }
 
-    private static class MantenimientoTipoRepositoryEnMemoria implements MantenimientoTipoRepository {
+    private static class MantenimientoTipoDAOEnMemoria implements MantenimientoTipoDAO {
 
         private final List<MantenimientoTipo> datos = new ArrayList<>();
 
@@ -165,7 +165,7 @@ class ServicioTipoServiceTest {
         }
     }
 
-    private static class EspecialidadRepositoryEnMemoria implements EspecialidadRepository {
+    private static class EspecialidadDAOEnMemoria implements EspecialidadDAO {
 
         private final List<Especialidad> datos = new ArrayList<>();
 
@@ -189,7 +189,7 @@ class ServicioTipoServiceTest {
         }
     }
 
-    private static class ServicioTipoRepositoryEnMemoria implements ServicioTipoRepository {
+    private static class ServicioTipoDAOEnMemoria implements ServicioTipoDAO {
 
         private final List<ServicioTipo> datos = new ArrayList<>();
         private int secuenciaId = 1;

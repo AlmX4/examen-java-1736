@@ -5,8 +5,8 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.Vehiculo;
-import com.carmotors.sgt.repository.ClienteRepository;
-import com.carmotors.sgt.repository.VehiculoRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.VehiculoDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,14 +24,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class VehiculoServiceTest {
 
-    private VehiculoRepositoryEnMemoria vehiculoRepository;
-    private ClienteRepositoryEnMemoria clienteRepository;
+    private VehiculoDAOEnMemoria vehiculoRepository;
+    private ClienteDAOEnMemoria clienteRepository;
     private VehiculoService vehiculoService;
 
     @BeforeEach
     void setUp() {
-        vehiculoRepository = new VehiculoRepositoryEnMemoria();
-        clienteRepository = new ClienteRepositoryEnMemoria();
+        vehiculoRepository = new VehiculoDAOEnMemoria();
+        clienteRepository = new ClienteDAOEnMemoria();
         vehiculoService = new VehiculoService(vehiculoRepository, clienteRepository);
 
         // Cliente activo ID = 1
@@ -202,7 +202,7 @@ class VehiculoServiceTest {
 
     // --- Repositorios en memoria para pruebas desacopladas de BD ---
 
-    private static class VehiculoRepositoryEnMemoria implements VehiculoRepository {
+    private static class VehiculoDAOEnMemoria implements VehiculoDAO {
         private final List<Vehiculo> datos = new ArrayList<>();
         private int secuenciaId = 1;
 
@@ -256,7 +256,7 @@ class VehiculoServiceTest {
         }
     }
 
-    private static class ClienteRepositoryEnMemoria implements ClienteRepository {
+    private static class ClienteDAOEnMemoria implements ClienteDAO {
         private final List<Cliente> datos = new ArrayList<>();
 
         @Override

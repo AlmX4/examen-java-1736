@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia de solo lectura para los tipos de mantenimiento.
  */
-public interface MantenimientoTipoRepository {
+public interface MantenimientoTipoDAO {
 
     /**
      * Retorna todos los tipos de mantenimiento ordenados por ID ascendente.

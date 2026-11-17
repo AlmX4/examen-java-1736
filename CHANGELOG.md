@@ -61,7 +61,7 @@
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
   - Creación de `Vehiculo` (`com.carmotors.sgt.model`) como POJO clásico con `id`, `clienteId`, `placa`, `marca`, `modelo`, constructores, getters, setters y `toString()`.
-  - Creación de `VehiculoRepository` (`com.carmotors.sgt.repository`) y `VehiculoRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `RETURN_GENERATED_KEYS`, constructor dual con soporte para `Connection` compartida (`RNF-08`), retorno `null` controlado sin `Optional` y manejo de `SQLException` envuelto en `CarMotorsException` (`RNF-07`, `RNF-12`).
+  - Creación de `VehiculoDAO` (`com.carmotors.sgt.repository`) y `VehiculoDAOImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `RETURN_GENERATED_KEYS`, constructor dual con soporte para `Connection` compartida (`RNF-08`), retorno `null` controlado sin `Optional` y manejo de `SQLException` envuelto en `CarMotorsException` (`RNF-07`, `RNF-12`).
   - Creación de `VehiculoService` (`com.carmotors.sgt.service`) con validación de existencia y estado activo del cliente al registrar (`RN-17`), normalización y unicidad de placa alfanumérica en mayúsculas (`RN-13`), y consulta de vehículos por cliente permitida incluso para clientes inactivos para preservar su historial (`HU-09`).
   - Integración en `ClienteController` (`com.carmotors.sgt.controller`) y `ClienteView` (`com.carmotors.sgt.view`), añadiendo opciones 9 (registrar vehículo) y 10 (listar vehículos de cliente) al menú de consola, conectado en `Main.java`.
   - Creación de pruebas unitarias completas en JUnit 5: `VehiculoTest` (4 pruebas), `VehiculoServiceTest` (16 pruebas en memoria) y `ClienteControllerTest` (3 pruebas), totalizando 87 pruebas unitarias en el proyecto sin fallos.
@@ -78,7 +78,7 @@
 ### Pendiente de integración — `[S2 - T2.5] Catálogo de tipos de servicio` (`feature/gestion-servicios` → `develop`, Issue `#24`)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
-  - Creación de `ServicioTipo` (`com.carmotors.sgt.model`), `ServicioTipoRepository` (`com.carmotors.sgt.repository`) y `ServicioTipoRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `BigDecimal` escala 2 `HALF_UP`, `Types.INTEGER` para `intervalo_meses` opcional y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`, `RNF-15`).
+  - Creación de `ServicioTipo` (`com.carmotors.sgt.model`), `ServicioTipoDAO` (`com.carmotors.sgt.repository`) y `ServicioTipoDAOImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `BigDecimal` escala 2 `HALF_UP`, `Types.INTEGER` para `intervalo_meses` opcional y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`, `RNF-15`).
   - Creación de `ServicioTipoService` (`com.carmotors.sgt.service`) validando nombre único sin distinguir mayúsculas (`DatoDuplicadoException`), existencia de `MantenimientoTipo` y `Especialidad` (`T1.4`), precio no negativo y la regla de dominio Preventivo (`intervaloMeses > 0`) vs. Correctivo (`intervaloMeses == null`).
   - Creación de `ServicioTipoController` y `ServicioTipoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader`, confirmación `(S/N)` antes de eliminar (`RNF-24`) y manejo limpio de `CarMotorsException` (`RNF-12`).
   - Creación de pruebas unitarias JUnit 5 en `ServicioTipoServiceTest`.
@@ -95,8 +95,8 @@
 ### PR #73 — `feat(tecnicos): implement technician CRUD with JDBC and console submenu (T2.3)` (`feature/gestion-tecnicos` → `develop`, cierra `#22`)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
-  - Creación de `Tecnico` (`com.carmotors.sgt.model`), `TecnicoRepository` (`com.carmotors.sgt.repository`) y `TecnicoRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
-  - Creación de `TecnicoService` (`com.carmotors.sgt.service`) con validación de nombre obligatorio, documento único (`DatoDuplicadoException`), especialidad válida contra `EspecialidadRepository` (`T1.4`) y desactivación lógica sin borrado físico (`RF-33`, `RN-17`).
+  - Creación de `Tecnico` (`com.carmotors.sgt.model`), `TecnicoDAO` (`com.carmotors.sgt.repository`) y `TecnicoDAOImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
+  - Creación de `TecnicoService` (`com.carmotors.sgt.service`) con validación de nombre obligatorio, documento único (`DatoDuplicadoException`), especialidad válida contra `EspecialidadDAO` (`T1.4`) y desactivación lógica sin borrado físico (`RF-33`, `RN-17`).
   - Creación de `TecnicoController` y `TecnicoView` (`SubmenuVista` conectada en `Main.java`), usando `ConsoleReader` con confirmación `(S/N)` antes de desactivar y captura segura de `CarMotorsException` (`RNF-12`, `RNF-24`).
   - Creación de pruebas unitarias JUnit 5 en `TecnicoServiceTest`.
 
@@ -107,7 +107,7 @@
 ### Pendiente de integración — `[S1 - T1.5] CRUD de clientes` (`feature/gestion-clientes` → `develop`, Issue `#18`)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
-  - Creación de `Cliente` (`com.carmotors.sgt.model`), `ClienteRepository` (`com.carmotors.sgt.repository`) y `ClienteRepositoryImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `Types.VARCHAR` para `telefono` opcional, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
+  - Creación de `Cliente` (`com.carmotors.sgt.model`), `ClienteDAO` (`com.carmotors.sgt.repository`) y `ClienteDAOImpl` (`com.carmotors.sgt.repository.impl`) con `PreparedStatement`, `Types.VARCHAR` para `telefono` opcional, retorno `null` controlado y constructor dual con `Connection` compartida (`RNF-07`, `RNF-08`).
   - Creación de `ClienteService` (`com.carmotors.sgt.service`) validando nombre, documento y email obligatorios, límites de longitud según `schema.sql`, formato de email con `InputValidator.esEmailValido` (normalizado a minúsculas), unicidad de documento y email (`DatoDuplicadoException`) y desactivación/reactivación lógica sin borrado físico (`RF-17`, `RN-13`, `RN-17`).
   - Creación de `ClienteController` y `ClienteView` (`SubmenuVista` conectada en `Main.java`) con captura segura de `CarMotorsException` (`RNF-12`).
   - Creación de pruebas unitarias JUnit 5 en `ClienteServiceTest` (9 casos).
@@ -125,8 +125,8 @@
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
   - Creación de 4 entidades POJO clásicas en `com.carmotors.sgt.model`: `RepuestoTipo`, `Especialidad`, `MantenimientoTipo` y `ServicioEstado` con constructores, getters, setters y `toString()`.
-  - Creación de 4 interfaces de persistencia de solo lectura en `com.carmotors.sgt.repository`: `RepuestoTipoRepository`, `EspecialidadRepository`, `MantenimientoTipoRepository` y `ServicioEstadoRepository` con métodos `listarTodos()` y `buscarPorId(int id)` retornando `null` controlado (sin `Optional`, respetando la regla de no crear paquete `dao`).
-  - Creación de 4 implementaciones JDBC en `com.carmotors.sgt.repository.impl`: `RepuestoTipoRepositoryImpl`, `EspecialidadRepositoryImpl`, `MantenimientoTipoRepositoryImpl` y `ServicioEstadoRepositoryImpl` usando `ConnectionFactory.getInstance().getConnection()`, constructor opcional para conexión compartida (`RNF-08`), `PreparedStatement` y envoltorio seguro de `SQLException` en `CarMotorsException` sin `System.exit()`.
+  - Creación de 4 interfaces de persistencia de solo lectura en `com.carmotors.sgt.repository`: `RepuestoTipoDAO`, `EspecialidadDAO`, `MantenimientoTipoDAO` y `ServicioEstadoDAO` con métodos `listarTodos()` y `buscarPorId(int id)` retornando `null` controlado (sin `Optional`, respetando la regla de no crear paquete `dao`).
+  - Creación de 4 implementaciones JDBC en `com.carmotors.sgt.repository.impl`: `RepuestoTipoDAOImpl`, `EspecialidadDAOImpl`, `MantenimientoTipoDAOImpl` y `ServicioEstadoDAOImpl` usando `ConnectionFactory.getInstance().getConnection()`, constructor opcional para conexión compartida (`RNF-08`), `PreparedStatement` y envoltorio seguro de `SQLException` en `CarMotorsException` sin `System.exit()`.
   - Pruebas unitarias JUnit 5 en `CatalogosModelTest` y `CatalogosRepositoryTest` con verificación condicional de base de datos.
 
 

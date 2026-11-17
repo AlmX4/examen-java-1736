@@ -17,18 +17,18 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.RepuestoTipo;
 import com.carmotors.sgt.repository.RepuestoDAO;
-import com.carmotors.sgt.repository.RepuestoTipoRepository;
+import com.carmotors.sgt.repository.RepuestoTipoDAO;
 
 class RepuestoServiceTest {
 
     private RepuestoDAOMock repuestoDAO;
-    private RepuestoTipoRepositoryEnMemoria tipoRepository;
+    private RepuestoTipoDAOEnMemoria tipoRepository;
     private RepuestoService service;
 
     @BeforeEach
     void setUp() {
         repuestoDAO = new RepuestoDAOMock();
-        tipoRepository = new RepuestoTipoRepositoryEnMemoria();
+        tipoRepository = new RepuestoTipoDAOEnMemoria();
         tipoRepository.agregar(new RepuestoTipo(1, "Filtro"));
         tipoRepository.agregar(new RepuestoTipo(2, "Batería"));
         service = new RepuestoService(repuestoDAO, tipoRepository);
@@ -185,7 +185,7 @@ class RepuestoServiceTest {
         assertTrue(reactivado.isActivo());
     }
 
-    private static class RepuestoTipoRepositoryEnMemoria implements RepuestoTipoRepository {
+    private static class RepuestoTipoDAOEnMemoria implements RepuestoTipoDAO {
         private final List<RepuestoTipo> datos = new ArrayList<>();
 
         void agregar(RepuestoTipo tipo) {

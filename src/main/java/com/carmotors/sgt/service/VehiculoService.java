@@ -5,8 +5,8 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.Vehiculo;
-import com.carmotors.sgt.repository.ClienteRepository;
-import com.carmotors.sgt.repository.VehiculoRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.VehiculoDAO;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.util.List;
@@ -19,18 +19,18 @@ public class VehiculoService {
     private static final int MAX_LONGITUD_MARCA = 50;
     private static final int MAX_LONGITUD_MODELO = 50;
 
-    private final VehiculoRepository vehiculoRepository;
-    private final ClienteRepository clienteRepository;
+    private final VehiculoDAO vehiculoDAO;
+    private final ClienteDAO clienteDAO;
 
-    public VehiculoService(VehiculoRepository vehiculoRepository, ClienteRepository clienteRepository) {
-        if (vehiculoRepository == null) {
+    public VehiculoService(VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO) {
+        if (vehiculoDAO == null) {
             throw new IllegalArgumentException("El repositorio de vehículos es obligatorio.");
         }
-        if (clienteRepository == null) {
+        if (clienteDAO == null) {
             throw new IllegalArgumentException("El repositorio de clientes es obligatorio.");
         }
-        this.vehiculoRepository = vehiculoRepository;
-        this.clienteRepository = clienteRepository;
+        this.vehiculoDAO = vehiculoDAO;
+        this.clienteDAO = clienteDAO;
     }
 
     /**
@@ -49,7 +49,7 @@ public class VehiculoService {
         }
 
         // RN-17: Verificar existencia y estado del cliente
-        Cliente cliente = clienteRepository.buscarPorId(vehiculo.getClienteId());
+        Cliente cliente = clienteDAO.buscarPorId(vehiculo.getClienteId());
         if (cliente == null) {
             throw new EntidadNoEncontradaException(
                     "No se encontró un cliente con el ID: " + vehiculo.getClienteId());
@@ -89,13 +89,13 @@ public class VehiculoService {
         vehiculo.setModelo(modeloNormalizado);
 
         // RN-13: Unicidad de placa
-        Vehiculo existente = vehiculoRepository.buscarPorPlaca(placaNormalizada);
+        Vehiculo existente = vehiculoDAO.buscarPorPlaca(placaNormalizada);
         if (existente != null) {
             throw new DatoDuplicadoException(
                     "Ya existe un vehículo registrado con la placa: " + placaNormalizada);
         }
 
-        int idGenerado = vehiculoRepository.guardar(vehiculo);
+        int idGenerado = vehiculoDAO.guardar(vehiculo);
         vehiculo.setId(idGenerado);
         return vehiculo;
     }
@@ -110,7 +110,7 @@ public class VehiculoService {
         if (id <= 0) {
             throw new ValidacionException("El ID del vehículo debe ser un número positivo.");
         }
-        Vehiculo vehiculo = vehiculoRepository.buscarPorId(id);
+        Vehiculo vehiculo = vehiculoDAO.buscarPorId(id);
         if (vehiculo == null) {
             throw new EntidadNoEncontradaException("No se encontró un vehículo con el ID: " + id);
         }
@@ -129,7 +129,7 @@ public class VehiculoService {
             throw new ValidacionException(
                     "Formato de placa inválido. Debe tener entre 5 y 10 caracteres alfanuméricos.");
         }
-        Vehiculo vehiculo = vehiculoRepository.buscarPorPlaca(placaNormalizada);
+        Vehiculo vehiculo = vehiculoDAO.buscarPorPlaca(placaNormalizada);
         if (vehiculo == null) {
             throw new EntidadNoEncontradaException(
                     "No se encontró ningún vehículo con la placa: " + placaNormalizada);
@@ -148,11 +148,11 @@ public class VehiculoService {
         if (clienteId <= 0) {
             throw new ValidacionException("El ID del cliente debe ser un número positivo.");
         }
-        Cliente cliente = clienteRepository.buscarPorId(clienteId);
+        Cliente cliente = clienteDAO.buscarPorId(clienteId);
         if (cliente == null) {
             throw new EntidadNoEncontradaException("No se encontró un cliente con el ID: " + clienteId);
         }
-        return vehiculoRepository.listarPorCliente(clienteId);
+        return vehiculoDAO.listarPorCliente(clienteId);
     }
 
     /**
@@ -161,6 +161,6 @@ public class VehiculoService {
      * @return lista de vehículos
      */
     public List<Vehiculo> listarTodos() {
-        return vehiculoRepository.listarTodos();
+        return vehiculoDAO.listarTodos();
     }
 }

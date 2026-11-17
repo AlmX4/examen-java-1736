@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia de solo lectura para los estados de servicio/orden.
  */
-public interface ServicioEstadoRepository {
+public interface ServicioEstadoDAO {
 
     /**
      * Retorna todos los estados de servicio ordenados por ID ascendente.

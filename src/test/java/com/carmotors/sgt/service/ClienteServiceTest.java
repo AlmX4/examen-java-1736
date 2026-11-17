@@ -4,7 +4,7 @@ import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
-import com.carmotors.sgt.repository.ClienteRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,12 +23,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ClienteServiceTest {
 
-    private ClienteRepositoryEnMemoria clienteRepository;
+    private ClienteDAOEnMemoria clienteRepository;
     private ClienteService clienteService;
 
     @BeforeEach
     void configurar() {
-        clienteRepository = new ClienteRepositoryEnMemoria();
+        clienteRepository = new ClienteDAOEnMemoria();
         clienteService = new ClienteService(clienteRepository);
     }
 
@@ -143,7 +143,7 @@ class ClienteServiceTest {
         assertThrows(EntidadNoEncontradaException.class, () -> clienteService.actualizarCliente(fantasma));
     }
 
-    private static class ClienteRepositoryEnMemoria implements ClienteRepository {
+    private static class ClienteDAOEnMemoria implements ClienteDAO {
 
         private final List<Cliente> datos = new ArrayList<>();
         private int secuenciaId = 1;

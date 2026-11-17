@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Contrato de persistencia de solo lectura para los tipos de repuesto.
  */
-public interface RepuestoTipoRepository {
+public interface RepuestoTipoDAO {
 
     /**
      * Retorna todos los tipos de repuesto ordenados por ID ascendente.

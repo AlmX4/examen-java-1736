@@ -3,8 +3,8 @@ package com.carmotors.sgt.controller;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.Vehiculo;
-import com.carmotors.sgt.repository.ClienteRepository;
-import com.carmotors.sgt.repository.VehiculoRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.VehiculoDAO;
 import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.VehiculoService;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,7 +81,7 @@ class ClienteControllerTest {
         assertThrows(ValidacionException.class, () -> controllerSinVehiculos.listarTodosLosVehiculos());
     }
 
-    private static class VehiculoRepoTest implements VehiculoRepository {
+    private static class VehiculoRepoTest implements VehiculoDAO {
         private final List<Vehiculo> lista = new ArrayList<>();
         private int seq = 1;
 
@@ -130,7 +130,7 @@ class ClienteControllerTest {
         }
     }
 
-    private static class ClienteRepoTest implements ClienteRepository {
+    private static class ClienteRepoTest implements ClienteDAO {
         private final List<Cliente> lista = new ArrayList<>();
 
         @Override

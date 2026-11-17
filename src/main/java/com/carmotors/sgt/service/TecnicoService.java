@@ -5,8 +5,8 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
-import com.carmotors.sgt.repository.EspecialidadRepository;
-import com.carmotors.sgt.repository.TecnicoRepository;
+import com.carmotors.sgt.repository.EspecialidadDAO;
+import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.util.List;
@@ -16,41 +16,41 @@ import java.util.List;
  */
 public class TecnicoService {
 
-    private final TecnicoRepository tecnicoRepository;
-    private final EspecialidadRepository especialidadRepository;
+    private final TecnicoDAO tecnicoDAO;
+    private final EspecialidadDAO especialidadDAO;
 
-    public TecnicoService(TecnicoRepository tecnicoRepository, EspecialidadRepository especialidadRepository) {
-        if (tecnicoRepository == null) {
+    public TecnicoService(TecnicoDAO tecnicoDAO, EspecialidadDAO especialidadDAO) {
+        if (tecnicoDAO == null) {
             throw new IllegalArgumentException("El repositorio de técnicos es obligatorio.");
         }
-        if (especialidadRepository == null) {
+        if (especialidadDAO == null) {
             throw new IllegalArgumentException("El repositorio de especialidades es obligatorio.");
         }
-        this.tecnicoRepository = tecnicoRepository;
-        this.especialidadRepository = especialidadRepository;
+        this.tecnicoDAO = tecnicoDAO;
+        this.especialidadDAO = especialidadDAO;
     }
 
     public List<Tecnico> listarTodos() {
-        return tecnicoRepository.listarTodos();
+        return tecnicoDAO.listarTodos();
     }
 
     public List<Tecnico> listarActivos() {
-        return tecnicoRepository.listarActivos();
+        return tecnicoDAO.listarActivos();
     }
 
     public List<Especialidad> listarEspecialidades() {
-        return especialidadRepository.listarTodos();
+        return especialidadDAO.listarTodos();
     }
 
     public Especialidad buscarEspecialidadPorId(int especialidadId) {
-        return especialidadRepository.buscarPorId(especialidadId);
+        return especialidadDAO.buscarPorId(especialidadId);
     }
 
     public Tecnico buscarPorId(int id) {
         if (id <= 0) {
             throw new ValidacionException("El ID del técnico debe ser un número positivo.");
         }
-        Tecnico tecnico = tecnicoRepository.buscarPorId(id);
+        Tecnico tecnico = tecnicoDAO.buscarPorId(id);
         if (tecnico == null) {
             throw new EntidadNoEncontradaException("No se encontró un técnico con el ID: " + id);
         }
@@ -62,7 +62,7 @@ public class TecnicoService {
         if (docNormalizado.isEmpty()) {
             throw new ValidacionException("El documento de identidad no puede estar vacío.");
         }
-        Tecnico tecnico = tecnicoRepository.buscarPorDocumento(docNormalizado);
+        Tecnico tecnico = tecnicoDAO.buscarPorDocumento(docNormalizado);
         if (tecnico == null) {
             throw new EntidadNoEncontradaException("No se encontró un técnico con el documento: " + docNormalizado);
         }
@@ -72,14 +72,14 @@ public class TecnicoService {
     public Tecnico registrarTecnico(Tecnico tecnico) {
         validarYNormalizarDatos(tecnico);
 
-        Tecnico existente = tecnicoRepository.buscarPorDocumento(tecnico.getDocumentoIdentidad());
+        Tecnico existente = tecnicoDAO.buscarPorDocumento(tecnico.getDocumentoIdentidad());
         if (existente != null) {
             throw new DatoDuplicadoException(
                     "Ya existe un técnico registrado con el documento: " + tecnico.getDocumentoIdentidad());
         }
 
         tecnico.setActivo(true);
-        int idGenerado = tecnicoRepository.guardar(tecnico);
+        int idGenerado = tecnicoDAO.guardar(tecnico);
         tecnico.setId(idGenerado);
         return tecnico;
     }
@@ -88,20 +88,20 @@ public class TecnicoService {
         if (tecnico == null || tecnico.getId() <= 0) {
             throw new ValidacionException("Debe indicar un técnico válido con ID mayor que cero.");
         }
-        Tecnico actual = tecnicoRepository.buscarPorId(tecnico.getId());
+        Tecnico actual = tecnicoDAO.buscarPorId(tecnico.getId());
         if (actual == null) {
             throw new EntidadNoEncontradaException("No existe un técnico con el ID: " + tecnico.getId());
         }
 
         validarYNormalizarDatos(tecnico);
 
-        Tecnico conMismoDoc = tecnicoRepository.buscarPorDocumento(tecnico.getDocumentoIdentidad());
+        Tecnico conMismoDoc = tecnicoDAO.buscarPorDocumento(tecnico.getDocumentoIdentidad());
         if (conMismoDoc != null && conMismoDoc.getId() != tecnico.getId()) {
             throw new DatoDuplicadoException(
                     "Ya existe otro técnico registrado con el documento: " + tecnico.getDocumentoIdentidad());
         }
 
-        boolean actualizado = tecnicoRepository.actualizar(tecnico);
+        boolean actualizado = tecnicoDAO.actualizar(tecnico);
         if (!actualizado) {
             throw new ValidacionException("No se pudo actualizar el técnico con ID: " + tecnico.getId());
         }
@@ -116,7 +116,7 @@ public class TecnicoService {
         if (!tecnico.isActivo()) {
             return tecnico;
         }
-        boolean actualizado = tecnicoRepository.actualizarEstadoActivo(id, false);
+        boolean actualizado = tecnicoDAO.actualizarEstadoActivo(id, false);
         if (!actualizado) {
             throw new ValidacionException("No se pudo desactivar el técnico con ID: " + id);
         }
@@ -129,7 +129,7 @@ public class TecnicoService {
         if (tecnico.isActivo()) {
             return tecnico;
         }
-        boolean actualizado = tecnicoRepository.actualizarEstadoActivo(id, true);
+        boolean actualizado = tecnicoDAO.actualizarEstadoActivo(id, true);
         if (!actualizado) {
             throw new ValidacionException("No se pudo reactivar el técnico con ID: " + id);
         }
@@ -157,7 +157,7 @@ public class TecnicoService {
         if (tecnico.getEspecialidadId() <= 0) {
             throw new ValidacionException("Debe seleccionar una especialidad válida.");
         }
-        Especialidad especialidad = especialidadRepository.buscarPorId(tecnico.getEspecialidadId());
+        Especialidad especialidad = especialidadDAO.buscarPorId(tecnico.getEspecialidadId());
         if (especialidad == null) {
             throw new EntidadNoEncontradaException(
                     "La especialidad seleccionada (ID " + tecnico.getEspecialidadId() + ") no existe.");

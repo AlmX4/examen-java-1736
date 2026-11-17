@@ -4,8 +4,8 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.Vehiculo;
-import com.carmotors.sgt.repository.ClienteRepository;
-import com.carmotors.sgt.repository.VehiculoRepository;
+import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.VehiculoDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,15 +24,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BusquedaClienteVehiculoTest {
 
-    private ClienteRepositoryEnMemoria clienteRepository;
-    private VehiculoRepositoryEnMemoria vehiculoRepository;
+    private ClienteDAOEnMemoria clienteRepository;
+    private VehiculoDAOEnMemoria vehiculoRepository;
     private ClienteService clienteService;
     private VehiculoService vehiculoService;
 
     @BeforeEach
     void setUp() {
-        clienteRepository = new ClienteRepositoryEnMemoria();
-        vehiculoRepository = new VehiculoRepositoryEnMemoria();
+        clienteRepository = new ClienteDAOEnMemoria();
+        vehiculoRepository = new VehiculoDAOEnMemoria();
 
         clienteService = new ClienteService(clienteRepository);
         vehiculoService = new VehiculoService(vehiculoRepository, clienteRepository);
@@ -142,7 +142,7 @@ class BusquedaClienteVehiculoTest {
 
     // --- Repositorios en memoria para pruebas desacopladas ---
 
-    private static class ClienteRepositoryEnMemoria implements ClienteRepository {
+    private static class ClienteDAOEnMemoria implements ClienteDAO {
         private final List<Cliente> datos = new ArrayList<>();
 
         @Override
@@ -211,7 +211,7 @@ class BusquedaClienteVehiculoTest {
         }
     }
 
-    private static class VehiculoRepositoryEnMemoria implements VehiculoRepository {
+    private static class VehiculoDAOEnMemoria implements VehiculoDAO {
         private final List<Vehiculo> datos = new ArrayList<>();
 
         @Override
