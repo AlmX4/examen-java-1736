@@ -190,6 +190,29 @@ class LoteServiceTest {
             datos.add(lote);
             return lote.getId();
         }
+
+        @Override
+        public int sumarStockFisico(int repuestoId) {
+            int total = 0;
+            for (Lote lote : datos) {
+                if (lote.getRepuestoId() == repuestoId) {
+                    total += lote.getCantidadActual();
+                }
+            }
+            return total;
+        }
+
+        @Override
+        public int sumarStockOperativo(int repuestoId, LocalDate fechaReferencia) {
+            int total = 0;
+            for (Lote lote : datos) {
+                boolean vigente = lote.getFechaCaducidad() == null || !lote.getFechaCaducidad().isBefore(fechaReferencia);
+                if (lote.getRepuestoId() == repuestoId && vigente) {
+                    total += lote.getCantidadActual();
+                }
+            }
+            return total;
+        }
     }
 
     private static class ProveedorDAOMock implements ProveedorDAO {

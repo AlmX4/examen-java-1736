@@ -2,6 +2,7 @@ package com.carmotors.sgt;
 
 import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.controller.EvaluacionProveedorController;
+import com.carmotors.sgt.controller.InventarioController;
 import com.carmotors.sgt.controller.LoteController;
 import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.controller.ProveedorRepuestoController;
@@ -32,6 +33,7 @@ import com.carmotors.sgt.repository.impl.TecnicoRepositoryImpl;
 import com.carmotors.sgt.repository.impl.VehiculoRepositoryImpl;
 import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
+import com.carmotors.sgt.service.InventarioService;
 import com.carmotors.sgt.service.LoteService;
 import com.carmotors.sgt.service.ProveedorService;
 import com.carmotors.sgt.service.ProveedorRepuestoService;
@@ -91,8 +93,11 @@ public class Main {
         LoteController loteController = new LoteController(loteService);
         LoteView loteView = new LoteView(loteController, proveedorController, repuestoController);
 
+        InventarioService inventarioService = new InventarioService(repuestoDAO, loteDAO);
+        InventarioController inventarioController = new InventarioController(inventarioService);
+
         menuPrincipal.setSubmenuProveedores(new ProveedorView(proveedorController, evaluacionProveedorView, catalogoProveedorView));
-        menuPrincipal.setSubmenuInventario(new RepuestoView(repuestoController, catalogoProveedorView, loteView));
+        menuPrincipal.setSubmenuInventario(new RepuestoView(repuestoController, catalogoProveedorView, loteView, inventarioController));
 
         EspecialidadRepository especialidadRepository = new EspecialidadRepositoryImpl();
         MantenimientoTipoRepository mantenimientoTipoRepository = new MantenimientoTipoRepositoryImpl();
