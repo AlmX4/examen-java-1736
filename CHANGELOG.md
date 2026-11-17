@@ -8,6 +8,12 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### PR #86 — `refactor: rename repository classes to dao convention` (`refactor/rename-repository-classes` → `develop`)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Renombrado transversal dentro de `com.carmotors.sgt.repository` / `repository.impl` (`RNF-02`) de las 8 interfaces `*Repository` y 8 implementaciones `*RepositoryImpl` hacia la convención uniforme `*DAO` / `*DAOImpl` (`ClienteDAO`, `VehiculoDAO`, `TecnicoDAO`, `ServicioTipoDAO`, `EspecialidadDAO`, `MantenimientoTipoDAO`, `RepuestoTipoDAO`, `ServicioEstadoDAO` y sus respectivas `*DAOImpl`).
+  - Actualización de referencias en `Main.java`, servicios (`ClienteService`, `RepuestoService`, `ServicioTipoService`, `TecnicoService`, `VehiculoService`) y suite de pruebas sin cambios de comportamiento, SQL ni reglas de negocio (138 pruebas en total, 0 fallos).
+
 ### Pendiente de integración — `feat(inventario): add stock calculation (T3.5)` (`feature/gestion-inventario` → `develop`, cierra `#31`)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
