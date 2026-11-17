@@ -6,6 +6,19 @@
 
 ---
 
+## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
+
+### PR #89 — `feat(servicios): add order state pattern base (T4.1)` (`feature/gestion-servicios` → `develop`, cierra `#35`, RF-12 / RN-06)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Creación de la interfaz `EstadoOrden` y de las clases `EstadoPendiente`, `EstadoEnProceso`, `EstadoCompletado`, `EstadoFacturado`, `EstadoEntregado` y `EstadoCancelada` en `com.carmotors.sgt.service.state`.
+  - Implementación del flujo unidireccional Pendiente → En Proceso → Completado → Facturado → Entregado y cancelación permitida únicamente desde Pendiente o En Proceso.
+  - Creación de `TransicionEstadoInvalidaException` en la jerarquía de excepciones propias, con mensajes claros para saltos, retrocesos y estados destino nulos.
+  - Inclusión de la capacidad de edición por estado y de métodos de ciclo de vida para reutilización en las próximas tareas de servicios.
+  - Creación de pruebas JUnit 5 para el ciclo válido, cancelaciones, saltos inválidos, retrocesos, estados terminales y transición nula.
+  - Incorporación de `getEstadoId()` y `EstadoOrdenFactory.desdeId(int)` para el mapeo exacto entre `estado_id` y las seis clases de estado, con rechazo de IDs desconocidos.
+  - Extracción de `transicionarA(EstadoOrden)` y `lanzarTransicionInvalida(EstadoOrden)` a `EstadoOrdenBase`, eliminando la duplicación entre las clases concretas.
+
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
 ### Pendiente de integración — `feat(inventario): add low stock report (T3.7)` (`feature/gestion-inventario` → `develop`, cierra `#33`)
