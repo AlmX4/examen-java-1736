@@ -12,17 +12,24 @@ public class RepuestoView implements SubmenuVista {
 
     private final RepuestoController repuestoController;
     private final CatalogoProveedorView catalogoProveedorView;
+    private final LoteView loteView;
 
     public RepuestoView(RepuestoController repuestoController) {
-        this(repuestoController, null);
+        this(repuestoController, null, null);
     }
 
     public RepuestoView(RepuestoController repuestoController, CatalogoProveedorView catalogoProveedorView) {
+        this(repuestoController, catalogoProveedorView, null);
+    }
+
+    public RepuestoView(RepuestoController repuestoController, CatalogoProveedorView catalogoProveedorView,
+                       LoteView loteView) {
         if (repuestoController == null) {
             throw new IllegalArgumentException("El controlador de repuestos es obligatorio.");
         }
         this.repuestoController = repuestoController;
         this.catalogoProveedorView = catalogoProveedorView;
+        this.loteView = loteView;
     }
 
     @Override
@@ -44,10 +51,11 @@ public class RepuestoView implements SubmenuVista {
             System.out.println("  5. Desactivar repuesto");
             System.out.println("  6. Reactivar repuesto");
             System.out.println("  7. Ver proveedores del repuesto");
+            System.out.println("  8. Ingreso de lotes");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 7);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
             switch (opcion) {
                 case 1:
                     listarRepuestos();
@@ -72,6 +80,14 @@ public class RepuestoView implements SubmenuVista {
                         catalogoProveedorView.verProveedoresDeRepuesto();
                     } else {
                         System.out.println("\n  [i] El catálogo proveedor-repuesto aún no está conectado.");
+                        ConsoleReader.pausar();
+                    }
+                    break;
+                case 8:
+                    if (loteView != null) {
+                        loteView.mostrarMenu();
+                    } else {
+                        System.out.println("\n  [i] El ingreso de lotes aún no está conectado.");
                         ConsoleReader.pausar();
                     }
                     break;
