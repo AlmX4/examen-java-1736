@@ -221,6 +221,17 @@ class InventarioServiceTest {
             }
             return total;
         }
+
+        @Override
+        public List<Lote> listarPorRepuesto(int repuestoId) {
+            List<Lote> resultado = new ArrayList<>();
+            for (Lote lote : datos) {
+                if (lote.getRepuestoId() == repuestoId) {
+                    resultado.add(lote);
+                }
+            }
+            return resultado;
+        }
     }
 
     private static class RepuestoDAOMock implements RepuestoDAO {

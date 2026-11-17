@@ -1,5 +1,7 @@
 package com.carmotors.sgt.view;
 
+import java.util.List;
+
 import com.carmotors.sgt.controller.LoteController;
 import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.controller.RepuestoController;
@@ -33,7 +35,7 @@ public class LoteView implements SubmenuVista {
 
     @Override
     public String obtenerTitulo() {
-        return "Ingreso de lotes";
+        return "Gestión de lotes";
     }
 
     @Override
@@ -41,20 +43,24 @@ public class LoteView implements SubmenuVista {
         boolean ejecutando = true;
         while (ejecutando) {
             System.out.println("\n==================================================");
-            System.out.println("                  INGRESO DE LOTES");
+            System.out.println("                  GESTIÓN DE LOTES");
             System.out.println("==================================================");
             System.out.println("  1. Registrar lote");
             System.out.println("  2. Consultar lote por código");
+            System.out.println("  3. Listar lotes por repuesto");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 2);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 3);
             switch (opcion) {
                 case 1:
                     registrarLote();
                     break;
                 case 2:
                     consultarLote();
+                    break;
+                case 3:
+                    listarPorRepuesto();
                     break;
                 case 0:
                     ejecutando = false;
@@ -110,15 +116,44 @@ public class LoteView implements SubmenuVista {
             if (lote == null) {
                 System.out.println("\n  [i] No existe un lote con ese código.");
             } else {
+                Proveedor proveedor = proveedorController.buscarPorId(lote.getProveedorId());
+                Repuesto repuesto = repuestoController.buscarPorId(lote.getRepuestoId());
                 System.out.println("\n  [Lote encontrado]");
                 System.out.println("  - ID: " + lote.getId());
                 System.out.println("  - Código: " + lote.getCodigoLote());
-                System.out.println("  - Proveedor: " + lote.getProveedorId());
-                System.out.println("  - Repuesto: " + lote.getRepuestoId());
+                System.out.println("  - Proveedor: " + proveedor.getId() + " - " + proveedor.getNombre());
+                System.out.println("  - Repuesto: " + repuesto.getId() + " - " + repuesto.getNombre());
                 System.out.println("  - Fecha ingreso: " + lote.getFechaIngreso());
                 System.out.println("  - Fecha caducidad: " + (lote.getFechaCaducidad() == null ? "Sin caducidad" : lote.getFechaCaducidad()));
                 System.out.println("  - Cantidad inicial: " + lote.getCantidadInicial());
                 System.out.println("  - Cantidad actual: " + lote.getCantidadActual());
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void listarPorRepuesto() {
+        try {
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
+            List<Lote> lotes = loteController.listarPorRepuesto(repuestoId);
+
+            if (lotes.isEmpty()) {
+                System.out.println("\n  [i] El repuesto '" + repuesto.getNombre() + "' no tiene lotes registrados.");
+            } else {
+                System.out.println("\n  [Lotes del repuesto: " + repuesto.getNombre() + "]");
+                for (Lote lote : lotes) {
+                    Proveedor proveedor = proveedorController.buscarPorId(lote.getProveedorId());
+                    String caducidad = lote.getFechaCaducidad() == null ? "Sin caducidad" : lote.getFechaCaducidad().toString();
+                    System.out.println("  - " + lote.getCodigoLote()
+                            + " | proveedor: " + proveedor.getNombre()
+                            + " | ingreso: " + lote.getFechaIngreso()
+                            + " | caducidad: " + caducidad
+                            + " | inicial: " + lote.getCantidadInicial()
+                            + " | restante: " + lote.getCantidadActual());
+                }
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());

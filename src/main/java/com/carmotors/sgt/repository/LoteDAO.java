@@ -1,6 +1,7 @@
 package com.carmotors.sgt.repository;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.carmotors.sgt.model.Lote;
 
@@ -10,6 +11,8 @@ import com.carmotors.sgt.model.Lote;
 public interface LoteDAO {
 
     Lote buscarPorCodigo(String codigoLote);
+
+    List<Lote> listarPorRepuesto(int repuestoId);
 
     int guardar(Lote lote);
 

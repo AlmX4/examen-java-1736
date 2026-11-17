@@ -8,6 +8,23 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### PR #87 — `feat(inventario): add lot traceability (T3.4)` (`feature/gestion-inventario` → `develop`, cierra `#30`)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Ampliación de `LoteDAO` / `LoteDAOImpl` con consulta por repuesto y consulta por código mediante `PreparedStatement`.
+  - Consulta de lotes ordenada deterministamente: lotes con caducidad más próxima primero, después lotes sin caducidad por fecha de ingreso y ID (`RF-03`, sección 2.6).
+  - Extensión de `LoteService` y `LoteController` para listar lotes por repuesto y consultar trazabilidad por código, validando el ID y la existencia del repuesto.
+  - Integración de la opción `3. Listar lotes por repuesto` en `LoteView`, mostrando proveedor, fechas, cantidad inicial y cantidad restante; la búsqueda inexistente informa claramente sin cerrar la consola.
+  - Creación de pruebas JUnit 5 para trazabilidad por código, lote inexistente, orden determinista de 4 criterios y repuesto inexistente en `LoteServiceTest`.
+
+### PR #87 — `feat(inventario): add multi-criteria parts search and filters (T3.6)` (`feature/gestion-inventario` → `develop`, cierra `#32`)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Adición de `InputValidator.normalizarParaBusqueda(String)` (`com.carmotors.sgt.util`) para normalizar búsquedas sin distinguir mayúsculas ni tildes usando métodos estándar de `String`.
+  - Extensión de `RepuestoService` (`com.carmotors.sgt.service`) inyectando `ProveedorRepuestoDAO` y `ProveedorDAO` (conservando constructores existentes) y agregando `buscarPorFiltros(nombre, tipo, marca, proveedor)` con carga previa SQL (`repuestoDAO`, `repuestoTipoDAO`, `proveedorDAO`, `proveedorRepuestoDAO`) y filtrado combinable en memoria mediante Lambdas y `Stream API` (`RF-04`, `RNF-11`).
+  - Exposición en `RepuestoController.buscarPorFiltros(...)`, cableado en `Main.java` y nueva opción `10. Buscar y filtrar repuestos` en `RepuestoView` (rango `0–10`) con mensajes claros cuando no existen coincidencias.
+  - Ampliación de `RepuestoServiceTest` cubriendo búsqueda individual por cada criterio, combinaciones múltiples, insensibilidad a mayúsculas y tildes, filtros vacíos y casos sin coincidencias.
+
 ### PR #86 — `refactor: rename repository classes to dao convention` (`refactor/rename-repository-classes` → `develop`)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
