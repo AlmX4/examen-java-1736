@@ -2,10 +2,12 @@ package com.carmotors.sgt.view;
 
 import java.util.List;
 
+import com.carmotors.sgt.controller.InventarioController;
 import com.carmotors.sgt.controller.RepuestoController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.RepuestoTipo;
+import com.carmotors.sgt.model.StockRepuesto;
 import com.carmotors.sgt.util.ConsoleReader;
 
 public class RepuestoView implements SubmenuVista {
@@ -13,6 +15,7 @@ public class RepuestoView implements SubmenuVista {
     private final RepuestoController repuestoController;
     private final CatalogoProveedorView catalogoProveedorView;
     private final LoteView loteView;
+    private final InventarioController inventarioController;
 
     public RepuestoView(RepuestoController repuestoController) {
         this(repuestoController, null, null);
@@ -24,12 +27,18 @@ public class RepuestoView implements SubmenuVista {
 
     public RepuestoView(RepuestoController repuestoController, CatalogoProveedorView catalogoProveedorView,
                        LoteView loteView) {
+        this(repuestoController, catalogoProveedorView, loteView, null);
+    }
+
+    public RepuestoView(RepuestoController repuestoController, CatalogoProveedorView catalogoProveedorView,
+                       LoteView loteView, InventarioController inventarioController) {
         if (repuestoController == null) {
             throw new IllegalArgumentException("El controlador de repuestos es obligatorio.");
         }
         this.repuestoController = repuestoController;
         this.catalogoProveedorView = catalogoProveedorView;
         this.loteView = loteView;
+        this.inventarioController = inventarioController;
     }
 
     @Override
@@ -52,10 +61,11 @@ public class RepuestoView implements SubmenuVista {
             System.out.println("  6. Reactivar repuesto");
             System.out.println("  7. Ver proveedores del repuesto");
             System.out.println("  8. Ingreso de lotes");
+            System.out.println("  9. Ver stock del repuesto");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 9);
             switch (opcion) {
                 case 1:
                     listarRepuestos();
@@ -90,6 +100,9 @@ public class RepuestoView implements SubmenuVista {
                         System.out.println("\n  [i] El ingreso de lotes aún no está conectado.");
                         ConsoleReader.pausar();
                     }
+                    break;
+                case 9:
+                    verStockRepuesto();
                     break;
                 case 0:
                     ejecutando = false;
@@ -227,6 +240,37 @@ public class RepuestoView implements SubmenuVista {
             Repuesto repuesto = repuestoController.reactivar(id);
             System.out.println("\n  [✓] Repuesto reactivado correctamente.");
             imprimirDetalleRepuesto(repuesto);
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private void verStockRepuesto() {
+        if (inventarioController == null) {
+            System.out.println("\n  [i] La consulta de stock aún no está conectada.");
+            ConsoleReader.pausar();
+            return;
+        }
+
+        try {
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            StockRepuesto stock = inventarioController.consultarStock(id);
+            Repuesto repuesto = stock.getRepuesto();
+
+            System.out.println("\n  [Stock del repuesto]");
+            System.out.println("  - ID " + repuesto.getId() + " | " + repuesto.getNombre());
+            System.out.println("    Stock físico     : " + stock.getStockFisico());
+            System.out.println("    Stock operativo  : " + stock.getStockOperativo());
+            System.out.println("    Reservado        : " + stock.getReservado());
+            System.out.println("    Disponible       : " + stock.getDisponible());
+            System.out.println("    Stock mínimo     : " + stock.getStockMinimo());
+
+            if (stock.getDeficit() > 0) {
+                System.out.println("\n  [!] ALERTA: faltan " + stock.getDeficit()
+                        + " unidad(es) para respaldar las reservas.");
+                System.out.println("      Hay reservas sin respaldo porque hay lotes vencidos.");
+            }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
