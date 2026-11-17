@@ -27,4 +27,8 @@ public class InventarioController {
     public List<StockRepuesto> consultarStockActivos() {
         return inventarioService.calcularStockActivos();
     }
+
+    public List<StockRepuesto> generarReporteStockBajo() {
+        return inventarioService.generarReporteStockBajo();
+    }
 }

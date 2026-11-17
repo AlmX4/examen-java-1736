@@ -13,12 +13,19 @@ public class StockRepuesto {
     private int disponible;
     private int deficit;
     private int stockMinimo;
+    private String proveedorHabitual;
 
     public StockRepuesto() {
+        this.proveedorHabitual = "No definido";
     }
 
     public StockRepuesto(Repuesto repuesto, int stockFisico, int stockOperativo, int reservado,
                          int disponible, int deficit, int stockMinimo) {
+        this(repuesto, stockFisico, stockOperativo, reservado, disponible, deficit, stockMinimo, "No definido");
+    }
+
+    public StockRepuesto(Repuesto repuesto, int stockFisico, int stockOperativo, int reservado,
+                         int disponible, int deficit, int stockMinimo, String proveedorHabitual) {
         this.repuesto = repuesto;
         this.stockFisico = stockFisico;
         this.stockOperativo = stockOperativo;
@@ -26,6 +33,7 @@ public class StockRepuesto {
         this.disponible = disponible;
         this.deficit = deficit;
         this.stockMinimo = stockMinimo;
+        this.proveedorHabitual = proveedorHabitual == null ? "No definido" : proveedorHabitual;
     }
 
     public Repuesto getRepuesto() {
@@ -84,6 +92,14 @@ public class StockRepuesto {
         this.stockMinimo = stockMinimo;
     }
 
+    public String getProveedorHabitual() {
+        return proveedorHabitual;
+    }
+
+    public void setProveedorHabitual(String proveedorHabitual) {
+        this.proveedorHabitual = proveedorHabitual == null ? "No definido" : proveedorHabitual;
+    }
+
     @Override
     public String toString() {
         return "StockRepuesto{" +
@@ -94,6 +110,7 @@ public class StockRepuesto {
                 ", disponible=" + disponible +
                 ", deficit=" + deficit +
                 ", stockMinimo=" + stockMinimo +
+                ", proveedorHabitual='" + proveedorHabitual + '\'' +
                 '}';
     }
 }

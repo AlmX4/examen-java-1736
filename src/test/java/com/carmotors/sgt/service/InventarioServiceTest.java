@@ -15,15 +15,21 @@ import org.junit.jupiter.api.Test;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Lote;
+import com.carmotors.sgt.model.Proveedor;
+import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.StockRepuesto;
 import com.carmotors.sgt.repository.LoteDAO;
+import com.carmotors.sgt.repository.ProveedorDAO;
+import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
 
 class InventarioServiceTest {
 
     private RepuestoDAOMock repuestoDAO;
     private LoteDAOMock loteDAO;
+    private ProveedorRepuestoDAOMock proveedorRepuestoDAO;
+    private ProveedorDAOMock proveedorDAO;
     private InventarioService service;
     private LocalDate hoy;
 
@@ -31,7 +37,9 @@ class InventarioServiceTest {
     void setUp() {
         repuestoDAO = new RepuestoDAOMock();
         loteDAO = new LoteDAOMock();
-        service = new InventarioService(repuestoDAO, loteDAO);
+        proveedorRepuestoDAO = new ProveedorRepuestoDAOMock();
+        proveedorDAO = new ProveedorDAOMock();
+        service = new InventarioService(repuestoDAO, loteDAO, proveedorRepuestoDAO, proveedorDAO);
         hoy = LocalDate.now();
     }
 
@@ -155,6 +163,54 @@ class InventarioServiceTest {
         for (StockRepuesto stock : metricas) {
             assertTrue(stock.getRepuesto().isActivo());
         }
+    }
+
+    @Test
+    @DisplayName("Reporte de stock bajo incluye menor o igual al mínimo con proveedor habitual o No definido")
+    void reporteStockBajoIncluyeBordeYProveedorHabitual() {
+        proveedorDAO.agregar(new Proveedor(1, "Frenos y Más", "5775550102", "ventas@frenos.com", "Cll 10", true));
+        proveedorDAO.agregar(new Proveedor(2, "Proveedor Inactivo", "5775550109", "inactivo@prov.com", "Cll 11", false));
+
+        repuestoDAO.agregar(repuesto(1, 0, 5, true));   // disponible 3 < 5, con habitual activo
+        repuestoDAO.agregar(repuesto(2, 1, 4, true));   // disponible 4 == 4 (borde), sin habitual
+        repuestoDAO.agregar(repuesto(3, 0, 2, true));   // disponible 6 > 2 (excluido)
+        repuestoDAO.agregar(repuesto(4, 0, 10, false)); // inactivo aunque bajo mínimo (excluido)
+        repuestoDAO.agregar(repuesto(5, 0, 3, true));   // disponible 1 < 3, habitual inactivo -> No definido
+
+        loteDAO.agregar(lote(1, hoy.plusDays(30), 3));
+        loteDAO.agregar(lote(2, hoy.plusDays(30), 5));
+        loteDAO.agregar(lote(3, hoy.plusDays(30), 6));
+        loteDAO.agregar(lote(4, hoy.plusDays(30), 1));
+        loteDAO.agregar(lote(5, hoy.plusDays(30), 1));
+
+        proveedorRepuestoDAO.agregar(new ProveedorRepuesto(1, 1, new BigDecimal("140000.00"), 4, true));
+        proveedorRepuestoDAO.agregar(new ProveedorRepuesto(2, 5, new BigDecimal("50000.00"), 2, true));
+
+        List<StockRepuesto> reporte = service.generarReporteStockBajo();
+
+        assertEquals(3, reporte.size());
+        assertEquals(5, reporte.get(0).getRepuesto().getId());
+        assertEquals(1, reporte.get(0).getDisponible());
+        assertEquals("No definido", reporte.get(0).getProveedorHabitual());
+
+        assertEquals(1, reporte.get(1).getRepuesto().getId());
+        assertEquals(3, reporte.get(1).getDisponible());
+        assertEquals("Frenos y Más", reporte.get(1).getProveedorHabitual());
+
+        assertEquals(2, reporte.get(2).getRepuesto().getId());
+        assertEquals(4, reporte.get(2).getDisponible());
+        assertEquals("No definido", reporte.get(2).getProveedorHabitual());
+    }
+
+    @Test
+    @DisplayName("Reporte de stock bajo retorna lista vacía cuando todos superan su mínimo")
+    void reporteStockBajoVacioSiTodosSuperanMinimo() {
+        repuestoDAO.agregar(repuesto(1, 0, 3, true));
+        loteDAO.agregar(lote(1, hoy.plusDays(20), 10));
+
+        List<StockRepuesto> reporte = service.generarReporteStockBajo();
+
+        assertTrue(reporte.isEmpty());
     }
 
     private Repuesto repuesto(int id, int reservada, int minimo, boolean activo) {
@@ -296,6 +352,131 @@ class InventarioServiceTest {
         @Override
         public boolean reactivar(int id) {
             return false;
+        }
+    }
+
+    private static class ProveedorDAOMock implements ProveedorDAO {
+        private final List<Proveedor> datos = new ArrayList<>();
+
+        void agregar(Proveedor proveedor) {
+            datos.add(proveedor);
+        }
+
+        @Override
+        public List<Proveedor> listarTodos() {
+            return new ArrayList<>(datos);
+        }
+
+        @Override
+        public List<Proveedor> listarActivos() {
+            List<Proveedor> activos = new ArrayList<>();
+            for (Proveedor proveedor : datos) {
+                if (proveedor.isActivo()) {
+                    activos.add(proveedor);
+                }
+            }
+            return activos;
+        }
+
+        @Override
+        public Proveedor buscarPorId(int id) {
+            for (Proveedor proveedor : datos) {
+                if (proveedor.getId() == id) {
+                    return proveedor;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public Proveedor buscarPorEmail(String email) {
+            return null;
+        }
+
+        @Override
+        public int guardar(Proveedor proveedor) {
+            datos.add(proveedor);
+            return proveedor.getId();
+        }
+
+        @Override
+        public boolean actualizar(Proveedor proveedor) {
+            return true;
+        }
+
+        @Override
+        public boolean desactivar(int id) {
+            return true;
+        }
+
+        @Override
+        public boolean reactivar(int id) {
+            return true;
+        }
+    }
+
+    private static class ProveedorRepuestoDAOMock implements ProveedorRepuestoDAO {
+        private final List<ProveedorRepuesto> datos = new ArrayList<>();
+
+        void agregar(ProveedorRepuesto asociacion) {
+            datos.add(asociacion);
+        }
+
+        @Override
+        public List<ProveedorRepuesto> listarPorProveedor(int proveedorId) {
+            List<ProveedorRepuesto> resultado = new ArrayList<>();
+            for (ProveedorRepuesto item : datos) {
+                if (item.getProveedorId() == proveedorId) {
+                    resultado.add(item);
+                }
+            }
+            return resultado;
+        }
+
+        @Override
+        public List<ProveedorRepuesto> listarPorRepuesto(int repuestoId) {
+            List<ProveedorRepuesto> resultado = new ArrayList<>();
+            for (ProveedorRepuesto item : datos) {
+                if (item.getRepuestoId() == repuestoId) {
+                    resultado.add(item);
+                }
+            }
+            return resultado;
+        }
+
+        @Override
+        public ProveedorRepuesto buscarPorProveedorYRepuesto(int proveedorId, int repuestoId) {
+            for (ProveedorRepuesto item : datos) {
+                if (item.getProveedorId() == proveedorId && item.getRepuestoId() == repuestoId) {
+                    return item;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public boolean guardar(ProveedorRepuesto proveedorRepuesto) {
+            return datos.add(proveedorRepuesto);
+        }
+
+        @Override
+        public boolean actualizarCondiciones(ProveedorRepuesto proveedorRepuesto) {
+            return true;
+        }
+
+        @Override
+        public boolean eliminar(int proveedorId, int repuestoId) {
+            return true;
+        }
+
+        @Override
+        public int desmarcarHabitual(int repuestoId) {
+            return 0;
+        }
+
+        @Override
+        public boolean marcarHabitual(int proveedorId, int repuestoId) {
+            return true;
         }
     }
 }

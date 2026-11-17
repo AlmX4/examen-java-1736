@@ -8,6 +8,14 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### Pendiente de integración — `feat(inventario): add low stock report (T3.7)` (`feature/gestion-inventario` → `develop`, cierra `#33`)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Extensión de `StockRepuesto` (`com.carmotors.sgt.model`) con `proveedorHabitual` (`"No definido"` por defecto).
+  - Ampliación de `InventarioService` (`com.carmotors.sgt.service`) inyectando `ProveedorRepuestoDAO` y `ProveedorDAO` (conservando constructores existentes) y añadiendo `generarReporteStockBajo()` mediante `Stream API` sobre `calcularStockActivos()` (`disponible <= stockMinimo`), resolviendo el proveedor habitual activo (`RN-18`, `RF-05`, `RN-22`, `RNF-11`).
+  - Exposición en `InventarioController.generarReporteStockBajo()`, cableado en `Main.java` y opción `11. Reporte de stock bajo` en `RepuestoView` (rango `0–11`), mostrando métricas completas y aviso claro cuando no hay repuestos bajo mínimo.
+  - Ampliación de `InventarioServiceTest` cubriendo stock menor/igual al mínimo, exclusión de activos suficientes e inactivos, proveedor habitual activo vs. `"No definido"` y lista vacía.
+
 ### PR #87 — `feat(inventario): add lot traceability (T3.4)` (`feature/gestion-inventario` → `develop`, cierra `#30`)
 - **Autor:** `@AlmX4`
 - **Cambios incluidos:**
