@@ -6,6 +6,17 @@
 
 ---
 
+## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
+
+### Pendiente de integración — `feat(servicios): add order state pattern base (T4.1)` (`feature/gestion-servicios` → `develop`, RF-12 / RN-06)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Creación de la interfaz `EstadoOrden` y de las clases `EstadoPendiente`, `EstadoEnProceso`, `EstadoCompletado`, `EstadoFacturado`, `EstadoEntregado` y `EstadoCancelada` en `com.carmotors.sgt.service.state`.
+  - Implementación del flujo unidireccional Pendiente → En Proceso → Completado → Facturado → Entregado y cancelación permitida únicamente desde Pendiente o En Proceso.
+  - Creación de `TransicionEstadoInvalidaException` en la jerarquía de excepciones propias, con mensajes claros para saltos, retrocesos y estados destino nulos.
+  - Inclusión de la capacidad de edición por estado y de métodos de ciclo de vida para reutilización en las próximas tareas de servicios.
+  - Creación de pruebas JUnit 5 para el ciclo válido, cancelaciones, saltos inválidos, retrocesos, estados terminales y transición nula.
+
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
 ### PR #86 — `refactor: rename repository classes to dao convention` (`refactor/rename-repository-classes` → `develop`)
