@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
 
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
@@ -62,6 +63,58 @@ public class LoteDAOImpl implements LoteDAO {
             return insertarLote(connection, sql, lote);
         } catch (SQLException e) {
             throw new CarMotorsException("Error al registrar el lote: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public int sumarStockFisico(int repuestoId) {
+        String sql = "SELECT COALESCE(SUM(cantidad_actual), 0) AS total FROM lotes WHERE repuesto_id = ?";
+
+        if (conexionCompartida != null) {
+            return consultarSuma(conexionCompartida, sql, repuestoId, null);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarSuma(connection, sql, repuestoId, null);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al calcular el stock físico del repuesto: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public int sumarStockOperativo(int repuestoId, LocalDate fechaReferencia) {
+        if (fechaReferencia == null) {
+            throw new ValidacionException("La fecha de referencia del stock operativo es obligatoria.");
+        }
+
+        String sql = "SELECT COALESCE(SUM(cantidad_actual), 0) AS total FROM lotes "
+                + "WHERE repuesto_id = ? AND (fecha_caducidad IS NULL OR fecha_caducidad >= ?)";
+
+        if (conexionCompartida != null) {
+            return consultarSuma(conexionCompartida, sql, repuestoId, fechaReferencia);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarSuma(connection, sql, repuestoId, fechaReferencia);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al calcular el stock operativo del repuesto: " + e.getMessage(), e);
+        }
+    }
+
+    private int consultarSuma(Connection connection, String sql, int repuestoId, LocalDate fechaReferencia) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, repuestoId);
+            if (fechaReferencia != null) {
+                preparedStatement.setDate(2, Date.valueOf(fechaReferencia));
+            }
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    return resultSet.getInt("total");
+                }
+                return 0;
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar el stock del repuesto: " + e.getMessage(), e);
         }
     }
 
