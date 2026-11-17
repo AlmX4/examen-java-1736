@@ -186,16 +186,23 @@ class LoteServiceTest {
     void listarPorRepuestoOrdenado() {
         loteDAO.agregar(new Lote(1, "LOT-SIN-CADUCIDAD", 1, 10,
                 LocalDate.of(2026, 1, 1), null, 30, 30));
-        loteDAO.agregar(new Lote(2, "LOT-CADUCIDAD-TARDIA", 1, 10,
+        loteDAO.agregar(new Lote(2, "LOT-CADUCIDAD-TARDIA-A", 1, 10,
                 LocalDate.of(2026, 2, 1), LocalDate.of(2027, 5, 1), 20, 20));
-        loteDAO.agregar(new Lote(3, "LOT-CADUCIDAD-CERCANA", 1, 10,
+        loteDAO.agregar(new Lote(3, "LOT-CADUCIDAD-TARDIA-B", 1, 10,
+                LocalDate.of(2026, 2, 1), LocalDate.of(2027, 5, 1), 18, 18));
+        loteDAO.agregar(new Lote(4, "LOT-CADUCIDAD-CERCANA-B", 1, 10,
                 LocalDate.of(2026, 3, 1), LocalDate.of(2027, 3, 1), 15, 10));
+        loteDAO.agregar(new Lote(5, "LOT-CADUCIDAD-CERCANA-A", 1, 10,
+                LocalDate.of(2026, 2, 15), LocalDate.of(2027, 3, 1), 12, 12));
 
         List<Lote> lotes = service.listarPorRepuesto(10);
 
-        assertEquals("LOT-CADUCIDAD-CERCANA", lotes.get(0).getCodigoLote());
-        assertEquals("LOT-CADUCIDAD-TARDIA", lotes.get(1).getCodigoLote());
-        assertEquals("LOT-SIN-CADUCIDAD", lotes.get(2).getCodigoLote());
+        assertEquals(5, lotes.size());
+        assertEquals("LOT-CADUCIDAD-CERCANA-A", lotes.get(0).getCodigoLote());
+        assertEquals("LOT-CADUCIDAD-CERCANA-B", lotes.get(1).getCodigoLote());
+        assertEquals("LOT-CADUCIDAD-TARDIA-A", lotes.get(2).getCodigoLote());
+        assertEquals("LOT-CADUCIDAD-TARDIA-B", lotes.get(3).getCodigoLote());
+        assertEquals("LOT-SIN-CADUCIDAD", lotes.get(4).getCodigoLote());
     }
 
     @Test
