@@ -11,12 +11,18 @@ import com.carmotors.sgt.util.ConsoleReader;
 public class RepuestoView implements SubmenuVista {
 
     private final RepuestoController repuestoController;
+    private final CatalogoProveedorView catalogoProveedorView;
 
     public RepuestoView(RepuestoController repuestoController) {
+        this(repuestoController, null);
+    }
+
+    public RepuestoView(RepuestoController repuestoController, CatalogoProveedorView catalogoProveedorView) {
         if (repuestoController == null) {
             throw new IllegalArgumentException("El controlador de repuestos es obligatorio.");
         }
         this.repuestoController = repuestoController;
+        this.catalogoProveedorView = catalogoProveedorView;
     }
 
     @Override
@@ -37,10 +43,11 @@ public class RepuestoView implements SubmenuVista {
             System.out.println("  4. Actualizar repuesto");
             System.out.println("  5. Desactivar repuesto");
             System.out.println("  6. Reactivar repuesto");
+            System.out.println("  7. Ver proveedores del repuesto");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 6);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 7);
             switch (opcion) {
                 case 1:
                     listarRepuestos();
@@ -59,6 +66,14 @@ public class RepuestoView implements SubmenuVista {
                     break;
                 case 6:
                     reactivarRepuesto();
+                    break;
+                case 7:
+                    if (catalogoProveedorView != null) {
+                        catalogoProveedorView.verProveedoresDeRepuesto();
+                    } else {
+                        System.out.println("\n  [i] El catálogo proveedor-repuesto aún no está conectado.");
+                        ConsoleReader.pausar();
+                    }
                     break;
                 case 0:
                     ejecutando = false;

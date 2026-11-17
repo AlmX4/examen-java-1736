@@ -11,17 +11,24 @@ public class ProveedorView implements SubmenuVista {
 
     private final ProveedorController proveedorController;
     private final EvaluacionProveedorView evaluacionProveedorView;
+    private final CatalogoProveedorView catalogoProveedorView;
 
     public ProveedorView(ProveedorController proveedorController) {
         this(proveedorController, null);
     }
 
     public ProveedorView(ProveedorController proveedorController, EvaluacionProveedorView evaluacionProveedorView) {
+        this(proveedorController, evaluacionProveedorView, null);
+    }
+
+    public ProveedorView(ProveedorController proveedorController, EvaluacionProveedorView evaluacionProveedorView,
+                         CatalogoProveedorView catalogoProveedorView) {
         if (proveedorController == null) {
             throw new IllegalArgumentException("El controlador de proveedores es obligatorio.");
         }
         this.proveedorController = proveedorController;
         this.evaluacionProveedorView = evaluacionProveedorView;
+        this.catalogoProveedorView = catalogoProveedorView;
     }
 
     @Override
@@ -43,10 +50,11 @@ public class ProveedorView implements SubmenuVista {
             System.out.println("  5. Desactivar proveedor");
             System.out.println("  6. Reactivar proveedor");
             System.out.println("  7. Evaluaciones de proveedores");
+            System.out.println("  8. Catálogo de repuestos del proveedor");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 7);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
             switch (opcion) {
                 case 1:
                     listarProveedores();
@@ -71,6 +79,14 @@ public class ProveedorView implements SubmenuVista {
                         evaluacionProveedorView.mostrarMenu();
                     } else {
                         System.out.println("\n  [i] El módulo de evaluaciones aún no está conectado.");
+                        ConsoleReader.pausar();
+                    }
+                    break;
+                case 8:
+                    if (catalogoProveedorView != null) {
+                        catalogoProveedorView.gestionarCatalogoProveedor();
+                    } else {
+                        System.out.println("\n  [i] El catálogo proveedor-repuesto aún no está conectado.");
                         ConsoleReader.pausar();
                     }
                     break;
