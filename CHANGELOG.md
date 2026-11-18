@@ -21,6 +21,15 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### PR #95 — `feat(servicios): add technician suggestion chain (T4.5)` (`feature/gestion-servicios` → `develop`, cierra `#39`, RF-09 / RN-20 / RN-21)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación del DTO `SugerenciaTecnico` (`com.carmotors.sgt.service.chain`) con `tecnico`, `cargaActual`, `especialidadCoincide` y `criterioAplicado`.
+  - Creación de la clase abstracta `ManejadorSugerencia` (`com.carmotors.sgt.service.chain`) con encadenamiento fluido `establecerSiguiente`, método plantilla `sugerir(...)` y helpers compartidos `obtenerCarga` y `seleccionarMenorCargaYMenorId` (exclusión estricta de técnicos inactivos y desempate determinista por menor `tecnico.getId()`).
+  - Creación de los 3 eslabones en orden estricto (`RN-20`): `ManejadorEspecialistaLibre`, `ManejadorEspecialistaMenorCarga` y `ManejadorGeneralMenorCarga`.
+  - Creación de `SugerenciaTecnicoChain` ensamblando `Libre -> EspecialistaMenorCarga -> GeneralMenorCarga`, validando `especialidadRequeridaId > 0` (`ValidacionException`), normalizando listas/mapas nulos y conectando la sobrecarga `sugerir(int, TecnicoService)` con `TecnicoService.listarActivos()` y `TecnicoService.obtenerCargasActivasPorTecnico()`.
+  - Creación de `SugerenciaTecnicoChainTest` (**9** pruebas JUnit 5 en memoria) cubriendo los 3 eslabones, desempate por menor ID, exclusión de inactivos, retorno `null` controlado, validación de especialidad/servicio e integración directa con `TecnicoService` (**217** pruebas en total: **0** fallos, **0** errores, **2** omitidas).
+
 ### PR #94 — `feat(tecnicos): add technician workload query (T4.4)` (`feature/gestion-tecnicos` → `develop`, cierra `#38`, RF-34 / RN-21 / HU-16)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
