@@ -8,19 +8,23 @@ import com.carmotors.sgt.exception.StockInsuficienteException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.ConsultaOrdenServicio;
+import com.carmotors.sgt.model.ConsumoRepuesto;
 import com.carmotors.sgt.model.FiltroOrdenServicio;
 import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
+import com.carmotors.sgt.model.Lote;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.Repuesto;
+import com.carmotors.sgt.model.ResultadoCompletarOrden;
 import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.repository.ClienteDAO;
 import com.carmotors.sgt.repository.ConsultaOrdenServicioDAO;
 import com.carmotors.sgt.repository.DetalleRepuestoDAO;
+import com.carmotors.sgt.repository.LoteDAO;
 import com.carmotors.sgt.repository.OrdenServicioDAO;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
@@ -30,6 +34,7 @@ import com.carmotors.sgt.repository.VehiculoDAO;
 import com.carmotors.sgt.repository.impl.ClienteDAOImpl;
 import com.carmotors.sgt.repository.impl.ConsultaOrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.DetalleRepuestoDAOImpl;
+import com.carmotors.sgt.repository.impl.LoteDAOImpl;
 import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
@@ -48,19 +53,22 @@ import com.carmotors.sgt.util.InputValidator;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * Reglas de negocio para crear órdenes, editar sus líneas y reservar repuestos en ellas
- * (RF-08, RF-10, RF-35, RN-01, RN-02, RN-11).
+ * Reglas de negocio para crear órdenes, editar sus líneas, reservar repuestos en ellas
+ * y completarlas descontando el inventario (RF-08, RF-10, RF-13, RF-35, RN-01 a RN-04, RN-08, RN-11).
  */
 public class OrdenServicioService {
 
@@ -81,6 +89,8 @@ public class OrdenServicioService {
     private final InventarioService inventarioService;
     private final boolean usarTransaccionJdbc;
     private final ConsultaOrdenServicioDAO consultaOrdenServicioDAO;
+    private final LoteDAO loteDAO;
+    private final ConsumoLotesFefo consumoLotesFefo = new ConsumoLotesFefo();
 
     /**
      * Constructor de producción: usa DAOs JDBC y transacción con una única {@link Connection}.
@@ -144,7 +154,20 @@ public class OrdenServicioService {
                                  boolean usarTransaccionJdbc, boolean exigirDependenciasReserva) {
         this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
                 tecnicoDAO, repuestoDAO, detalleRepuestoDAO, inventarioService,
-                usarTransaccionJdbc, exigirDependenciasReserva, null);
+                usarTransaccionJdbc, exigirDependenciasReserva, new LoteDAOImpl(), null);
+    }
+
+    /**
+     * Constructor para probar la finalización de órdenes (RF-13) con DAOs en memoria,
+     * incluido el DAO de lotes.
+     */
+    public OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
+                                VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
+                                TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO, DetalleRepuestoDAO detalleRepuestoDAO,
+                                LoteDAO loteDAO, InventarioService inventarioService, boolean usarTransaccionJdbc) {
+        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
+                tecnicoDAO, repuestoDAO, detalleRepuestoDAO, inventarioService,
+                usarTransaccionJdbc, true, loteDAO, null);
     }
 
     /** Construye el servicio con repositorios en memoria para las consultas. */
@@ -153,7 +176,8 @@ public class OrdenServicioService {
                                 TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO, DetalleRepuestoDAO detalleRepuestoDAO,
                                 ConsultaOrdenServicioDAO consultaOrdenServicioDAO) {
         this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
-                tecnicoDAO, repuestoDAO, detalleRepuestoDAO, null, false, false, consultaOrdenServicioDAO);
+                tecnicoDAO, repuestoDAO, detalleRepuestoDAO, null, false, false, new LoteDAOImpl(),
+                consultaOrdenServicioDAO);
     }
 
     private OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
@@ -161,7 +185,7 @@ public class OrdenServicioService {
                                  TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO,
                                  DetalleRepuestoDAO detalleRepuestoDAO, InventarioService inventarioService,
                                  boolean usarTransaccionJdbc, boolean exigirDependenciasReserva,
-                                 ConsultaOrdenServicioDAO consultaOrdenServicioDAO) {
+                                 LoteDAO loteDAO, ConsultaOrdenServicioDAO consultaOrdenServicioDAO) {
         if (ordenServicioDAO == null) {
             throw new ValidacionException("El DAO de órdenes de servicio es obligatorio.");
         }
@@ -183,6 +207,9 @@ public class OrdenServicioService {
         if (repuestoDAO == null) {
             throw new ValidacionException("El DAO de repuestos es obligatorio.");
         }
+        if (loteDAO == null) {
+            throw new ValidacionException("El DAO de lotes es obligatorio.");
+        }
         this.ordenServicioDAO = ordenServicioDAO;
         this.ordenServicioDetalleDAO = ordenServicioDetalleDAO;
         this.vehiculoDAO = vehiculoDAO;
@@ -203,6 +230,7 @@ public class OrdenServicioService {
         this.inventarioService = inventarioService;
         this.usarTransaccionJdbc = usarTransaccionJdbc;
         this.consultaOrdenServicioDAO = consultaOrdenServicioDAO;
+        this.loteDAO = loteDAO;
     }
 
     /**
@@ -1085,6 +1113,164 @@ public class OrdenServicioService {
         } catch (SQLException e) {
             throw new CarMotorsException("No se pudo completar la transición de la orden a En Proceso: "
                     + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Completa una orden En Proceso y descuenta del inventario los repuestos reservados en
+     * todas sus líneas (RF-13, RN-03, RN-04, RN-08, sección 2.6).
+     *
+     * <p>En una única unidad de trabajo JDBC: bloquea la cabecera, valida la transición con el
+     * patrón State, valida las líneas, comprueba que el stock operativo cubra cada repuesto antes
+     * de descontar nada, descuenta los lotes con FEFO, reduce el reservado y marca la orden como
+     * Completada con su fecha. Si algo falla, nada cambia. No se registra el vínculo lote-orden
+     * (límite de trazabilidad adoptado). Después del commit se evalúa la alerta de stock bajo
+     * (RN-22).</p>
+     *
+     * @param ordenId identificador de la orden
+     * @return la orden completada y las unidades descontadas por repuesto
+     */
+    public ResultadoCompletarOrden completarOrden(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+        if (detalleRepuestoDAO == null || inventarioService == null) {
+            throw new CarMotorsException("La finalización de órdenes no está configurada en este servicio.");
+        }
+        LocalDateTime fechaCompletado = LocalDateTime.now().withNano(0);
+
+        ResultadoCompletarOrden resultado;
+        if (!usarTransaccionJdbc) {
+            resultado = ejecutarCompletarOrden(ordenId, fechaCompletado, ordenServicioDAO,
+                    ordenServicioDetalleDAO, detalleRepuestoDAO, repuestoDAO, loteDAO);
+        } else {
+            resultado = completarOrdenEnTransaccion(ordenId, fechaCompletado);
+        }
+
+        notificarStockBajoTrasCompletar(resultado);
+        return resultado;
+    }
+
+    private ResultadoCompletarOrden completarOrdenEnTransaccion(int ordenId, LocalDateTime fechaCompletado) {
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                OrdenServicioDAO ordenDaoTransaccional = new OrdenServicioDAOImpl(connection);
+                OrdenServicioDetalleDAO detalleDaoTransaccional = new OrdenServicioDetalleDAOImpl(connection);
+                DetalleRepuestoDAO detalleRepuestoDaoTransaccional = new DetalleRepuestoDAOImpl(connection);
+                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
+                LoteDAO loteDaoTransaccional = new LoteDAOImpl(connection);
+
+                ResultadoCompletarOrden resultado = ejecutarCompletarOrden(ordenId, fechaCompletado,
+                        ordenDaoTransaccional, detalleDaoTransaccional, detalleRepuestoDaoTransaccional,
+                        repuestoDaoTransaccional, loteDaoTransaccional);
+                connection.commit();
+                return resultado;
+            } catch (CarMotorsException e) {
+                connection.rollback();
+                throw e;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new CarMotorsException("No se pudo completar la orden: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new CarMotorsException("Error inesperado al completar la orden: " + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transacción de la orden " + ordenId + ": "
+                    + e.getMessage(), e);
+        }
+    }
+
+    private ResultadoCompletarOrden ejecutarCompletarOrden(int ordenId, LocalDateTime fechaCompletado,
+                                                           OrdenServicioDAO ordenDao,
+                                                           OrdenServicioDetalleDAO detalleDao,
+                                                           DetalleRepuestoDAO detalleRepuestoDao,
+                                                           RepuestoDAO repuestoDao, LoteDAO loteDao) {
+        // 1. La orden existe y el patrón State permite pasar a Completado (solo desde En Proceso).
+        OrdenServicio orden = ordenDao.buscarPorIdParaActualizar(ordenId);
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró una orden de servicio con el ID: " + ordenId);
+        }
+        EstadoOrden nuevoEstado = EstadoOrdenFactory.desdeId(orden.getEstadoId()).completar();
+
+        // 2. Al menos una línea y mano de obra >= 0 en cada una (RN-08).
+        List<OrdenServicioDetalle> lineas = detalleDao.listarPorOrdenParaActualizar(ordenId);
+        if (lineas.isEmpty()) {
+            throw new ValidacionException("La orden " + ordenId + " no tiene líneas de servicio (RN-18).");
+        }
+        for (OrdenServicioDetalle linea : lineas) {
+            if (linea.getCostoManoObra() == null || linea.getCostoManoObra().compareTo(BigDecimal.ZERO) < 0) {
+                throw new ValidacionException("La línea " + linea.getId() + " ('" + linea.getNombreServicioSnapshot()
+                        + "') tiene un costo de mano de obra inválido; debe ser mayor o igual a cero (RN-08).");
+            }
+        }
+
+        // 3. Cantidades asignadas agrupadas por repuesto en todas las líneas.
+        Map<Integer, Integer> requeridoPorRepuesto = new LinkedHashMap<>();
+        Map<Integer, String> nombrePorRepuesto = new HashMap<>();
+        for (OrdenServicioDetalle linea : lineas) {
+            for (DetalleRepuesto reserva : detalleRepuestoDao.listarPorDetalle(linea.getId())) {
+                int acumulado = requeridoPorRepuesto.getOrDefault(reserva.getRepuestoId(), 0);
+                requeridoPorRepuesto.put(reserva.getRepuestoId(), acumulado + reserva.getCantidadAsignada());
+                nombrePorRepuesto.put(reserva.getRepuestoId(), reserva.getNombreRepuestoSnapshot());
+            }
+        }
+
+        // 4. Cobertura del stock operativo ANTES de descontar nada (sección 2.6, punto 4).
+        LocalDate hoy = fechaCompletado.toLocalDate();
+        Map<Integer, List<Lote>> lotesPorRepuesto = new HashMap<>();
+        for (Map.Entry<Integer, Integer> requerido : requeridoPorRepuesto.entrySet()) {
+            int repuestoId = requerido.getKey();
+            List<Lote> lotes = loteDao.listarPorRepuesto(repuestoId);
+            int operativo = consumoLotesFefo.calcularStockOperativo(lotes, hoy);
+            if (operativo < requerido.getValue()) {
+                throw new StockInsuficienteException("No se puede completar la orden " + ordenId + ": el repuesto '"
+                        + nombrePorRepuesto.get(repuestoId) + "' (ID " + repuestoId + ") requiere "
+                        + requerido.getValue() + " unidad(es) y su stock operativo es " + operativo + ".");
+            }
+            lotesPorRepuesto.put(repuestoId, lotes);
+        }
+
+        // 5. Descuento por FEFO y reducción del reservado (RN-03).
+        List<ConsumoRepuesto> consumos = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> requerido : requeridoPorRepuesto.entrySet()) {
+            int repuestoId = requerido.getKey();
+            int cantidad = requerido.getValue();
+            Map<Integer, Integer> distribucion = consumoLotesFefo.calcularConsumo(
+                    lotesPorRepuesto.get(repuestoId), hoy, cantidad);
+            for (Map.Entry<Integer, Integer> porLote : distribucion.entrySet()) {
+                if (!loteDao.descontarUnidades(porLote.getKey(), porLote.getValue())) {
+                    throw new CarMotorsException("No se pudieron descontar " + porLote.getValue()
+                            + " unidad(es) del lote " + porLote.getKey() + ".");
+                }
+            }
+            if (!repuestoDao.descontarReserva(repuestoId, cantidad)) {
+                throw new CarMotorsException("La reserva del repuesto " + repuestoId
+                        + " es inconsistente: no se pudo reducir en " + cantidad + " unidad(es).");
+            }
+            consumos.add(new ConsumoRepuesto(repuestoId, nombrePorRepuesto.get(repuestoId), cantidad));
+        }
+
+        // 6. Estado Completado y fecha de finalización.
+        if (!ordenDao.marcarCompletada(ordenId, nuevoEstado.getEstadoId(), fechaCompletado)) {
+            throw new CarMotorsException("No se pudo marcar como completada la orden " + ordenId + ".");
+        }
+        orden.setEstadoId(nuevoEstado.getEstadoId());
+        orden.setFechaCompletado(fechaCompletado);
+        return new ResultadoCompletarOrden(orden, consumos);
+    }
+
+    private void notificarStockBajoTrasCompletar(ResultadoCompletarOrden resultado) {
+        for (ConsumoRepuesto consumo : resultado.getConsumos()) {
+            try {
+                inventarioService.evaluarYNotificarStockBajo(consumo.getRepuestoId());
+            } catch (RuntimeException e) {
+                LOGGER.log(Level.WARNING, "La orden " + resultado.getOrden().getId() + " se completó, pero no se pudo "
+                        + "evaluar la alerta de stock bajo del repuesto " + consumo.getRepuestoId() + ".", e);
+            }
         }
     }
 
