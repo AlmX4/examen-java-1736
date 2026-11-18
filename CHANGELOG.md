@@ -6,6 +6,19 @@
 
 ---
 
+## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
+
+### Pendiente de integración — `feat(inventario): implement StockObserver pattern for low stock alerts (T5.1)` (`feature/gestion-inventario` → `develop`, cierra `#45`, RN-22 / RF-05 / RNF-09 / RNF-10 / RNF-11)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de la interfaz `StockObserver` (`com.carmotors.sgt.service.observer`) con `void onStockBajo(StockRepuesto stock)` aplicando el principio de segregación de interfaces (ISP).
+  - Creación del observador desacoplado `AlertaStockBajoObserver` (`com.carmotors.sgt.service.observer`) que formatea y emite alertas en consola con datos completos de repuesto, stock físico, operativo, reservado, disponible, mínimo, déficit y proveedor habitual activo (o "No definido").
+  - Extensión de `InventarioService` (`com.carmotors.sgt.service`) como sujeto observable: lista interna de observadores, métodos de suscripción `agregarObserver(StockObserver)` (con prevención de nulos y duplicados), `eliminarObserver(StockObserver)`, `getObservers()` y el método evaluador `evaluarYNotificarStockBajo(int repuestoId)` que evalúa si el repuesto activo tiene `disponible <= stockMinimo` para notificar a los suscriptores (`RN-22`), conservando todos los constructores existentes.
+  - Corrección solicitada en revisión: `notificarStockBajo` ya no silencia las excepciones con un `catch` vacío; recorre una copia defensiva `new ArrayList<>(observers)` (evita `ConcurrentModificationException` si un observador se suscribe o desuscribe durante la notificación) y registra cada fallo con `java.util.logging.Logger` en `Level.WARNING`, incluyendo el observador y el repuesto afectados (`RNF-14`).
+  - Registro de `AlertaStockBajoObserver` en `Main.java` durante el arranque de la aplicación.
+  - Creación de la suite de pruebas unitarias `StockObserverTest` (8 pruebas) validando alertas al caer en o bajo el mínimo, silencio cuando supera el mínimo o el repuesto está inactivo, desuscripción efectiva, robustez ante observadores con fallos, desuscripción durante la notificación y formato de alerta por consola (195 pruebas en total, 0 fallos).
+
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
 ### Pendiente de integración — `feat(servicios): add service order creation (T4.2)` (`feature/gestion-servicios` → `develop`, cierra `#36`, RF-08 / RN-11 / RN-18 / HU-04)
@@ -31,6 +44,16 @@
   - Extracción de `transicionarA(EstadoOrden)` y `lanzarTransicionInvalida(EstadoOrden)` a `EstadoOrdenBase`, eliminando la duplicación entre las clases concretas.
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
+
+### Pendiente de integración — `feat(inventario): add expiring and expired lots report (T3.8)` (`feature/gestion-inventario` → `develop`, cierra `#34`, RF-06 / RNF-11 / RNF-12 / HU-03)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación del DTO `LotePorVencer` (`com.carmotors.sgt.model`) con `lote`, `nombreRepuesto`, `nombreProveedor`, `estado` (`"VENCIDO"` o `"POR VENCER"`) y `diasRestantes` (long, negativo si ya venció, cero si vence hoy, positivo si futuro).
+  - Declaración e implementación de `LoteDAO.listarPorVencer(LocalDate fechaLimite)` y `LoteDAOImpl.listarPorVencer` usando `PreparedStatement`: filtra `cantidad_actual > 0 AND fecha_caducidad IS NOT NULL AND fecha_caducidad <= ?` con orden `fecha_caducidad ASC, id ASC`, compatible con conexión compartida transaccional e independiente (`ConnectionFactory`).
+  - Creación de `LoteService.generarReporteLotesPorVencer(int dias)` y sobrecarga por defecto `generarReporteLotesPorVencer()` (30 días por defecto, `RF-06`, `HU-03`): valida `dias > 0` (`ValidacionException`), clasifica con Lambdas y `Stream API` en `"VENCIDO"` (`fechaCaducidad < hoy`) vs. `"POR VENCER"` (`hoy <= fechaCaducidad <= hoy + dias`) y resuelve nombres asociados de repuestos (`RepuestoDAO`) y proveedores (`ProveedorDAO`).
+  - Exposición en `LoteController` e incorporación de la opción `4. Reporte de lotes por vencer` en `LoteView` (rango `0–4` en `ConsoleReader`): lectura opcional de días con Enter por defecto (30 días), tabla formateada con alineación de columnas y captura controlada de `CarMotorsException` sin cerrar la consola (`RNF-12`).
+  - Creación de pruebas unitarias en `LoteServiceTest` (exclusión de lotes agotados, sin caducidad y lejanos, clasificación vencido vs. por vencer con cálculo de días relativos a `LocalDate.now()`, validaciones de días inválidos y sobrecarga por defecto), `LotePorVencerTest` y `LoteControllerTest` (187 pruebas en total, 0 fallos).
 
 ### PR #91 — `feat(proveedores): compare active suppliers by spare part (T3.2)` (`feature/gestion-proveedores` → `develop`, cierra `#28`, RF-30 / RN-16 / RN-17 / RNF-11)
 - **Autor:** `@Sofi11017`

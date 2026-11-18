@@ -26,4 +26,11 @@ public interface LoteDAO {
      * o con caducidad igual o posterior a la fecha indicada (0 si no hay lotes vigentes).
      */
     int sumarStockOperativo(int repuestoId, LocalDate fechaReferencia);
+
+    /**
+     * Lista los lotes candidatos para el reporte de vencimiento (RF-06):
+     * con saldo restante mayor a cero, fecha de caducidad no nula y caducidad menor o igual
+     * a la fecha límite indicada (incluye lotes ya vencidos y lotes por vencer hasta la fecha límite).
+     */
+    List<Lote> listarPorVencer(LocalDate fechaLimite);
 }

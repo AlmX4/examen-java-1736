@@ -2,9 +2,12 @@ package com.carmotors.sgt.service;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
@@ -12,6 +15,7 @@ import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Lote;
+import com.carmotors.sgt.model.LotePorVencer;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
@@ -30,6 +34,7 @@ import com.carmotors.sgt.util.InputValidator;
  */
 public class LoteService {
 
+    public static final int DIAS_VENCIMIENTO_POR_DEFECTO = 30;
     private static final int MAX_LONGITUD_CODIGO_LOTE = 40;
 
     private final LoteDAO loteDAO;
@@ -97,6 +102,58 @@ public class LoteService {
                 .thenComparing(Lote::getFechaIngreso, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparingInt(Lote::getId));
         return resultado;
+    }
+
+    /**
+     * Genera el reporte de lotes que vencen dentro de los próximos 30 días o que ya están vencidos (RF-06).
+     */
+    public List<LotePorVencer> generarReporteLotesPorVencer() {
+        return generarReporteLotesPorVencer(DIAS_VENCIMIENTO_POR_DEFECTO);
+    }
+
+    /**
+     * Genera el reporte de lotes que vencen dentro de los próximos {@code dias} días o que ya están vencidos (RF-06).
+     */
+    public List<LotePorVencer> generarReporteLotesPorVencer(int dias) {
+        return generarReporteLotesPorVencer(dias, LocalDate.now());
+    }
+
+    /**
+     * Genera el reporte de lotes por vencer o vencidos tomando como referencia una fecha dada (RF-06, HU-03, RNF-11).
+     *
+     * @param dias horizonte de días hacia el futuro a evaluar (estrictamente mayor que cero).
+     * @param fechaReferencia fecha base de cálculo (usualmente la fecha del sistema).
+     * @return lista de lotes clasificados como VENCIDO o POR VENCER, ordenada por caducidad ascendente.
+     */
+    public List<LotePorVencer> generarReporteLotesPorVencer(int dias, LocalDate fechaReferencia) {
+        if (dias <= 0) {
+            throw new ValidacionException("La cantidad de días debe ser mayor que cero.");
+        }
+        if (fechaReferencia == null) {
+            throw new ValidacionException("La fecha de referencia es obligatoria.");
+        }
+
+        LocalDate fechaLimite = fechaReferencia.plusDays(dias);
+        List<Lote> lotes = loteDAO.listarPorVencer(fechaLimite);
+
+        return lotes.stream()
+                .filter(lote -> lote != null && lote.getCantidadActual() > 0 && lote.getFechaCaducidad() != null)
+                .filter(lote -> !lote.getFechaCaducidad().isAfter(fechaLimite))
+                .map(lote -> {
+                    String estado = lote.getFechaCaducidad().isBefore(fechaReferencia) ? "VENCIDO" : "POR VENCER";
+                    long diasRestantes = ChronoUnit.DAYS.between(fechaReferencia, lote.getFechaCaducidad());
+
+                    Repuesto repuesto = repuestoDAO.buscarPorId(lote.getRepuestoId());
+                    String nombreRepuesto = repuesto != null ? repuesto.getNombre() : "Repuesto #" + lote.getRepuestoId();
+
+                    Proveedor proveedor = proveedorDAO.buscarPorId(lote.getProveedorId());
+                    String nombreProveedor = proveedor != null ? proveedor.getNombre() : "Proveedor #" + lote.getProveedorId();
+
+                    return new LotePorVencer(lote, nombreRepuesto, nombreProveedor, estado, diasRestantes);
+                })
+                .sorted(Comparator.comparing((LotePorVencer item) -> item.getLote().getFechaCaducidad())
+                        .thenComparingInt(item -> item.getLote().getId()))
+                .collect(Collectors.toList());
     }
 
     public Lote registrarLote(Lote lote) {

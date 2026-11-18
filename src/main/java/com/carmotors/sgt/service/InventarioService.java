@@ -1,8 +1,11 @@
 package com.carmotors.sgt.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
@@ -19,6 +22,7 @@ import com.carmotors.sgt.repository.impl.LoteDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
+import com.carmotors.sgt.service.observer.StockObserver;
 
 /**
  * Cálculo de stock por repuesto según la sección 2.5 del documento maestro (RF-07, RF-05).
@@ -30,10 +34,13 @@ public class InventarioService {
 
     private static final String PROVEEDOR_NO_DEFINIDO = "No definido";
 
+    private static final Logger LOGGER = Logger.getLogger(InventarioService.class.getName());
+
     private final RepuestoDAO repuestoDAO;
     private final LoteDAO loteDAO;
     private final ProveedorRepuestoDAO proveedorRepuestoDAO;
     private final ProveedorDAO proveedorDAO;
+    private final List<StockObserver> observers = new ArrayList<>();
 
     public InventarioService() {
         this(new RepuestoDAOImpl(), new LoteDAOImpl(), new ProveedorRepuestoDAOImpl(), new ProveedorDAOImpl());
@@ -99,6 +106,67 @@ public class InventarioService {
                 .sorted(Comparator.comparingInt(StockRepuesto::getDisponible)
                         .thenComparing(stock -> stock.getRepuesto().getNombre(), String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Registra un observador interesado en las alertas de stock (Patrón Observer, RN-22).
+     */
+    public void agregarObserver(StockObserver observer) {
+        if (observer != null && !observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    /**
+     * Desuscribe un observador previamente registrado.
+     */
+    public void eliminarObserver(StockObserver observer) {
+        if (observer != null) {
+            observers.remove(observer);
+        }
+    }
+
+    /**
+     * Retorna una copia de la lista de observadores registrados.
+     */
+    public List<StockObserver> getObservers() {
+        return new ArrayList<>(observers);
+    }
+
+    /**
+     * Evalúa el stock del repuesto y notifica a los observadores si el repuesto está activo
+     * y su disponible para nuevas reservas es menor o igual a su stock mínimo (RN-22, T5.1).
+     *
+     * @param repuestoId ID del repuesto a evaluar.
+     * @return métricas calculadas del stock del repuesto con su proveedor habitual resuelto.
+     */
+    public StockRepuesto evaluarYNotificarStockBajo(int repuestoId) {
+        StockRepuesto stock = calcularStock(repuestoId);
+        completarProveedorHabitual(stock);
+
+        if (stock.getRepuesto() != null && stock.getRepuesto().isActivo()
+                && stock.getDisponible() <= stock.getStockMinimo()) {
+            notificarStockBajo(stock);
+        }
+
+        return stock;
+    }
+
+    private void notificarStockBajo(StockRepuesto stock) {
+        List<StockObserver> copiaObservers = new ArrayList<>(observers);
+        for (StockObserver observer : copiaObservers) {
+            try {
+                observer.onStockBajo(stock);
+            } catch (RuntimeException e) {
+                int repuestoId = 0;
+                if (stock != null && stock.getRepuesto() != null) {
+                    repuestoId = stock.getRepuesto().getId();
+                }
+                LOGGER.log(Level.WARNING, "El observador " + observer.getClass().getName()
+                        + " falló al notificar el stock bajo del repuesto " + repuestoId
+                        + ". Se continúa con los demás observadores.", e);
+            }
+        }
     }
 
     private StockRepuesto completarProveedorHabitual(StockRepuesto stock) {

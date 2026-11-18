@@ -43,6 +43,7 @@ import com.carmotors.sgt.service.ProveedorRepuestoService;
 import com.carmotors.sgt.service.RepuestoService;
 import com.carmotors.sgt.service.ServicioTipoService;
 import com.carmotors.sgt.service.TecnicoService;
+import com.carmotors.sgt.service.observer.AlertaStockBajoObserver;
 import com.carmotors.sgt.service.VehiculoService;
 import com.carmotors.sgt.view.CatalogoProveedorView;
 import com.carmotors.sgt.view.ClienteView;
@@ -101,6 +102,7 @@ public class Main {
 
         InventarioService inventarioService = new InventarioService(
                 repuestoDAO, loteDAO, proveedorRepuestoDAO, proveedorDAO);
+        inventarioService.agregarObserver(new AlertaStockBajoObserver());
         InventarioController inventarioController = new InventarioController(inventarioService);
 
         menuPrincipal.setSubmenuProveedores(new ProveedorView(proveedorController, evaluacionProveedorView, catalogoProveedorView));

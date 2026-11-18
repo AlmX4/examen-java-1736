@@ -7,9 +7,11 @@ import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.controller.RepuestoController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Lote;
+import com.carmotors.sgt.model.LotePorVencer;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.InputValidator;
 
 public class LoteView implements SubmenuVista {
 
@@ -48,10 +50,11 @@ public class LoteView implements SubmenuVista {
             System.out.println("  1. Registrar lote");
             System.out.println("  2. Consultar lote por código");
             System.out.println("  3. Listar lotes por repuesto");
+            System.out.println("  4. Reporte de lotes por vencer");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 3);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 4);
             switch (opcion) {
                 case 1:
                     registrarLote();
@@ -61,6 +64,9 @@ public class LoteView implements SubmenuVista {
                     break;
                 case 3:
                     listarPorRepuesto();
+                    break;
+                case 4:
+                    reporteLotesPorVencer();
                     break;
                 case 0:
                     ejecutando = false;
@@ -159,5 +165,58 @@ public class LoteView implements SubmenuVista {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
         ConsoleReader.pausar();
+    }
+
+    private void reporteLotesPorVencer() {
+        try {
+            String entrada = ConsoleReader.leerTextoOpcional("Ingrese los días de horizonte para el reporte [Enter = 30 por defecto]");
+            int dias = 30;
+            if (!entrada.isEmpty()) {
+                if (!InputValidator.esEntero(entrada) || !InputValidator.esEnteroPositivo(InputValidator.convertirAEntero(entrada))) {
+                    System.out.println("\n  [!] Error: Debe ingresar un número entero positivo mayor que cero.");
+                    ConsoleReader.pausar();
+                    return;
+                }
+                dias = InputValidator.convertirAEntero(entrada);
+            }
+
+            List<LotePorVencer> reporte = loteController.generarReporteLotesPorVencer(dias);
+            if (reporte.isEmpty()) {
+                System.out.println("\n  [i] No hay lotes vencidos ni próximos a vencer en los próximos " + dias + " días.");
+            } else {
+                System.out.println("\n==========================================================================================");
+                System.out.println("                    REPORTE DE LOTES POR VENCER / VENCIDOS");
+                System.out.println("                    (Horizonte: " + dias + " días a partir de hoy)");
+                System.out.println("==========================================================================================");
+                System.out.printf("  %-18s %-12s %-20s %-18s %-12s %-8s %-14s%n",
+                        "Código Lote", "Estado", "Repuesto", "Proveedor", "Caducidad", "Saldo", "Días");
+                System.out.println("------------------------------------------------------------------------------------------");
+                for (LotePorVencer item : reporte) {
+                    String diasTexto = item.getDiasRestantes() < 0
+                            ? "Vencido (" + Math.abs(item.getDiasRestantes()) + "d)"
+                            : (item.getDiasRestantes() == 0 ? "Vence hoy" : item.getDiasRestantes() + "d");
+                    System.out.printf("  %-18s %-12s %-20s %-18s %-12s %-8d %-14s%n",
+                            item.getLote().getCodigoLote(),
+                            item.getEstado(),
+                            abreviar(item.getNombreRepuesto(), 20),
+                            abreviar(item.getNombreProveedor(), 18),
+                            item.getLote().getFechaCaducidad(),
+                            item.getLote().getCantidadActual(),
+                            diasTexto);
+                }
+                System.out.println("==========================================================================================");
+                System.out.println("  Total de lotes listados: " + reporte.size());
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private String abreviar(String texto, int max) {
+        if (texto == null) {
+            return "";
+        }
+        return texto.length() <= max ? texto : texto.substring(0, max - 3) + "...";
     }
 }
