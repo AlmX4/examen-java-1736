@@ -18,9 +18,12 @@ import org.junit.jupiter.api.Test;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.ComparacionProveedor;
+import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
+import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
@@ -29,6 +32,7 @@ class ProveedorRepuestoServiceTest {
 
     private ProveedorRepuestoService service;
     private ProveedorRepuestoDAOMock catalogoDAO;
+    private EvaluacionProveedorDAOMock evaluacionDAO;
 
     @BeforeEach
     void setUp() {
@@ -42,10 +46,11 @@ class ProveedorRepuestoServiceTest {
         repuestoDAO.agregar(new Repuesto(2, 4, "Filtro de aceite", "Fram", new BigDecimal("25000.00"), 0, 5, true));
 
         catalogoDAO = new ProveedorRepuestoDAOMock();
+        evaluacionDAO = new EvaluacionProveedorDAOMock();
 
         // La transacción JDBC real no se puede ejecutar en memoria: se reemplaza solo la apertura
         // de la conexión y se reutilizan los mismos pasos de desmarcar/marcar sobre el DAO en memoria.
-        service = new ProveedorRepuestoService(catalogoDAO, proveedorDAO, repuestoDAO) {
+        service = new ProveedorRepuestoService(catalogoDAO, proveedorDAO, repuestoDAO, evaluacionDAO) {
             @Override
             protected void ejecutarCambioHabitual(int proveedorId, int repuestoId) {
                 aplicarCambioHabitual(catalogoDAO, proveedorId, repuestoId);
@@ -404,5 +409,135 @@ class ProveedorRepuestoServiceTest {
 
         @Override
         public boolean reactivar(int id) { return false; }
+    }
+
+    // --- Pruebas para T3.2: Comparación de proveedores por repuesto (RF-30, RN-16, RN-17, RNF-11) ---
+
+    @Test
+    @DisplayName("T3.2: Compara proveedores activos ordenándolos por costo ascendente")
+    void compararProveedoresOrdenadosPorCosto() {
+        // Proveedor 1 con costo $35000.00
+        service.asociar(nuevaAsociacion(1, 1, "35000.00", 3, false));
+        // Proveedor 2 con costo $28000.00
+        service.asociar(nuevaAsociacion(2, 1, "28000.00", 5, false));
+
+        List<ComparacionProveedor> comparacion = service.compararProveedoresPorRepuesto(1);
+
+        assertNotNull(comparacion);
+        assertEquals(2, comparacion.size());
+        // El de menor costo ($28000.00, Proveedor 2) debe ser el primero
+        assertEquals(2, comparacion.get(0).getProveedorId());
+        assertEquals("Frenos y Más", comparacion.get(0).getNombreProveedor());
+        assertEquals(new BigDecimal("28000.00"), comparacion.get(0).getCosto());
+
+        // El de mayor costo ($35000.00, Proveedor 1) debe ser el segundo
+        assertEquals(1, comparacion.get(1).getProveedorId());
+        assertEquals("AutoPartes del Norte", comparacion.get(1).getNombreProveedor());
+        assertEquals(new BigDecimal("35000.00"), comparacion.get(1).getCosto());
+    }
+
+    @Test
+    @DisplayName("T3.2: Excluye proveedores inactivos aunque estén asociados al repuesto (RN-17)")
+    void compararProveedoresExcluyeInactivos() {
+        // Asociamos proveedor activo 1
+        service.asociar(nuevaAsociacion(1, 1, "30000.00", 2, false));
+        // Asociamos directamente en el mock al proveedor 3 (que está inactivo)
+        catalogoDAO.guardar(nuevaAsociacion(3, 1, "20000.00", 1, false));
+
+        List<ComparacionProveedor> comparacion = service.compararProveedoresPorRepuesto(1);
+
+        assertEquals(1, comparacion.size());
+        assertEquals(1, comparacion.get(0).getProveedorId());
+    }
+
+    @Test
+    @DisplayName("T3.2: Calcula promedio de evaluaciones con 1 decimal o null si no tiene evaluaciones")
+    void compararProveedoresPromedioEvaluacionYFormato() {
+        // Proveedor 1 con costo 30000.00 y 2 evaluaciones
+        service.asociar(nuevaAsociacion(1, 1, "30000.00", 2, false));
+        evaluacionDAO.agregar(new EvaluacionProveedor(1, 1, null, 5, 5, "Excelente")); // Puntaje 5.0
+        evaluacionDAO.agregar(new EvaluacionProveedor(2, 1, null, 4, 4, "Bueno"));     // Puntaje 4.0
+        // Promedio esperado: (5.0 + 4.0) / 2 = 4.5
+
+        // Proveedor 2 con costo 40000.00 sin evaluaciones
+        service.asociar(nuevaAsociacion(2, 1, "40000.00", 4, false));
+
+        List<ComparacionProveedor> comparacion = service.compararProveedoresPorRepuesto(1);
+
+        assertEquals(2, comparacion.size());
+
+        ComparacionProveedor compProv1 = comparacion.get(0);
+        assertEquals(1, compProv1.getProveedorId());
+        assertEquals(new BigDecimal("4.5"), compProv1.getPromedioEvaluacion());
+        assertEquals(2, compProv1.getCantidadEvaluaciones());
+
+        ComparacionProveedor compProv2 = comparacion.get(1);
+        assertEquals(2, compProv2.getProveedorId());
+        assertNull(compProv2.getPromedioEvaluacion());
+        assertEquals(0, compProv2.getCantidadEvaluaciones());
+    }
+
+    @Test
+    @DisplayName("T3.2: Retorna lista vacía si el repuesto no tiene proveedores activos")
+    void compararProveedoresRepuestoSinProveedoresActivos() {
+        List<ComparacionProveedor> comparacion = service.compararProveedoresPorRepuesto(2);
+        assertNotNull(comparacion);
+        assertTrue(comparacion.isEmpty());
+    }
+
+    @Test
+    @DisplayName("T3.2: Lanza EntidadNoEncontradaException si el repuesto no existe")
+    void compararProveedoresRepuestoInexistente() {
+        assertThrows(EntidadNoEncontradaException.class,
+                () -> service.compararProveedoresPorRepuesto(999));
+    }
+
+    @Test
+    @DisplayName("T3.2: Lanza ValidacionException si el id del repuesto es menor o igual a cero")
+    void compararProveedoresRepuestoIdInvalido() {
+        assertThrows(ValidacionException.class,
+                () -> service.compararProveedoresPorRepuesto(0));
+        assertThrows(ValidacionException.class,
+                () -> service.compararProveedoresPorRepuesto(-5));
+    }
+
+    private static class EvaluacionProveedorDAOMock implements EvaluacionProveedorDAO {
+        private final List<EvaluacionProveedor> datos = new ArrayList<>();
+
+        void agregar(EvaluacionProveedor evaluacion) {
+            datos.add(evaluacion);
+        }
+
+        @Override
+        public List<EvaluacionProveedor> listarTodos() {
+            return new ArrayList<>(datos);
+        }
+
+        @Override
+        public List<EvaluacionProveedor> listarPorProveedor(int proveedorId) {
+            List<EvaluacionProveedor> resultado = new ArrayList<>();
+            for (EvaluacionProveedor ev : datos) {
+                if (ev.getProveedorId() == proveedorId) {
+                    resultado.add(ev);
+                }
+            }
+            return resultado;
+        }
+
+        @Override
+        public EvaluacionProveedor buscarPorId(int id) {
+            for (EvaluacionProveedor ev : datos) {
+                if (ev.getId() == id) {
+                    return ev;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public int guardar(EvaluacionProveedor evaluacion) {
+            datos.add(evaluacion);
+            return evaluacion.getId();
+        }
     }
 }

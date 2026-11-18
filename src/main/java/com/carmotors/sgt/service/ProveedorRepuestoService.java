@@ -4,25 +4,32 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.ComparacionProveedor;
+import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
+import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
 import com.carmotors.sgt.repository.ProveedorDAO;
 import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
+import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
 
 /**
- * Reglas del catálogo proveedor-repuesto (RF-29, RN-18).
+ * Reglas del catálogo proveedor-repuesto (RF-29, RF-30, RN-16, RN-18).
  *
  * <p>Las validaciones usan los DAO inyectados, por eso se pueden probar en memoria.
  * El cambio de proveedor habitual (desmarcar el anterior y marcar el nuevo) se ejecuta
@@ -35,13 +42,20 @@ public class ProveedorRepuestoService {
     private final ProveedorRepuestoDAO proveedorRepuestoDAO;
     private final ProveedorDAO proveedorDAO;
     private final RepuestoDAO repuestoDAO;
+    private final EvaluacionProveedorDAO evaluacionDAO;
 
     public ProveedorRepuestoService() {
-        this(new ProveedorRepuestoDAOImpl(), new ProveedorDAOImpl(), new RepuestoDAOImpl());
+        this(new ProveedorRepuestoDAOImpl(), new ProveedorDAOImpl(), new RepuestoDAOImpl(),
+                new EvaluacionProveedorDAOImpl());
     }
 
     public ProveedorRepuestoService(ProveedorRepuestoDAO proveedorRepuestoDAO, ProveedorDAO proveedorDAO,
                                     RepuestoDAO repuestoDAO) {
+        this(proveedorRepuestoDAO, proveedorDAO, repuestoDAO, new EvaluacionProveedorDAOImpl());
+    }
+
+    public ProveedorRepuestoService(ProveedorRepuestoDAO proveedorRepuestoDAO, ProveedorDAO proveedorDAO,
+                                    RepuestoDAO repuestoDAO, EvaluacionProveedorDAO evaluacionDAO) {
         if (proveedorRepuestoDAO == null) {
             throw new ValidacionException("El DAO del catálogo proveedor-repuesto es obligatorio.");
         }
@@ -51,9 +65,13 @@ public class ProveedorRepuestoService {
         if (repuestoDAO == null) {
             throw new ValidacionException("El DAO de repuestos es obligatorio.");
         }
+        if (evaluacionDAO == null) {
+            throw new ValidacionException("El DAO de evaluaciones es obligatorio.");
+        }
         this.proveedorRepuestoDAO = proveedorRepuestoDAO;
         this.proveedorDAO = proveedorDAO;
         this.repuestoDAO = repuestoDAO;
+        this.evaluacionDAO = evaluacionDAO;
     }
 
     public List<ProveedorRepuesto> listarPorProveedor(int proveedorId) {
@@ -64,6 +82,62 @@ public class ProveedorRepuestoService {
     public List<ProveedorRepuesto> listarPorRepuesto(int repuestoId) {
         buscarRepuesto(repuestoId);
         return proveedorRepuestoDAO.listarPorRepuesto(repuestoId);
+    }
+
+    /**
+     * Compara los proveedores activos que ofrecen un repuesto ordenados por costo ascendente
+     * (RF-30, RN-16, RN-17, RNF-11).
+     *
+     * @param repuestoId identificador del repuesto
+     * @return lista de comparaciones ordenada por costo ascendente
+     */
+    public List<ComparacionProveedor> compararProveedoresPorRepuesto(int repuestoId) {
+        buscarRepuesto(repuestoId);
+
+        List<ProveedorRepuesto> asociaciones = proveedorRepuestoDAO.listarPorRepuesto(repuestoId);
+        if (asociaciones == null || asociaciones.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        return asociaciones.stream()
+                .map(asoc -> {
+                    Proveedor prov = proveedorDAO.buscarPorId(asoc.getProveedorId());
+                    return new Object[] { asoc, prov };
+                })
+                .filter(par -> {
+                    Proveedor p = (Proveedor) par[1];
+                    return p != null && p.isActivo();
+                })
+                .map(par -> {
+                    ProveedorRepuesto asoc = (ProveedorRepuesto) par[0];
+                    Proveedor p = (Proveedor) par[1];
+
+                    List<EvaluacionProveedor> evaluaciones = evaluacionDAO.listarPorProveedor(p.getId());
+                    BigDecimal promedio = null;
+                    int cantidad = 0;
+                    if (evaluaciones != null && !evaluaciones.isEmpty()) {
+                        cantidad = evaluaciones.size();
+                        BigDecimal acumulado = BigDecimal.ZERO;
+                        for (EvaluacionProveedor ev : evaluaciones) {
+                            acumulado = acumulado.add(ev.getPuntaje());
+                        }
+                        promedio = acumulado.divide(BigDecimal.valueOf(cantidad), 1, RoundingMode.HALF_UP);
+                    }
+
+                    return new ComparacionProveedor(
+                            p.getId(),
+                            p.getNombre(),
+                            asoc.getCosto(),
+                            asoc.getTiempoEntregaDias(),
+                            asoc.isEsHabitual(),
+                            promedio,
+                            cantidad
+                    );
+                })
+                .sorted(Comparator.comparing(ComparacionProveedor::getCosto)
+                        .thenComparingInt(ComparacionProveedor::getTiempoEntregaDias)
+                        .thenComparing(ComparacionProveedor::getNombreProveedor))
+                .collect(Collectors.toList());
     }
 
     /**

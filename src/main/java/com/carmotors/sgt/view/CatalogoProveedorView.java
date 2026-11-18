@@ -7,6 +7,7 @@ import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.controller.ProveedorRepuestoController;
 import com.carmotors.sgt.controller.RepuestoController;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.ComparacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
@@ -20,7 +21,9 @@ public class CatalogoProveedorView {
 
     private static final String FORMATO_REPUESTOS = "  %-6s %-34s %-14s %-12s %-8s%n";
     private static final String FORMATO_PROVEEDORES = "  %-6s %-26s %-9s %-14s %-12s %-8s%n";
+    private static final String FORMATO_COMPARACION = "  %-6s %-24s %-12s %-10s %-18s %-8s%n";
     private static final String SEPARADOR = "  ------------------------------------------------------------------------------";
+    private static final String SEPARADOR_COMPARACION = "  -----------------------------------------------------------------------------------------";
 
     private final ProveedorRepuestoController proveedorRepuestoController;
     private final ProveedorController proveedorController;
@@ -118,6 +121,40 @@ public class CatalogoProveedorView {
                             proveedor.isActivo() ? "ACTIVO" : "INACTIVO",
                             "$" + item.getCosto(),
                             item.getTiempoEntregaDias() + " días",
+                            item.isEsHabitual() ? "Sí" : "-");
+                }
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    /**
+     * Compara los proveedores activos que ofrecen un repuesto ordenados por costo (RF-30, RN-16, RNF-11).
+     */
+    public void compararProveedoresDeRepuesto() {
+        try {
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a comparar");
+            Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
+            List<ComparacionProveedor> comparacion = proveedorRepuestoController.compararProveedoresPorRepuesto(repuestoId);
+            if (comparacion.isEmpty()) {
+                System.out.println("\n  [i] Ningún proveedor activo ofrece el repuesto '" + repuesto.getNombre() + "'.");
+            } else {
+                System.out.println("\n  [Comparación de proveedores activos para: " + repuesto.getNombre()
+                        + " (" + repuesto.getMarca() + ")]");
+                System.out.printf(FORMATO_COMPARACION, "ID", "Proveedor", "Costo", "Entrega", "Calificación", "Habitual");
+                System.out.println(SEPARADOR_COMPARACION);
+                for (ComparacionProveedor item : comparacion) {
+                    String calificacion = (item.getPromedioEvaluacion() != null)
+                            ? item.getPromedioEvaluacion() + " (" + item.getCantidadEvaluaciones() + " eval)"
+                            : "Sin evaluar";
+                    System.out.printf(FORMATO_COMPARACION,
+                            item.getProveedorId(),
+                            item.getNombreProveedor(),
+                            "$" + item.getCosto(),
+                            item.getTiempoEntregaDias() + " días",
+                            calificacion,
                             item.isEsHabitual() ? "Sí" : "-");
                 }
             }
