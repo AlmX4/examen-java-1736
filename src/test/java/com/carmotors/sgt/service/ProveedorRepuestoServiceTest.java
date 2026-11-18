@@ -412,6 +412,11 @@ class ProveedorRepuestoServiceTest {
 
         @Override
         public boolean descontarReserva(int repuestoId, int cantidad) { return false; }
+
+        @Override
+        public boolean aumentarReservado(int repuestoId, int cantidad) {
+            return false;
+        }
     }
 
     // --- Pruebas para T3.2: Comparación de proveedores por repuesto (RF-30, RN-16, RN-17, RNF-11) ---

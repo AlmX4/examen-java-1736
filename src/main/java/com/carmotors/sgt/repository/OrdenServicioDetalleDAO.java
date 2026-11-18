@@ -103,4 +103,12 @@ public interface OrdenServicioDetalleDAO {
      * @param detalleId identificador de la línea
      */
     void eliminar(int ordenId, int detalleId);
+
+    /**
+     * Busca una línea de servicio por su identificador.
+     *
+     * @param id identificador de la línea
+     * @return la línea encontrada o {@code null} si no existe
+     */
+    OrdenServicioDetalle buscarPorId(int id);
 }

@@ -240,6 +240,11 @@ class LoteControllerTest {
         public boolean descontarReserva(int repuestoId, int cantidad) {
             return false;
         }
+
+        @Override
+        public boolean aumentarReservado(int repuestoId, int cantidad) {
+            return false;
+        }
     }
 
     private static class ProveedorRepuestoDAOTest implements ProveedorRepuestoDAO {

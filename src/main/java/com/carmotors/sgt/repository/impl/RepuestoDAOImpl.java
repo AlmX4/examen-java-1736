@@ -179,6 +179,32 @@ public class RepuestoDAOImpl implements RepuestoDAO {
         }
     }
 
+    @Override
+    public boolean aumentarReservado(int repuestoId, int cantidad) {
+        String sql = "UPDATE repuestos SET cantidad_reservada = cantidad_reservada + ? WHERE id = ?";
+        if (conexionCompartida != null) {
+            return ejecutarAumentarReservado(conexionCompartida, sql, repuestoId, cantidad);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return ejecutarAumentarReservado(connection, sql, repuestoId, cantidad);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al aumentar el reservado del repuesto " + repuestoId + ": "
+                    + e.getMessage(), e);
+        }
+    }
+
+    private boolean ejecutarAumentarReservado(Connection connection, String sql, int repuestoId, int cantidad) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, cantidad);
+            preparedStatement.setInt(2, repuestoId);
+            return preparedStatement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al aumentar el reservado del repuesto " + repuestoId + ": "
+                    + e.getMessage(), e);
+        }
+    }
+
     private List<Repuesto> consultarLista(Connection connection, String sql) {
         List<Repuesto> lista = new ArrayList<>();
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql);

@@ -210,6 +210,36 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
         }
     }
 
+    @Override
+    public OrdenServicioDetalle buscarPorId(int id) {
+        String sql = "SELECT id, orden_id, servicio_tipo_id, nombre_servicio_snapshot, costo_mano_obra, observaciones "
+                + "FROM orden_servicio_detalle WHERE id = ?";
+
+        if (conexionCompartida != null) {
+            return consultarPorId(conexionCompartida, sql, id);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarPorId(connection, sql, id);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al buscar la línea de servicio " + id + ": " + e.getMessage(), e);
+        }
+    }
+
+    private OrdenServicioDetalle consultarPorId(Connection connection, String sql, int id) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, id);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    return mapearDetalle(resultSet);
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar la línea de servicio " + id + ": " + e.getMessage(), e);
+        }
+    }
+
     private int insertarDetalle(Connection connection, String sql, OrdenServicioDetalle detalle) {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setInt(1, detalle.getOrdenId());
