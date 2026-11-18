@@ -21,7 +21,7 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
-### Pendiente de integración — `feat(servicios): withdraw parts from a service line (T4.8)` (`feature/gestion-servicios` → `develop`, cierra `#42`, RF-11 / RN-05 / HU-06)
+### PR #99 — `feat(servicios): withdraw parts from a service line (T4.8)` (`feature/gestion-servicios` → `develop`, cierra `#42`, RF-11 / RN-05 / HU-06)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
