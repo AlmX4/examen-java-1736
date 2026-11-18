@@ -127,6 +127,20 @@ public class OrdenServicioController {
         return ordenServicioService.reservarRepuesto(detalleId, repuestoId, cantidad);
     }
 
+    public List<DetalleRepuesto> listarRepuestosDeLinea(int detalleId) {
+        return ordenServicioService.listarRepuestosDeLinea(detalleId);
+    }
+
+    public String retirarRepuesto(int detalleId, int repuestoId) {
+        try {
+            DetalleRepuesto retirado = ordenServicioService.retirarRepuesto(detalleId, repuestoId);
+            return "Repuesto '" + retirado.getNombreRepuestoSnapshot() + "' retirado de la línea "
+                    + detalleId + " (unidades liberadas: " + retirado.getCantidadAsignada() + ").";
+        } catch (CarMotorsException e) {
+            return "No se pudo retirar el repuesto: " + e.getMessage();
+        }
+    }
+
     public int consultarDisponible(int repuestoId) {
         return ordenServicioService.consultarDisponible(repuestoId);
     }

@@ -934,6 +934,99 @@ public class OrdenServicioService {
     }
 
     /**
+     * Retorna los repuestos reservados en una línea de servicio (RF-11).
+     *
+     * @param detalleId identificador de la línea
+     * @return reservas de la línea ordenadas por ID de repuesto
+     */
+    public List<DetalleRepuesto> listarRepuestosDeLinea(int detalleId) {
+        verificarDependenciasReserva();
+        if (detalleId <= 0) {
+            throw new ValidacionException("El ID de la línea de servicio debe ser un número positivo.");
+        }
+        OrdenServicioDetalle linea = ordenServicioDetalleDAO.buscarPorId(detalleId);
+        if (linea == null) {
+            throw new EntidadNoEncontradaException("No se encontró una línea de servicio con el ID: " + detalleId);
+        }
+        return detalleRepuestoDAO.listarPorDetalle(detalleId);
+    }
+
+    /**
+     * Retira un repuesto reservado de una línea de servicio y libera exactamente la cantidad
+     * reservada (RF-11, RN-05, HU-06). Solo se permite en órdenes {@code Pendiente} o
+     * {@code En Proceso}; la línea de servicio y el stock físico de los lotes no se modifican.
+     *
+     * <p>La liberación de la reserva y la eliminación de {@code detalle_repuestos} se ejecutan en
+     * una única unidad de trabajo JDBC con la misma {@link Connection}.</p>
+     *
+     * @param detalleId  línea de servicio que pierde el repuesto
+     * @param repuestoId repuesto reservado que se retira
+     * @return la reserva retirada, con su cantidad y su snapshot de nombre y precio
+     */
+    public DetalleRepuesto retirarRepuesto(int detalleId, int repuestoId) {
+        verificarDependenciasReserva();
+        if (detalleId <= 0) {
+            throw new ValidacionException("El ID de la línea de servicio debe ser un número positivo.");
+        }
+        if (repuestoId <= 0) {
+            throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
+        }
+
+        OrdenServicioDetalle linea = ordenServicioDetalleDAO.buscarPorId(detalleId);
+        if (linea == null) {
+            throw new EntidadNoEncontradaException("No se encontró una línea de servicio con el ID: " + detalleId);
+        }
+        OrdenServicio orden = ordenServicioDAO.buscarPorId(linea.getOrdenId());
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró la orden de servicio con el ID: "
+                    + linea.getOrdenId());
+        }
+        EstadoOrden estado = EstadoOrdenFactory.desdeId(orden.getEstadoId());
+        if (!estado.permiteEdicion()) {
+            throw new ValidacionException("La orden " + orden.getId() + " está en estado '" + estado.getNombre()
+                    + "' y no permite cambios; no se pueden retirar repuestos (RN-05).");
+        }
+
+        DetalleRepuesto reserva = detalleRepuestoDAO.buscar(detalleId, repuestoId);
+        if (reserva == null) {
+            throw new EntidadNoEncontradaException("El repuesto " + repuestoId
+                    + " no está reservado en la línea " + detalleId + ".");
+        }
+
+        if (!usarTransaccionJdbc) {
+            liberarReserva(reserva, repuestoDAO, detalleRepuestoDAO);
+            return reserva;
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
+                DetalleRepuestoDAO detalleRepuestoDaoTransaccional = new DetalleRepuestoDAOImpl(connection);
+
+                liberarReserva(reserva, repuestoDaoTransaccional, detalleRepuestoDaoTransaccional);
+                connection.commit();
+                return reserva;
+            } catch (CarMotorsException e) {
+                connection.rollback();
+                throw e;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new CarMotorsException("No se pudo retirar el repuesto de la línea: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new CarMotorsException("Error inesperado al retirar el repuesto de la línea: "
+                        + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transacción del retiro del repuesto: "
+                    + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Retorna el disponible para nuevas reservas de un repuesto (sección 2.5).
      *
      * @param repuestoId identificador del repuesto
@@ -970,6 +1063,20 @@ public class OrdenServicioService {
         if (!guardado) {
             throw new CarMotorsException("No se pudo registrar la reserva del repuesto en la línea "
                     + reserva.getDetalleId() + ".");
+        }
+    }
+
+    private void liberarReserva(DetalleRepuesto reserva, RepuestoDAO repuestoDao, DetalleRepuestoDAO detalleDao) {
+        boolean actualizado = repuestoDao.descontarReserva(reserva.getRepuestoId(), reserva.getCantidadAsignada());
+        if (!actualizado) {
+            throw new CarMotorsException("La reserva del repuesto " + reserva.getRepuestoId()
+                    + " en la línea " + reserva.getDetalleId() + " es inconsistente: no se pudo liberar "
+                    + reserva.getCantidadAsignada() + " unidad(es).");
+        }
+        boolean eliminado = detalleDao.eliminar(reserva.getDetalleId(), reserva.getRepuestoId());
+        if (!eliminado) {
+            throw new CarMotorsException("No se pudo eliminar la reserva del repuesto "
+                    + reserva.getRepuestoId() + " de la línea " + reserva.getDetalleId() + ".");
         }
     }
 

@@ -1,5 +1,6 @@
 package com.carmotors.sgt.service;
 
+import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.StockInsuficienteException;
 import com.carmotors.sgt.exception.ValidacionException;
@@ -34,6 +35,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,10 +46,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OrdenServicioReservaTest {
 
     private static final int ORDEN_PENDIENTE = 1;
+    private static final int ORDEN_EN_PROCESO = 2;
     private static final int ORDEN_COMPLETADA = 3;
     private static final int LINEA_PENDIENTE = 1;
     private static final int OTRA_LINEA_PENDIENTE = 2;
     private static final int LINEA_COMPLETADA = 3;
+    private static final int LINEA_EN_PROCESO = 4;
     private static final int DISCO_FRENO = 5;
     private static final int CORREA_INACTIVA = 11;
 
@@ -60,6 +64,7 @@ class OrdenServicioReservaTest {
     void setUp() {
         OrdenServicioDAOMock ordenDAO = new OrdenServicioDAOMock();
         ordenDAO.agregar(new OrdenServicio(ORDEN_PENDIENTE, 1, 1, LocalDateTime.now(), "Cambio de aceite"));
+        ordenDAO.agregar(new OrdenServicio(ORDEN_EN_PROCESO, 2, 2, LocalDateTime.now(), "Frenos ruidosos"));
         ordenDAO.agregar(new OrdenServicio(ORDEN_COMPLETADA, 3, 3, LocalDateTime.now(), "No enciende"));
 
         OrdenServicioDetalleDAOMock detalleDAO = new OrdenServicioDetalleDAOMock();
@@ -69,6 +74,8 @@ class OrdenServicioReservaTest {
                 "Revisión de frenos", new BigDecimal("90000.00"), null));
         detalleDAO.agregar(new OrdenServicioDetalle(LINEA_COMPLETADA, ORDEN_COMPLETADA, 3,
                 "Diagnóstico eléctrico", new BigDecimal("50000.00"), null));
+        detalleDAO.agregar(new OrdenServicioDetalle(LINEA_EN_PROCESO, ORDEN_EN_PROCESO, 2,
+                "Revisión de frenos", new BigDecimal("90000.00"), null));
 
         repuestoDAO = new RepuestoDAOMock();
         repuestoDAO.agregar(new Repuesto(DISCO_FRENO, 1, "Disco de freno delantero", "Brembo",
@@ -175,6 +182,98 @@ class OrdenServicioReservaTest {
         assertTrue(error.getMessage().contains("ya está asignado"), error.getMessage());
         assertEquals(1, repuestoDAO.buscarPorId(DISCO_FRENO).getCantidadReservada());
         assertEquals(1, detalleRepuestoDAO.datos.size());
+    }
+
+    @Test
+    @DisplayName("Retiro válido en orden Pendiente: el reservado vuelve a su valor previo y no toca el stock físico (RN-05, HU-06)")
+    void retirarRepuestoEnOrdenPendiente() {
+        service.reservarRepuesto(LINEA_PENDIENTE, DISCO_FRENO, 2);
+        assertEquals(2, repuestoDAO.buscarPorId(DISCO_FRENO).getCantidadReservada());
+
+        DetalleRepuesto retirada = service.retirarRepuesto(LINEA_PENDIENTE, DISCO_FRENO);
+
+        assertNotNull(retirada);
+        assertEquals(LINEA_PENDIENTE, retirada.getDetalleId());
+        assertEquals(DISCO_FRENO, retirada.getRepuestoId());
+        assertEquals(2, retirada.getCantidadAsignada());
+        assertEquals("Disco de freno delantero", retirada.getNombreRepuestoSnapshot());
+        assertEquals(0, repuestoDAO.buscarPorId(DISCO_FRENO).getCantidadReservada());
+        assertNull(detalleRepuestoDAO.buscar(LINEA_PENDIENTE, DISCO_FRENO));
+        assertEquals(3, loteDAO.sumarStockFisico(DISCO_FRENO));
+        assertEquals(3, service.consultarDisponible(DISCO_FRENO));
+    }
+
+    @Test
+    @DisplayName("Retiro válido en orden En Proceso")
+    void retirarRepuestoEnOrdenEnProceso() {
+        service.reservarRepuesto(LINEA_EN_PROCESO, DISCO_FRENO, 1);
+
+        service.retirarRepuesto(LINEA_EN_PROCESO, DISCO_FRENO);
+
+        assertEquals(0, repuestoDAO.buscarPorId(DISCO_FRENO).getCantidadReservada());
+        assertTrue(detalleRepuestoDAO.listarPorDetalle(LINEA_EN_PROCESO).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Rechaza retirar repuestos en una orden Completada (RN-05)")
+    void rechazarRetiroEnOrdenCompletada() {
+        detalleRepuestoDAO.guardar(new DetalleRepuesto(LINEA_COMPLETADA, DISCO_FRENO, 1,
+                "Disco de freno delantero", new BigDecimal("210000.00")));
+        repuestoDAO.aumentarReservado(DISCO_FRENO, 1);
+
+        ValidacionException error = assertThrows(ValidacionException.class,
+                () -> service.retirarRepuesto(LINEA_COMPLETADA, DISCO_FRENO));
+
+        assertTrue(error.getMessage().contains("no permite cambios"), error.getMessage());
+        assertNotNull(detalleRepuestoDAO.buscar(LINEA_COMPLETADA, DISCO_FRENO));
+        assertEquals(1, repuestoDAO.buscarPorId(DISCO_FRENO).getCantidadReservada());
+    }
+
+    @Test
+    @DisplayName("Rechaza un repuesto que no está reservado en la línea")
+    void rechazarRepuestoNoReservadoEnLinea() {
+        assertThrows(EntidadNoEncontradaException.class,
+                () -> service.retirarRepuesto(LINEA_PENDIENTE, DISCO_FRENO));
+    }
+
+    @Test
+    @DisplayName("Rechaza retirar un repuesto de una línea inexistente")
+    void rechazarRetiroDeLineaInexistente() {
+        assertThrows(EntidadNoEncontradaException.class, () -> service.retirarRepuesto(42, DISCO_FRENO));
+    }
+
+    @Test
+    @DisplayName("Rechaza IDs no positivos al retirar un repuesto")
+    void rechazarIdsNoPositivosAlRetirar() {
+        assertThrows(ValidacionException.class, () -> service.retirarRepuesto(0, DISCO_FRENO));
+        assertThrows(ValidacionException.class, () -> service.retirarRepuesto(LINEA_PENDIENTE, 0));
+    }
+
+    @Test
+    @DisplayName("Si la reserva es inconsistente no se elimina la fila y se informa el error")
+    void reservaInconsistenteNoElimina() {
+        detalleRepuestoDAO.guardar(new DetalleRepuesto(LINEA_PENDIENTE, DISCO_FRENO, 2,
+                "Disco de freno delantero", new BigDecimal("210000.00")));
+
+        CarMotorsException error = assertThrows(CarMotorsException.class,
+                () -> service.retirarRepuesto(LINEA_PENDIENTE, DISCO_FRENO));
+
+        assertTrue(error.getMessage().contains("inconsistente"), error.getMessage());
+        assertNotNull(detalleRepuestoDAO.buscar(LINEA_PENDIENTE, DISCO_FRENO));
+    }
+
+    @Test
+    @DisplayName("listarRepuestosDeLinea devuelve las reservas de la línea y valida el ID")
+    void listarRepuestosDeLinea() {
+        service.reservarRepuesto(LINEA_PENDIENTE, DISCO_FRENO, 2);
+
+        List<DetalleRepuesto> reservas = service.listarRepuestosDeLinea(LINEA_PENDIENTE);
+
+        assertEquals(1, reservas.size());
+        assertEquals(DISCO_FRENO, reservas.get(0).getRepuestoId());
+        assertTrue(service.listarRepuestosDeLinea(OTRA_LINEA_PENDIENTE).isEmpty());
+        assertThrows(ValidacionException.class, () -> service.listarRepuestosDeLinea(0));
+        assertThrows(EntidadNoEncontradaException.class, () -> service.listarRepuestosDeLinea(42));
     }
 
     private void assertNadaReservado() {
@@ -395,6 +494,16 @@ class OrdenServicioReservaTest {
                 }
             }
             return resultado;
+        }
+
+        @Override
+        public boolean eliminar(int detalleId, int repuestoId) {
+            DetalleRepuesto encontrada = buscar(detalleId, repuestoId);
+            if (encontrada == null) {
+                return false;
+            }
+            datos.remove(encontrada);
+            return true;
         }
     }
 

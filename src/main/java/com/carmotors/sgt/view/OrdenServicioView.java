@@ -83,10 +83,11 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  6. Reservar repuestos en una línea");
             System.out.println("  7. Listar órdenes de servicio");
             System.out.println("  8. Ver detalle de una orden");
+            System.out.println("  9. Retirar repuestos de una línea");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 9);
             switch (opcion) {
                 case 1:
                     crearOrden();
@@ -111,6 +112,9 @@ public class OrdenServicioView implements SubmenuVista {
                     break;
                 case 8:
                     consultarDetalle();
+                    break;
+                case 9:
+                    retirarRepuesto();
                     break;
                 case 0:
                     ejecutando = false;
@@ -489,6 +493,63 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("\n  [!] Error al reservar el repuesto: " + e.getMessage());
         }
         ConsoleReader.pausar();
+    }
+
+    private void retirarRepuesto() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden de servicio");
+            List<OrdenServicioDetalle> lineas = ordenServicioController.listarLineas(ordenId);
+            if (lineas.isEmpty()) {
+                System.out.println("\n  [!] La orden no tiene líneas de servicio.");
+                return;
+            }
+            int detalleId = seleccionarLinea(ordenId, lineas);
+
+            List<DetalleRepuesto> reservas = ordenServicioController.listarRepuestosDeLinea(detalleId);
+            if (reservas.isEmpty()) {
+                System.out.println("\n  [i] La línea " + detalleId + " no tiene repuestos reservados.");
+                return;
+            }
+
+            System.out.println("\n  Repuestos reservados en la línea " + detalleId + ":");
+            for (DetalleRepuesto reserva : reservas) {
+                System.out.println("    - Repuesto " + reserva.getRepuestoId() + " | "
+                        + reserva.getNombreRepuestoSnapshot()
+                        + " | Cantidad: " + reserva.getCantidadAsignada()
+                        + " | Precio unitario: $" + reserva.getPrecioUnitarioVenta().toPlainString());
+            }
+
+            DetalleRepuesto seleccionada = seleccionarRepuestoReservado(reservas);
+            System.out.println("  Reservado actual en la línea: "
+                    + seleccionada.getCantidadAsignada() + " unidad(es) a liberar.");
+
+            boolean confirmar = ConsoleReader.leerConfirmacion("¿Confirma retirar '"
+                    + seleccionada.getNombreRepuestoSnapshot() + "' de la línea " + detalleId + "?");
+            if (!confirmar) {
+                System.out.println("  [i] Retiro de repuesto cancelado.");
+                return;
+            }
+
+            System.out.println("  " + ordenServicioController.retirarRepuesto(detalleId, seleccionada.getRepuestoId()));
+            System.out.println("  Disponible del repuesto tras liberar la reserva: "
+                    + ordenServicioController.consultarDisponible(seleccionada.getRepuestoId()));
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al retirar el repuesto: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private DetalleRepuesto seleccionarRepuestoReservado(List<DetalleRepuesto> reservas) {
+        while (true) {
+            int idElegido = ConsoleReader.leerEnteroPositivo("ID del repuesto a retirar");
+            for (DetalleRepuesto reserva : reservas) {
+                if (reserva.getRepuestoId() == idElegido) {
+                    return reserva;
+                }
+            }
+            System.out.println("  [!] Error: El repuesto indicado no está reservado en esta línea.");
+        }
     }
 
     private int seleccionarLinea(int ordenId, List<OrdenServicioDetalle> lineas) {

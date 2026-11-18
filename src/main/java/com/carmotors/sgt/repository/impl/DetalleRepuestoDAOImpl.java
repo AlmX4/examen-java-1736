@@ -78,6 +78,20 @@ public class DetalleRepuestoDAOImpl implements DetalleRepuestoDAO {
         }
     }
 
+    @Override
+    public boolean eliminar(int detalleId, int repuestoId) {
+        String sql = "DELETE FROM detalle_repuestos WHERE detalle_id = ? AND repuesto_id = ?";
+        if (conexionCompartida != null) {
+            return borrar(conexionCompartida, sql, detalleId, repuestoId);
+        }
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return borrar(connection, sql, detalleId, repuestoId);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al eliminar la reserva del repuesto de la línea " + detalleId + ": "
+                    + e.getMessage(), e);
+        }
+    }
+
     private boolean insertar(Connection connection, String sql, DetalleRepuesto detalleRepuesto) {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setInt(1, detalleRepuesto.getDetalleId());
@@ -88,6 +102,17 @@ public class DetalleRepuestoDAOImpl implements DetalleRepuestoDAO {
             return preparedStatement.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new CarMotorsException("Error al registrar la reserva del repuesto en la línea: " + e.getMessage(), e);
+        }
+    }
+
+    private boolean borrar(Connection connection, String sql, int detalleId, int repuestoId) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, detalleId);
+            preparedStatement.setInt(2, repuestoId);
+            return preparedStatement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al eliminar la reserva del repuesto de la línea " + detalleId + ": "
+                    + e.getMessage(), e);
         }
     }
 
