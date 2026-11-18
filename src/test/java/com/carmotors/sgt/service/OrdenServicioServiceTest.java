@@ -1,9 +1,11 @@
 package com.carmotors.sgt.service;
 
+import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.Repuesto;
@@ -17,6 +19,7 @@ import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.ServicioTipoDAO;
 import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.service.chain.SugerenciaTecnico;
 import com.carmotors.sgt.service.state.EstadoCancelada;
 import com.carmotors.sgt.service.state.EstadoCompletado;
 import com.carmotors.sgt.service.state.EstadoEnProceso;
@@ -28,6 +31,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -318,6 +322,167 @@ class OrdenServicioServiceTest {
         assertTrue(service.especialidadCoincide(tipo, tecnicoIgual));
     }
 
+    @Test
+    @DisplayName("T4.6: Sugerencia aplica RN-20/RN-21 y excluye técnicos ya asignados a la línea")
+    void sugerirTecnicoParaLineaRespetaCadenaYExcluyeYaAsignados() {
+        // Servicio 1 requiere especialidad 1. En setUp hay:
+        // Técnico 1 (esp 1, activo), Técnico 2 (esp 3, activo), Técnico 3 (esp 1, inactivo).
+        tecnicoDAO.agregar(new Tecnico(4, "Ana Gómez", "1090888999", 1, "3109998877", true));
+        OrdenServicio orden = service.crearOrden(1, "Motor", lineas(1));
+        int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+
+        // Dos especialistas libres (IDs 1 y 4): desempata por menor ID -> técnico 1
+        SugerenciaTecnico primera = service.sugerirTecnicoParaLinea(orden.getId(), detalleId);
+        assertNotNull(primera);
+        assertEquals(1, primera.getTecnico().getId());
+        assertEquals(0, primera.getCargaActual());
+        assertTrue(primera.isEspecialidadCoincide());
+        assertEquals("Especialista libre", primera.getCriterioAplicado());
+
+        // Ponemos carga 3 al técnico 1 y carga 1 al técnico 4 -> sugiere especialista menor carga (4)
+        tecnicoDAO.fijarCarga(1, 3);
+        tecnicoDAO.fijarCarga(4, 1);
+        SugerenciaTecnico segunda = service.sugerirTecnicoParaLinea(orden.getId(), detalleId);
+        assertNotNull(segunda);
+        assertEquals(4, segunda.getTecnico().getId());
+        assertEquals(1, segunda.getCargaActual());
+        assertEquals("Especialista con menor carga", segunda.getCriterioAplicado());
+
+        // Asignamos los dos especialistas activos (1 y 4) a la línea -> sugiere respaldo general (2)
+        service.asignarTecnicoALinea(orden.getId(), detalleId, 1, BigDecimal.ZERO, false);
+        service.asignarTecnicoALinea(orden.getId(), detalleId, 4, BigDecimal.ZERO, false);
+        tecnicoDAO.fijarCarga(2, 2);
+
+        SugerenciaTecnico respaldo = service.sugerirTecnicoParaLinea(orden.getId(), detalleId);
+        assertNotNull(respaldo);
+        assertEquals(2, respaldo.getTecnico().getId());
+        assertEquals(2, respaldo.getCargaActual());
+        assertFalse(respaldo.isEspecialidadCoincide());
+        assertEquals("Técnico de otra especialidad con menor carga", respaldo.getCriterioAplicado());
+
+        // Asignamos también al técnico 2 -> sin candidatos activos restantes, devuelve null
+        service.asignarTecnicoALinea(orden.getId(), detalleId, 2, BigDecimal.ZERO, true);
+        assertNull(service.sugerirTecnicoParaLinea(orden.getId(), detalleId));
+    }
+
+    @Test
+    @DisplayName("T4.6: Asigna múltiples técnicos a una línea y normaliza horas (null -> 0.00, HALF_UP)")
+    void asignarVariosTecnicosALineaYNormalizarHoras() {
+        OrdenServicio orden = service.crearOrden(1, "Frenos", lineas(2));
+        int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+
+        // Técnico 2 coincide con especialidad 3 del servicio 2; horas null -> 0.00
+        DetalleTecnico primero = service.asignarTecnicoALinea(orden.getId(), detalleId, 2, null, false);
+        assertEquals(detalleId, primero.getDetalleId());
+        assertEquals(2, primero.getTecnicoId());
+        assertEquals(new BigDecimal("0.00"), primero.getHorasTrabajadas());
+
+        // Orden pasa a En Proceso y se asigna segundo técnico (ID 1, otra especialidad confirmada) con 1.235h
+        orden.setEstadoId(new EstadoEnProceso().getEstadoId());
+        DetalleTecnico segundo = service.asignarTecnicoALinea(
+                orden.getId(), detalleId, 1, new BigDecimal("1.235"), true);
+        assertEquals(new BigDecimal("1.24"), segundo.getHorasTrabajadas());
+
+        List<DetalleTecnico> asignados = service.listarTecnicosDeLinea(orden.getId(), detalleId);
+        assertEquals(2, asignados.size());
+        assertEquals(1, asignados.get(0).getTecnicoId());
+        assertEquals(new BigDecimal("1.24"), asignados.get(0).getHorasTrabajadas());
+        assertEquals(2, asignados.get(1).getTecnicoId());
+        assertEquals(new BigDecimal("0.00"), asignados.get(1).getHorasTrabajadas());
+    }
+
+    @Test
+    @DisplayName("T4.6: Rechaza técnico inexistente, inactivo, duplicado y horas negativas o fuera de rango")
+    void rechazarTecnicoInexistenteInactivoDuplicadoYHorasInvalidas() {
+        OrdenServicio orden = service.crearOrden(1, "Diagnóstico", lineas(1));
+        int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+
+        assertThrows(EntidadNoEncontradaException.class,
+                () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 999, BigDecimal.ZERO, false));
+        assertThrows(ValidacionException.class,
+                () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 3, BigDecimal.ZERO, true));
+        assertThrows(ValidacionException.class,
+                () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 1, new BigDecimal("-0.50"), false));
+        assertThrows(ValidacionException.class,
+                () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 1, new BigDecimal("-0.001"), false));
+        assertThrows(ValidacionException.class,
+                () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 1, new BigDecimal("1000.00"), false));
+
+        service.asignarTecnicoALinea(orden.getId(), detalleId, 1, new BigDecimal("1.00"), false);
+        assertThrows(DatoDuplicadoException.class,
+                () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 1, BigDecimal.ZERO, false));
+        assertThrows(DatoDuplicadoException.class,
+                () -> service.requiereConfirmacionEspecialidad(orden.getId(), detalleId, 1));
+    }
+
+    @Test
+    @DisplayName("T4.6: Exige confirmación explícita si la especialidad no coincide (RN-19)")
+    void asignarTecnicoOtraEspecialidadExigeConfirmacion() {
+        OrdenServicio orden = service.crearOrden(1, "Frenos", lineas(2));
+        int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+
+        assertFalse(service.requiereConfirmacionEspecialidad(orden.getId(), detalleId, 2));
+        assertTrue(service.requiereConfirmacionEspecialidad(orden.getId(), detalleId, 1));
+
+        assertThrows(ValidacionException.class,
+                () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 1, new BigDecimal("2.00"), false));
+
+        DetalleTecnico confirmada = service.asignarTecnicoALinea(
+                orden.getId(), detalleId, 1, new BigDecimal("2.00"), true);
+        assertEquals(new BigDecimal("2.00"), confirmada.getHorasTrabajadas());
+    }
+
+    @Test
+    @DisplayName("T4.6: Registra y actualiza horas trabajadas validando asignación y rango")
+    void registrarHorasTrabajadasActualizaYValida() {
+        OrdenServicio orden = service.crearOrden(1, "Aceite", lineas(1));
+        int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+        service.asignarTecnicoALinea(orden.getId(), detalleId, 1, BigDecimal.ZERO, false);
+
+        DetalleTecnico actualizadas = service.registrarHorasTrabajadas(
+                orden.getId(), detalleId, 1, new BigDecimal("3.755"));
+        assertEquals(new BigDecimal("3.76"), actualizadas.getHorasTrabajadas());
+        assertTrue(detalleDAO.tieneHorasTrabajadas(detalleId));
+
+        assertThrows(ValidacionException.class,
+                () -> service.registrarHorasTrabajadas(orden.getId(), detalleId, 1, null));
+        assertThrows(ValidacionException.class,
+                () -> service.registrarHorasTrabajadas(orden.getId(), detalleId, 1, new BigDecimal("-1.00")));
+        assertThrows(ValidacionException.class,
+                () -> service.registrarHorasTrabajadas(orden.getId(), detalleId, 1, new BigDecimal("999.995")));
+        assertThrows(EntidadNoEncontradaException.class,
+                () -> service.registrarHorasTrabajadas(orden.getId(), detalleId, 2, new BigDecimal("1.00")));
+    }
+
+    @Test
+    @DisplayName("T4.6: Bloquea sugerencia, asignación y horas en Completado, Facturado, Entregado y Cancelada")
+    void rechazarAsignacionYHorasEnEstadosBloqueados() {
+        int[] estadosBloqueados = new int[] {
+                new EstadoCompletado().getEstadoId(),
+                new EstadoFacturado().getEstadoId(),
+                new EstadoEntregado().getEstadoId(),
+                new EstadoCancelada().getEstadoId()
+        };
+
+        for (int estadoId : estadosBloqueados) {
+            OrdenServicio orden = service.crearOrden(1, "Orden bloqueada", lineas(1));
+            int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+            service.asignarTecnicoALinea(orden.getId(), detalleId, 1, BigDecimal.ONE, false);
+            orden.setEstadoId(estadoId);
+
+            assertThrows(ValidacionException.class,
+                    () -> service.validarOrdenEditable(orden.getId()));
+            assertThrows(ValidacionException.class,
+                    () -> service.sugerirTecnicoParaLinea(orden.getId(), detalleId));
+            assertThrows(ValidacionException.class,
+                    () -> service.requiereConfirmacionEspecialidad(orden.getId(), detalleId, 2));
+            assertThrows(ValidacionException.class,
+                    () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 2, BigDecimal.ZERO, true));
+            assertThrows(ValidacionException.class,
+                    () -> service.registrarHorasTrabajadas(orden.getId(), detalleId, 1, BigDecimal.TEN));
+        }
+    }
+
     private void assertNadaGuardado() {
         assertTrue(ordenDAO.ordenes.isEmpty());
         assertTrue(detalleDAO.detalles.isEmpty());
@@ -352,6 +517,7 @@ class OrdenServicioServiceTest {
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {
         private final List<OrdenServicioDetalle> detalles = new ArrayList<>();
         private final Map<Integer, Integer> tecnicosAsignados = new HashMap<>();
+        private final Map<Integer, List<DetalleTecnico>> asignacionesPorDetalle = new HashMap<>();
         private final Map<Integer, BigDecimal> horasPorDetalle = new HashMap<>();
         private final Map<Integer, Map<Integer, Integer>> reservasPorDetalle = new HashMap<>();
         private int secuencia = 0;
@@ -394,13 +560,85 @@ class OrdenServicioServiceTest {
 
         @Override
         public void asignarTecnico(int detalleId, int tecnicoId) {
+            asignarTecnico(detalleId, tecnicoId, BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        }
+
+        @Override
+        public void asignarTecnico(int detalleId, int tecnicoId, BigDecimal horasTrabajadas) {
             tecnicosAsignados.put(detalleId, tecnicoId);
+            List<DetalleTecnico> lista = asignacionesPorDetalle.get(detalleId);
+            if (lista == null) {
+                lista = new ArrayList<>();
+                asignacionesPorDetalle.put(detalleId, lista);
+            }
+            BigDecimal normalizadas = horasTrabajadas == null
+                    ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                    : horasTrabajadas.setScale(2, RoundingMode.HALF_UP);
+            lista.add(new DetalleTecnico(detalleId, tecnicoId, normalizadas));
+        }
+
+        @Override
+        public boolean existeTecnicoAsignado(int detalleId, int tecnicoId) {
+            List<DetalleTecnico> lista = asignacionesPorDetalle.get(detalleId);
+            if (lista == null) {
+                return false;
+            }
+            for (DetalleTecnico asignacion : lista) {
+                if (asignacion.getTecnicoId() == tecnicoId) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public List<DetalleTecnico> listarTecnicosAsignados(int detalleId) {
+            List<DetalleTecnico> lista = asignacionesPorDetalle.get(detalleId);
+            if (lista == null) {
+                return new ArrayList<>();
+            }
+            List<DetalleTecnico> copia = new ArrayList<>();
+            for (DetalleTecnico asignacion : lista) {
+                copia.add(new DetalleTecnico(
+                        asignacion.getDetalleId(),
+                        asignacion.getTecnicoId(),
+                        asignacion.getHorasTrabajadas()));
+            }
+            copia.sort((a, b) -> Integer.compare(a.getTecnicoId(), b.getTecnicoId()));
+            return copia;
+        }
+
+        @Override
+        public boolean actualizarHorasTrabajadas(int detalleId, int tecnicoId, BigDecimal horasTrabajadas) {
+            List<DetalleTecnico> lista = asignacionesPorDetalle.get(detalleId);
+            if (lista == null) {
+                return false;
+            }
+            BigDecimal normalizadas = horasTrabajadas.setScale(2, RoundingMode.HALF_UP);
+            for (DetalleTecnico asignacion : lista) {
+                if (asignacion.getTecnicoId() == tecnicoId) {
+                    asignacion.setHorasTrabajadas(normalizadas);
+                    return true;
+                }
+            }
+            return false;
         }
 
         @Override
         public boolean tieneHorasTrabajadas(int detalleId) {
             BigDecimal horas = horasPorDetalle.get(detalleId);
-            return horas != null && horas.signum() > 0;
+            if (horas != null && horas.signum() > 0) {
+                return true;
+            }
+            List<DetalleTecnico> lista = asignacionesPorDetalle.get(detalleId);
+            if (lista != null) {
+                for (DetalleTecnico asignacion : lista) {
+                    if (asignacion.getHorasTrabajadas() != null && asignacion.getHorasTrabajadas().signum() > 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         @Override
@@ -547,9 +785,14 @@ class OrdenServicioServiceTest {
 
     private static class TecnicoDAOMock implements TecnicoDAO {
         private final Map<Integer, Tecnico> tecnicos = new HashMap<>();
+        private final Map<Integer, Integer> cargas = new HashMap<>();
 
         void agregar(Tecnico tecnico) {
             tecnicos.put(tecnico.getId(), tecnico);
+        }
+
+        void fijarCarga(int tecnicoId, int carga) {
+            cargas.put(tecnicoId, carga);
         }
 
         @Override
@@ -605,7 +848,7 @@ class OrdenServicioServiceTest {
 
         @Override
         public Map<Integer, Integer> contarCargaActivaPorTecnico() {
-            return new HashMap<>();
+            return new HashMap<>(cargas);
         }
     }
 

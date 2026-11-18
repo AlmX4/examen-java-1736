@@ -21,6 +21,15 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### PR #96 — `feat(servicios): assign technicians to order lines (T4.6)` (`feature/gestion-servicios` → `develop`, cierra `#40`, RF-09 / RN-07 / RN-19 / RN-20 / RN-21 / HU-05)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación del modelo `DetalleTecnico` (`com.carmotors.sgt.model`) mapeando `detalle_tecnicos(detalle_id, tecnico_id, horas_trabajadas)` con `BigDecimal`.
+  - Extensión de `OrdenServicioDetalleDAO` / `OrdenServicioDetalleDAOImpl` con `asignarTecnico(int, int, BigDecimal)`, `existeTecnicoAsignado(int, int)`, `listarTecnicosAsignados(int)` y `actualizarHorasTrabajadas(int, int, BigDecimal)`, conservando compatibilidad de firmas anteriores y soporte transaccional `FOR UPDATE`.
+  - Extensión de `OrdenServicioService` conectando `SugerenciaTecnicoChain` para sugerir técnicos excluyendo ya asignados (`RN-20`/`RN-21`), asignar uno o varios técnicos por línea en transacción JDBC atómica rechazando inactivos/duplicados/especialidad sin confirmar (`RN-19`) y registrar/actualizar horas trabajadas no negativas con redondeo `HALF_UP` (tope `999.99`).
+  - Exposición en `OrdenServicioController` e incorporación de las opciones `4. Asignar técnicos a una línea` y `5. Registrar horas trabajadas de un técnico` en `OrdenServicioView` (rango `0–5`) con aceptación con Enter de la sugerencia (nombre, especialidad y carga), advertencia de otra especialidad y captura amigable de errores.
+  - Ampliación de `OrdenServicioServiceTest` (**6** pruebas nuevas para `T4.6`) y creación de `OrdenServicioControllerTest` (**3** pruebas JUnit 5 en memoria) validando cadena de sugerencia, asignaciones múltiples, `RN-19`, horas trabajadas y bloqueo de estados cerrados (**226** pruebas en total: **0** fallos, **0** errores, **2** omitidas).
+
 ### PR #95 — `feat(servicios): add technician suggestion chain (T4.5)` (`feature/gestion-servicios` → `develop`, cierra `#39`, RF-09 / RN-20 / RN-21)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**

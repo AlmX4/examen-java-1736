@@ -5,13 +5,17 @@ import com.carmotors.sgt.controller.OrdenServicioController;
 import com.carmotors.sgt.controller.ServicioTipoController;
 import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.model.Vehiculo;
+import com.carmotors.sgt.service.chain.SugerenciaTecnico;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.InputValidator;
 
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,10 +71,12 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  1. Crear orden de servicio");
             System.out.println("  2. Agregar línea de servicio");
             System.out.println("  3. Retirar línea de servicio");
+            System.out.println("  4. Asignar técnicos a una línea");
+            System.out.println("  5. Registrar horas trabajadas de un técnico");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 3);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 5);
             switch (opcion) {
                 case 1:
                     crearOrden();
@@ -80,6 +86,12 @@ public class OrdenServicioView implements SubmenuVista {
                     break;
                 case 3:
                     quitarLinea();
+                    break;
+                case 4:
+                    asignarTecnicosALinea();
+                    break;
+                case 5:
+                    registrarHorasTrabajadas();
                     break;
                 case 0:
                     ejecutando = false;
@@ -185,6 +197,155 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  [!] " + e.getMessage());
         } finally {
             ConsoleReader.pausar();
+        }
+    }
+
+    private void asignarTecnicosALinea() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden");
+            ordenServicioController.validarOrdenEditable(ordenId);
+            imprimirLineas(ordenServicioController.listarLineas(ordenId));
+            int detalleId = ConsoleReader.leerEnteroEnRango("ID de la línea (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (detalleId == 0) {
+                return;
+            }
+
+            boolean asignarOtro = true;
+            while (asignarOtro) {
+                List<DetalleTecnico> asignados = ordenServicioController.listarTecnicosDeLinea(ordenId, detalleId);
+                if (!asignados.isEmpty()) {
+                    System.out.println("\n  Técnicos actualmente asignados a la línea " + detalleId + ":");
+                    mostrarTecnicosAsignados(asignados);
+                }
+
+                List<Tecnico> activos = tecnicoController.listarActivos();
+                if (activos.isEmpty()) {
+                    System.out.println("  [!] No hay técnicos activos disponibles para asignar.");
+                    return;
+                }
+
+                SugerenciaTecnico sugerencia = ordenServicioController.sugerirTecnicoParaLinea(ordenId, detalleId);
+                mostrarTecnicosActivos(activos);
+
+                int tecnicoId = solicitarTecnicoParaAsignar(sugerencia);
+                if (tecnicoId == 0) {
+                    return;
+                }
+
+                procesarAsignacionTecnico(ordenId, detalleId, tecnicoId);
+                asignarOtro = ConsoleReader.leerConfirmacion("¿Desea asignar otro técnico a esta línea?");
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void registrarHorasTrabajadas() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden");
+            ordenServicioController.validarOrdenEditable(ordenId);
+            imprimirLineas(ordenServicioController.listarLineas(ordenId));
+            int detalleId = ConsoleReader.leerEnteroEnRango("ID de la línea (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (detalleId == 0) {
+                return;
+            }
+
+            List<DetalleTecnico> asignados = ordenServicioController.listarTecnicosDeLinea(ordenId, detalleId);
+            if (asignados.isEmpty()) {
+                System.out.println("  [i] La línea " + detalleId + " no tiene técnicos asignados todavía.");
+                return;
+            }
+
+            System.out.println("\n  Técnicos asignados a la línea " + detalleId + ":");
+            mostrarTecnicosAsignados(asignados);
+
+            int tecnicoId = ConsoleReader.leerEnteroEnRango("ID del técnico (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (tecnicoId == 0) {
+                return;
+            }
+
+            BigDecimal horas = ConsoleReader.leerBigDecimalNoNegativo("Horas trabajadas totales del técnico en esta línea");
+            System.out.println("  " + ordenServicioController.registrarHorasTrabajadas(ordenId, detalleId, tecnicoId, horas));
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void procesarAsignacionTecnico(int ordenId, int detalleId, int tecnicoId) {
+        try {
+            boolean requiereConfirmacion = ordenServicioController.requiereConfirmacionEspecialidad(
+                    ordenId, detalleId, tecnicoId);
+            boolean confirmarOtraEspecialidad = false;
+            if (requiereConfirmacion) {
+                confirmarOtraEspecialidad = ConsoleReader.leerConfirmacion(
+                        "La especialidad del técnico no coincide con la requerida (RN-19). ¿Desea asignarlo?");
+                if (!confirmarOtraEspecialidad) {
+                    System.out.println("  [i] Asignación de técnico cancelada.");
+                    return;
+                }
+            }
+            BigDecimal horas = ConsoleReader.leerBigDecimalNoNegativo("Horas trabajadas (0 si aún no inicia)");
+            System.out.println("  " + ordenServicioController.asignarTecnicoALinea(
+                    ordenId, detalleId, tecnicoId, horas, confirmarOtraEspecialidad));
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
+        }
+    }
+
+    private int solicitarTecnicoParaAsignar(SugerenciaTecnico sugerencia) {
+        if (sugerencia == null) {
+            System.out.println("  [i] No hay técnico sugerido disponible para esta línea.");
+            return ConsoleReader.leerEnteroEnRango("ID del técnico (0 para cancelar)", 0, Integer.MAX_VALUE);
+        }
+
+        Tecnico recomendado = sugerencia.getTecnico();
+        String especialidad = tecnicoController.obtenerNombreEspecialidad(recomendado.getEspecialidadId());
+        System.out.println("\n  --- Técnico Sugerido ---");
+        System.out.println("    ID:           " + recomendado.getId());
+        System.out.println("    Nombre:       " + recomendado.getNombre());
+        System.out.println("    Especialidad: " + especialidad);
+        System.out.println("    Carga actual: " + sugerencia.getCargaActual() + " línea(s) activa(s)");
+        System.out.println("    Criterio:     " + sugerencia.getCriterioAplicado());
+        if (!sugerencia.isEspecialidadCoincide()) {
+            System.out.println("  [!] Advertencia (RN-19): El técnico sugerido pertenece a otra especialidad.");
+        }
+
+        String prompt = "Presione ENTER para aceptar al sugerido [" + recomendado.getId()
+                + " - " + recomendado.getNombre() + "], ingrese otro ID o 0 para cancelar";
+        while (true) {
+            String entrada = ConsoleReader.leerTextoOpcional(prompt);
+            if (entrada.isEmpty()) {
+                return recomendado.getId();
+            }
+            if (InputValidator.esEntero(entrada)) {
+                int valor = InputValidator.convertirAEntero(entrada);
+                if (valor >= 0) {
+                    return valor;
+                }
+            }
+            System.out.println("  [!] Error: Ingrese un ID entero válido (0 para cancelar) o presione Enter.");
+        }
+    }
+
+    private void mostrarTecnicosActivos(List<Tecnico> activos) {
+        System.out.println("\n  Técnicos activos disponibles:");
+        for (Tecnico tecnico : activos) {
+            String nombreEsp = tecnicoController.obtenerNombreEspecialidad(tecnico.getEspecialidadId());
+            System.out.println("    " + tecnico.getId() + ". " + tecnico.getNombre()
+                    + " | Especialidad: " + nombreEsp);
+        }
+    }
+
+    private void mostrarTecnicosAsignados(List<DetalleTecnico> asignados) {
+        for (DetalleTecnico asignacion : asignados) {
+            Tecnico tecnico = tecnicoController.buscarPorId(asignacion.getTecnicoId());
+            String nombre = tecnico != null ? tecnico.getNombre() : "ID " + asignacion.getTecnicoId();
+            System.out.println("    - Técnico #" + asignacion.getTecnicoId()
+                    + " (" + nombre + ") | Horas: " + asignacion.getHorasTrabajadas() + " h");
         }
     }
 

@@ -2,9 +2,11 @@ package com.carmotors.sgt.service;
 
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.ServicioTipo;
@@ -22,24 +24,30 @@ import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.ServicioTipoDAOImpl;
 import com.carmotors.sgt.repository.impl.TecnicoDAOImpl;
+import com.carmotors.sgt.service.chain.SugerenciaTecnico;
+import com.carmotors.sgt.service.chain.SugerenciaTecnicoChain;
 import com.carmotors.sgt.service.state.EstadoEnProceso;
 import com.carmotors.sgt.service.state.EstadoOrden;
 import com.carmotors.sgt.service.state.EstadoOrdenFactory;
 import com.carmotors.sgt.service.state.EstadoPendiente;
 import com.carmotors.sgt.util.InputValidator;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Reglas de negocio para crear órdenes y editar sus líneas (RF-08 y RF-35). */
 public class OrdenServicioService {
 
     private static final int MAX_LONGITUD_DESCRIPCION = 255;
     private static final int MAX_LONGITUD_OBSERVACIONES = 255;
+    private static final BigDecimal MAX_HORAS_TRABAJADAS = new BigDecimal("999.99");
 
     private final OrdenServicioDAO ordenServicioDAO;
     private final OrdenServicioDetalleDAO ordenServicioDetalleDAO;
@@ -48,6 +56,7 @@ public class OrdenServicioService {
     private final ServicioTipoDAO servicioTipoDAO;
     private final TecnicoDAO tecnicoDAO;
     private final RepuestoDAO repuestoDAO;
+    private final SugerenciaTecnicoChain sugerenciaTecnicoChain;
     private final boolean usarTransaccionJdbc;
 
     /**
@@ -105,6 +114,7 @@ public class OrdenServicioService {
         this.servicioTipoDAO = servicioTipoDAO;
         this.tecnicoDAO = tecnicoDAO;
         this.repuestoDAO = repuestoDAO;
+        this.sugerenciaTecnicoChain = new SugerenciaTecnicoChain();
         this.usarTransaccionJdbc = usarTransaccionJdbc;
     }
 
@@ -242,6 +252,248 @@ public class OrdenServicioService {
             detallesDao.eliminar(ordenId, detalleId);
             return detalleId;
         });
+    }
+
+    /**
+     * Verifica que una orden exista y se encuentre en estado editable ({@code Pendiente} o {@code En Proceso}).
+     *
+     * @param ordenId identificador de la orden
+     */
+    public void validarOrdenEditable(int ordenId) {
+        validarOrdenId(ordenId);
+        validarEstadoEditable(ordenServicioDAO.buscarPorId(ordenId), ordenId);
+    }
+
+    /**
+     * Retorna las asignaciones de técnicos de una línea de orden (RF-09).
+     *
+     * @param ordenId   identificador de la orden
+     * @param detalleId identificador de la línea perteneciente a la orden
+     * @return lista de asignaciones con sus horas trabajadas
+     */
+    public List<DetalleTecnico> listarTecnicosDeLinea(int ordenId, int detalleId) {
+        validarOrdenId(ordenId);
+        validarDetalleId(detalleId);
+        OrdenServicio orden = ordenServicioDAO.buscarPorId(ordenId);
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró una orden de servicio con el ID: " + ordenId);
+        }
+        buscarLineaDeOrden(ordenServicioDetalleDAO, ordenId, detalleId, false);
+        return ordenServicioDetalleDAO.listarTecnicosAsignados(detalleId);
+    }
+
+    /**
+     * Sugiere el técnico óptimo para una línea usando la cadena {@code RN-20} / {@code RN-21},
+     * excluyendo a los técnicos ya asignados a la misma línea (RF-09).
+     *
+     * @param ordenId   identificador de la orden editable
+     * @param detalleId identificador de la línea
+     * @return sugerencia encontrada o {@code null} si no quedan técnicos activos elegibles
+     */
+    public SugerenciaTecnico sugerirTecnicoParaLinea(int ordenId, int detalleId) {
+        validarOrdenId(ordenId);
+        validarDetalleId(detalleId);
+        validarEstadoEditable(ordenServicioDAO.buscarPorId(ordenId), ordenId);
+        OrdenServicioDetalle linea = buscarLineaDeOrden(ordenServicioDetalleDAO, ordenId, detalleId, false);
+        ServicioTipo tipo = obtenerServicioTipoObligatorio(servicioTipoDAO, linea.getServicioTipoId());
+
+        List<Tecnico> activos = tecnicoDAO.listarActivos();
+        Map<Integer, Integer> cargas = tecnicoDAO.contarCargaActivaPorTecnico();
+        List<DetalleTecnico> yaAsignados = ordenServicioDetalleDAO.listarTecnicosAsignados(detalleId);
+
+        Set<Integer> idsAsignados = new HashSet<>();
+        for (DetalleTecnico asignacion : yaAsignados) {
+            idsAsignados.add(asignacion.getTecnicoId());
+        }
+
+        List<Tecnico> candidatos = new ArrayList<>();
+        if (activos != null) {
+            for (Tecnico tecnico : activos) {
+                if (tecnico != null && !idsAsignados.contains(tecnico.getId())) {
+                    candidatos.add(tecnico);
+                }
+            }
+        }
+
+        return sugerenciaTecnicoChain.sugerir(tipo.getEspecialidadId(), candidatos, cargas);
+    }
+
+    /**
+     * Valida precondiciones de asignación e indica si se requiere confirmación explícita porque
+     * la especialidad del técnico no coincide con la requerida por la línea (RF-09, RN-19).
+     *
+     * @param ordenId   identificador de la orden editable
+     * @param detalleId identificador de la línea
+     * @param tecnicoId identificador del técnico candidato
+     * @return {@code true} si la especialidad no coincide y debe pedirse confirmación
+     */
+    public boolean requiereConfirmacionEspecialidad(int ordenId, int detalleId, int tecnicoId) {
+        validarOrdenId(ordenId);
+        validarDetalleId(detalleId);
+        validarTecnicoId(tecnicoId);
+        validarEstadoEditable(ordenServicioDAO.buscarPorId(ordenId), ordenId);
+        OrdenServicioDetalle linea = buscarLineaDeOrden(ordenServicioDetalleDAO, ordenId, detalleId, false);
+        ServicioTipo tipo = obtenerServicioTipoObligatorio(servicioTipoDAO, linea.getServicioTipoId());
+        Tecnico tecnico = validarTecnicoDisponible(tecnicoDAO, tecnicoId, false);
+
+        if (ordenServicioDetalleDAO.existeTecnicoAsignado(detalleId, tecnicoId)) {
+            throw new DatoDuplicadoException("El técnico '" + tecnico.getNombre()
+                    + "' ya está asignado a la línea " + detalleId + ".");
+        }
+        return !especialidadCoincide(tipo, tecnico);
+    }
+
+    /**
+     * Asigna un técnico activo a una línea de orden con sus horas trabajadas iniciales (RF-09, RN-07, RN-19).
+     *
+     * @param ordenId                   identificador de la orden editable
+     * @param detalleId                 identificador de la línea
+     * @param tecnicoId                 identificador del técnico activo
+     * @param horasTrabajadas           horas iniciales (si es {@code null} se normaliza a {@code 0.00})
+     * @param confirmarOtraEspecialidad confirmación explícita cuando la especialidad no coincide (RN-19)
+     * @return registro {@link DetalleTecnico} persistido
+     */
+    public DetalleTecnico asignarTecnicoALinea(
+            int ordenId,
+            int detalleId,
+            int tecnicoId,
+            BigDecimal horasTrabajadas,
+            boolean confirmarOtraEspecialidad) {
+        validarOrdenId(ordenId);
+        validarDetalleId(detalleId);
+        validarTecnicoId(tecnicoId);
+        BigDecimal horasNormalizadas = validarHorasTrabajadas(horasTrabajadas, true);
+
+        editarLineas(ordenId, (detallesDao, tiposDao, tecnicosDao, repuestosDao, estado) -> {
+            OrdenServicioDetalle linea = buscarLineaDeOrden(detallesDao, ordenId, detalleId, true);
+            Tecnico tecnico = validarTecnicoDisponible(tecnicosDao, tecnicoId, true);
+            if (detallesDao.existeTecnicoAsignado(detalleId, tecnicoId)) {
+                throw new DatoDuplicadoException("El técnico '" + tecnico.getNombre()
+                        + "' ya está asignado a la línea " + detalleId + ".");
+            }
+            ServicioTipo tipo = obtenerServicioTipoObligatorio(tiposDao, linea.getServicioTipoId());
+            if (!especialidadCoincide(tipo, tecnico) && !confirmarOtraEspecialidad) {
+                throw new ValidacionException(
+                        "La especialidad del técnico no coincide con la requerida por el servicio; "
+                                + "se requiere confirmación explícita (RN-19).");
+            }
+            detallesDao.asignarTecnico(detalleId, tecnicoId, horasNormalizadas);
+            return detalleId;
+        });
+
+        return new DetalleTecnico(detalleId, tecnicoId, horasNormalizadas);
+    }
+
+    /**
+     * Registra o actualiza las horas trabajadas de un técnico ya asignado a una línea (RF-09).
+     *
+     * @param ordenId         identificador de la orden editable
+     * @param detalleId       identificador de la línea
+     * @param tecnicoId       identificador del técnico asignado
+     * @param horasTrabajadas total de horas trabajadas (obligatorio, no negativo)
+     * @return registro {@link DetalleTecnico} actualizado
+     */
+    public DetalleTecnico registrarHorasTrabajadas(
+            int ordenId,
+            int detalleId,
+            int tecnicoId,
+            BigDecimal horasTrabajadas) {
+        validarOrdenId(ordenId);
+        validarDetalleId(detalleId);
+        validarTecnicoId(tecnicoId);
+        BigDecimal horasNormalizadas = validarHorasTrabajadas(horasTrabajadas, false);
+
+        editarLineas(ordenId, (detallesDao, tiposDao, tecnicosDao, repuestosDao, estado) -> {
+            buscarLineaDeOrden(detallesDao, ordenId, detalleId, true);
+            if (!detallesDao.existeTecnicoAsignado(detalleId, tecnicoId)) {
+                throw new EntidadNoEncontradaException("El técnico " + tecnicoId
+                        + " no está asignado a la línea " + detalleId + ".");
+            }
+            if (!detallesDao.actualizarHorasTrabajadas(detalleId, tecnicoId, horasNormalizadas)) {
+                throw new CarMotorsException("No se pudieron actualizar las horas trabajadas del técnico "
+                        + tecnicoId + " en la línea " + detalleId + ".");
+            }
+            return detalleId;
+        });
+
+        return new DetalleTecnico(detalleId, tecnicoId, horasNormalizadas);
+    }
+
+    private void validarOrdenId(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+    }
+
+    private void validarDetalleId(int detalleId) {
+        if (detalleId <= 0) {
+            throw new ValidacionException("El ID de la línea debe ser un número positivo.");
+        }
+    }
+
+    private void validarTecnicoId(int tecnicoId) {
+        if (tecnicoId <= 0) {
+            throw new ValidacionException("El ID del técnico debe ser un número positivo.");
+        }
+    }
+
+    private OrdenServicioDetalle buscarLineaDeOrden(
+            OrdenServicioDetalleDAO detalleDao,
+            int ordenId,
+            int detalleId,
+            boolean bloquear) {
+        List<OrdenServicioDetalle> lineas = bloquear
+                ? detalleDao.listarPorOrdenParaActualizar(ordenId)
+                : detalleDao.listarPorOrden(ordenId);
+        for (OrdenServicioDetalle linea : lineas) {
+            if (linea.getId() == detalleId) {
+                return linea;
+            }
+        }
+        throw new EntidadNoEncontradaException(
+                "La línea " + detalleId + " no pertenece a la orden " + ordenId + ".");
+    }
+
+    private ServicioTipo obtenerServicioTipoObligatorio(ServicioTipoDAO tipoDao, int servicioTipoId) {
+        ServicioTipo tipo = tipoDao.buscarPorId(servicioTipoId);
+        if (tipo == null) {
+            throw new EntidadNoEncontradaException(
+                    "No se encontró el tipo de servicio con ID: " + servicioTipoId + ".");
+        }
+        return tipo;
+    }
+
+    private Tecnico validarTecnicoDisponible(TecnicoDAO daoTecnico, int tecnicoId, boolean bloquear) {
+        Tecnico tecnico = bloquear
+                ? daoTecnico.buscarPorIdParaActualizar(tecnicoId)
+                : daoTecnico.buscarPorId(tecnicoId);
+        if (tecnico == null) {
+            throw new EntidadNoEncontradaException("No se encontró un técnico con el ID: " + tecnicoId + ".");
+        }
+        if (!tecnico.isActivo()) {
+            throw new ValidacionException("El técnico '" + tecnico.getNombre()
+                    + "' está inactivo y no puede ser asignado.");
+        }
+        return tecnico;
+    }
+
+    private BigDecimal validarHorasTrabajadas(BigDecimal horasTrabajadas, boolean permitirNulo) {
+        if (horasTrabajadas == null) {
+            if (permitirNulo) {
+                return BigDecimal.ZERO.setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+            }
+            throw new ValidacionException("Las horas trabajadas son obligatorias.");
+        }
+        if (horasTrabajadas.signum() < 0) {
+            throw new ValidacionException("Las horas trabajadas no pueden ser negativas.");
+        }
+        BigDecimal normalizadas = horasTrabajadas.setScale(
+                InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+        if (normalizadas.compareTo(MAX_HORAS_TRABAJADAS) > 0) {
+            throw new ValidacionException(
+                    "Las horas trabajadas no pueden superar " + MAX_HORAS_TRABAJADAS + ".");
+        }
+        return normalizadas;
     }
 
     private EstadoOrden validarEstadoEditable(OrdenServicio orden, int ordenId) {
