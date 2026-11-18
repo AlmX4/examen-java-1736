@@ -32,7 +32,7 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
-### Pendiente de integración — `feat(proveedores): compare active suppliers by spare part (T3.2)` (`feature/gestion-proveedores` → `develop`, cierra `#28`, RF-30 / RN-16 / RN-17 / RNF-11)
+### PR #91 — `feat(proveedores): compare active suppliers by spare part (T3.2)` (`feature/gestion-proveedores` → `develop`, cierra `#28`, RF-30 / RN-16 / RN-17 / RNF-11)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
