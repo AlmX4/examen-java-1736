@@ -241,6 +241,16 @@ class OrdenServicioControllerTest {
         public void eliminar(int ordenId, int detalleId) {
             detalles.removeIf(d -> d.getOrdenId() == ordenId && d.getId() == detalleId);
         }
+
+        @Override
+        public OrdenServicioDetalle buscarPorId(int id) {
+            for (OrdenServicioDetalle detalle : detalles) {
+                if (detalle.getId() == id) {
+                    return detalle;
+                }
+            }
+            return null;
+        }
     }
 
     private static class VehiculoDAOMock implements VehiculoDAO {
@@ -469,6 +479,11 @@ class OrdenServicioControllerTest {
 
         @Override
         public boolean descontarReserva(int repuestoId, int cantidad) {
+            return false;
+        }
+
+        @Override
+        public boolean aumentarReservado(int repuestoId, int cantidad) {
             return false;
         }
     }

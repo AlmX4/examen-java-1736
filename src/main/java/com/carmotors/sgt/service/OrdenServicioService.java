@@ -4,21 +4,26 @@ import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
+import com.carmotors.sgt.exception.StockInsuficienteException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
+import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.DetalleRepuestoDAO;
 import com.carmotors.sgt.repository.OrdenServicioDAO;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.ServicioTipoDAO;
 import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.repository.impl.DetalleRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
@@ -42,7 +47,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Reglas de negocio para crear órdenes y editar sus líneas (RF-08 y RF-35). */
+/**
+ * Reglas de negocio para crear órdenes, editar sus líneas y reservar repuestos en ellas
+ * (RF-08, RF-10, RF-35, RN-01, RN-02, RN-11).
+ */
 public class OrdenServicioService {
 
     private static final int MAX_LONGITUD_DESCRIPCION = 255;
@@ -57,14 +65,28 @@ public class OrdenServicioService {
     private final TecnicoDAO tecnicoDAO;
     private final RepuestoDAO repuestoDAO;
     private final SugerenciaTecnicoChain sugerenciaTecnicoChain;
+    private final DetalleRepuestoDAO detalleRepuestoDAO;
+    private final InventarioService inventarioService;
     private final boolean usarTransaccionJdbc;
 
     /**
      * Constructor de producción: usa DAOs JDBC y transacción con una única {@link Connection}.
+     * Las dependencias de la reserva de repuestos se crean con sus implementaciones por defecto.
      */
     public OrdenServicioService(VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO) {
+        this(vehiculoDAO, clienteDAO, servicioTipoDAO, new RepuestoDAOImpl(), new DetalleRepuestoDAOImpl(),
+                new InventarioService());
+    }
+
+    /**
+     * Constructor de producción con las dependencias de la reserva de repuestos (RF-10) inyectadas.
+     */
+    public OrdenServicioService(VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
+                                RepuestoDAO repuestoDAO, DetalleRepuestoDAO detalleRepuestoDAO,
+                                InventarioService inventarioService) {
         this(new OrdenServicioDAOImpl(), new OrdenServicioDetalleDAOImpl(), vehiculoDAO, clienteDAO,
-                servicioTipoDAO, new TecnicoDAOImpl(), new RepuestoDAOImpl(), true);
+                servicioTipoDAO, new TecnicoDAOImpl(), repuestoDAO, detalleRepuestoDAO, inventarioService,
+                true, true);
     }
 
     /**
@@ -86,6 +108,27 @@ public class OrdenServicioService {
     public OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
                                 VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
                                 TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO, boolean usarTransaccionJdbc) {
+        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
+                tecnicoDAO, repuestoDAO, null, null, usarTransaccionJdbc, false);
+    }
+
+    /**
+     * Constructor completo: con {@code usarTransaccionJdbc = false} permite probar la reserva
+     * de repuestos con DAOs en memoria.
+     */
+    public OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
+                                VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
+                                RepuestoDAO repuestoDAO, DetalleRepuestoDAO detalleRepuestoDAO,
+                                InventarioService inventarioService, boolean usarTransaccionJdbc) {
+        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
+                new TecnicoDAOImpl(), repuestoDAO, detalleRepuestoDAO, inventarioService, usarTransaccionJdbc, true);
+    }
+
+    private OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
+                                 VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
+                                 TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO,
+                                 DetalleRepuestoDAO detalleRepuestoDAO, InventarioService inventarioService,
+                                 boolean usarTransaccionJdbc, boolean exigirDependenciasReserva) {
         if (ordenServicioDAO == null) {
             throw new ValidacionException("El DAO de órdenes de servicio es obligatorio.");
         }
@@ -113,8 +156,18 @@ public class OrdenServicioService {
         this.clienteDAO = clienteDAO;
         this.servicioTipoDAO = servicioTipoDAO;
         this.tecnicoDAO = tecnicoDAO;
+        if (exigirDependenciasReserva) {
+            if (detalleRepuestoDAO == null) {
+                throw new ValidacionException("El DAO de repuestos por línea es obligatorio.");
+            }
+            if (inventarioService == null) {
+                throw new ValidacionException("El servicio de inventario es obligatorio.");
+            }
+        }
         this.repuestoDAO = repuestoDAO;
         this.sugerenciaTecnicoChain = new SugerenciaTecnicoChain();
+        this.detalleRepuestoDAO = detalleRepuestoDAO;
+        this.inventarioService = inventarioService;
         this.usarTransaccionJdbc = usarTransaccionJdbc;
     }
 
@@ -568,6 +621,115 @@ public class OrdenServicioService {
     }
 
     /**
+     * Reserva unidades de un repuesto en una línea de servicio (RF-10, RN-01, RN-02, RN-11).
+     *
+     * <p>Valida todo antes de abrir la transacción. En una única unidad de trabajo JDBC aumenta
+     * {@code repuestos.cantidad_reservada} y guarda la reserva en {@code detalle_repuestos} con el
+     * nombre y el precio de venta vigentes como snapshot. El stock físico de los lotes no cambia.</p>
+     *
+     * @param detalleId  línea de servicio que recibe el repuesto
+     * @param repuestoId repuesto a reservar
+     * @param cantidad   unidades a reservar (mayor que cero)
+     * @return la reserva guardada
+     */
+    public DetalleRepuesto reservarRepuesto(int detalleId, int repuestoId, int cantidad) {
+        verificarDependenciasReserva();
+        if (cantidad <= 0) {
+            throw new ValidacionException("La cantidad a reservar debe ser mayor que cero.");
+        }
+        if (detalleId <= 0) {
+            throw new ValidacionException("El ID de la línea de servicio debe ser un número positivo.");
+        }
+        if (repuestoId <= 0) {
+            throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
+        }
+
+        OrdenServicioDetalle linea = ordenServicioDetalleDAO.buscarPorId(detalleId);
+        if (linea == null) {
+            throw new EntidadNoEncontradaException("No se encontró una línea de servicio con el ID: " + detalleId);
+        }
+        OrdenServicio orden = ordenServicioDAO.buscarPorId(linea.getOrdenId());
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró la orden de servicio con el ID: "
+                    + linea.getOrdenId());
+        }
+        EstadoOrden estado = EstadoOrdenFactory.desdeId(orden.getEstadoId());
+        if (!estado.permiteEdicion()) {
+            throw new ValidacionException("La orden " + orden.getId() + " está en estado '" + estado.getNombre()
+                    + "' y no permite cambios; no se pueden reservar repuestos.");
+        }
+
+        Repuesto repuesto = repuestoDAO.buscarPorId(repuestoId);
+        if (repuesto == null) {
+            throw new EntidadNoEncontradaException("No se encontró un repuesto con el ID: " + repuestoId);
+        }
+        if (!repuesto.isActivo()) {
+            throw new ValidacionException("El repuesto '" + repuesto.getNombre()
+                    + "' está inactivo; no se puede reservar.");
+        }
+        if (detalleRepuestoDAO.buscar(detalleId, repuestoId) != null) {
+            throw new ValidacionException("El repuesto '" + repuesto.getNombre()
+                    + "' ya está asignado a la línea " + detalleId + ".");
+        }
+
+        int disponible = inventarioService.calcularStock(repuestoId).getDisponible();
+        if (cantidad > disponible) {
+            throw new StockInsuficienteException("Stock insuficiente para '" + repuesto.getNombre()
+                    + "': solicitado " + cantidad + ", disponible " + disponible + ".");
+        }
+
+        DetalleRepuesto reserva = new DetalleRepuesto();
+        reserva.setDetalleId(detalleId);
+        reserva.setRepuestoId(repuestoId);
+        reserva.setCantidadAsignada(cantidad);
+        reserva.setNombreRepuestoSnapshot(repuesto.getNombre());
+        reserva.setPrecioUnitarioVenta(repuesto.getPrecioVenta()
+                .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO));
+
+        if (!usarTransaccionJdbc) {
+            guardarReserva(reserva, repuestoDAO, detalleRepuestoDAO);
+            return reserva;
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
+                DetalleRepuestoDAO detalleRepuestoDaoTransaccional = new DetalleRepuestoDAOImpl(connection);
+
+                guardarReserva(reserva, repuestoDaoTransaccional, detalleRepuestoDaoTransaccional);
+                connection.commit();
+                return reserva;
+            } catch (CarMotorsException e) {
+                connection.rollback();
+                throw e;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new CarMotorsException("No se pudo reservar el repuesto: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new CarMotorsException("Error inesperado al reservar el repuesto: " + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transacción de la reserva del repuesto: "
+                    + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Retorna el disponible para nuevas reservas de un repuesto (sección 2.5).
+     *
+     * @param repuestoId identificador del repuesto
+     * @return unidades disponibles
+     */
+    public int consultarDisponible(int repuestoId) {
+        verificarDependenciasReserva();
+        return inventarioService.calcularStock(repuestoId).getDisponible();
+    }
+
+    /**
      * Traduce el ID de estado de una orden a su nombre usando el patrón State.
      *
      * @param estadoId identificador de {@code servicio_estados}
@@ -575,6 +737,25 @@ public class OrdenServicioService {
      */
     public String obtenerNombreEstado(int estadoId) {
         return EstadoOrdenFactory.desdeId(estadoId).getNombre();
+    }
+
+    private void verificarDependenciasReserva() {
+        if (repuestoDAO == null || detalleRepuestoDAO == null || inventarioService == null) {
+            throw new CarMotorsException("La reserva de repuestos no está configurada en este servicio.");
+        }
+    }
+
+    private void guardarReserva(DetalleRepuesto reserva, RepuestoDAO repuestoDao, DetalleRepuestoDAO detalleDao) {
+        boolean actualizado = repuestoDao.aumentarReservado(reserva.getRepuestoId(), reserva.getCantidadAsignada());
+        if (!actualizado) {
+            throw new CarMotorsException("No se pudo actualizar el reservado del repuesto "
+                    + reserva.getRepuestoId() + ".");
+        }
+        boolean guardado = detalleDao.guardar(reserva);
+        if (!guardado) {
+            throw new CarMotorsException("No se pudo registrar la reserva del repuesto en la línea "
+                    + reserva.getDetalleId() + ".");
+        }
     }
 
     private void validarVehiculoYCliente(int vehiculoId) {

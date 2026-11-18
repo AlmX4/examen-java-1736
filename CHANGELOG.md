@@ -21,6 +21,19 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### PR #97 — `feat(servicios): reserve parts on service lines (T4.7)` (`feature/gestion-servicios` → `develop`, cierra `#41`, RF-10 / RN-01 / RN-02 / RN-11 / HU-06)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Creación de la entidad `DetalleRepuesto` (`com.carmotors.sgt.model`) para `detalle_repuestos` (clave compuesta `detalleId` + `repuestoId`, sin `id`), con `precioUnitarioVenta` en `BigDecimal`.
+  - Creación de `DetalleRepuestoDAO` / `DetalleRepuestoDAOImpl` (guardar, buscar por `(detalleId, repuestoId)` y listar por línea) con `PreparedStatement`, try-with-resources y constructor con `Connection` compartida.
+  - Nuevo `RepuestoDAO.aumentarReservado(int, int)` (`UPDATE repuestos SET cantidad_reservada = cantidad_reservada + ? WHERE id = ?`; el cálculo lo hace MySQL y no toca `lotes`) y nuevo `OrdenServicioDetalleDAO.buscarPorId(int)`.
+  - Creación de `StockInsuficienteException` (`RNF-12`) en la jerarquía de excepciones propias.
+  - Creación de `OrdenServicioService.reservarRepuesto(detalleId, repuestoId, cantidad)`: valida antes de la transacción que la cantidad sea mayor que cero, que la línea y su orden existan, que el estado permita cambios (`EstadoOrdenFactory.desdeId(...).permiteEdicion()`), que el repuesto exista y esté activo, que no esté ya asignado a la línea y que la cantidad no supere el disponible de `InventarioService.calcularStock(...)` (`RN-01`; el mensaje informa el disponible). Congela `nombre_repuesto_snapshot` y `precio_unitario_venta` (escala 2, `HALF_UP`) (`RN-11`).
+  - Aumento del reservado y registro en `detalle_repuestos` en una única transacción JDBC (una `Connection`, `setAutoCommit(false)`, `commit()` / `rollback()` ante cualquier error, incluidos los de tiempo de ejecución, restauración de auto-commit y cierre con try-with-resources) (`RN-02`, `RNF-08`, sección 5.6). El stock físico de los lotes no cambia.
+  - `RepuestoDAO`, `DetalleRepuestoDAO` e `InventarioService` se inyectan por constructor; se conservan los constructores existentes de `OrdenServicioService`.
+  - `OrdenServicioController` delega `reservarRepuesto` y `consultarDisponible`; `OrdenServicioView` añade la opción "6. Reservar repuestos en una línea" (rango 0–6, tras las opciones de T4.3 y T4.6): muestra las líneas de la orden, pide línea (solo acepta una línea de esa orden), repuesto y cantidad, e informa la reserva y el disponible restante sin cerrar la aplicación ante errores. Cableado en `Main.java` con el `RepuestoDAO` y el `InventarioService` existentes.
+  - Creación de `OrdenServicioReservaTest` con 8 pruebas JUnit 5 en memoria: reserva válida (reservado y snapshot), cantidad cero o negativa, cantidad mayor al disponible (mensaje con el disponible), repuesto inexistente, repuesto inactivo, línea inexistente, orden Completada y repuesto ya asignado. Se actualizan los DAOs en memoria de `InventarioServiceTest`, `ProveedorRepuestoServiceTest`, `OrdenServicioServiceTest`, `RepuestoServiceTest`, `LoteServiceTest`, `StockObserverTest`, `LoteControllerTest` y `OrdenServicioControllerTest` (234 pruebas en total, 0 fallos).
+
 ### PR #96 — `feat(servicios): assign technicians to order lines (T4.6)` (`feature/gestion-servicios` → `develop`, cierra `#40`, RF-09 / RN-07 / RN-19 / RN-20 / RN-21 / HU-05)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**

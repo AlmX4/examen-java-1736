@@ -657,6 +657,16 @@ class OrdenServicioServiceTest {
                 }
             }
         }
+
+        @Override
+        public OrdenServicioDetalle buscarPorId(int id) {
+            for (OrdenServicioDetalle detalle : detalles) {
+                if (detalle.getId() == id) {
+                    return detalle;
+                }
+            }
+            return null;
+        }
     }
 
     private static class VehiculoDAOMock implements VehiculoDAO {
@@ -906,6 +916,16 @@ class OrdenServicioServiceTest {
                 return false;
             }
             r.setCantidadReservada(r.getCantidadReservada() - cantidad);
+            return true;
+        }
+
+        @Override
+        public boolean aumentarReservado(int repuestoId, int cantidad) {
+            Repuesto r = repuestos.get(repuestoId);
+            if (r == null) {
+                return false;
+            }
+            r.setCantidadReservada(r.getCantidadReservada() + cantidad);
             return true;
         }
     }

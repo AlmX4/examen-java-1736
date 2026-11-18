@@ -5,6 +5,7 @@ import com.carmotors.sgt.controller.OrdenServicioController;
 import com.carmotors.sgt.controller.ServicioTipoController;
 import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
@@ -21,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Submenú de consola para las órdenes de servicio (RF-08, RNF-03, RNF-24).
+ * Submenú de consola para las órdenes de servicio (RF-08, RF-10, RNF-03, RNF-24).
  * Solo captura datos e imprime resultados; las reglas residen en el servicio.
  */
 public class OrdenServicioView implements SubmenuVista {
@@ -73,10 +74,11 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  3. Retirar línea de servicio");
             System.out.println("  4. Asignar técnicos a una línea");
             System.out.println("  5. Registrar horas trabajadas de un técnico");
+            System.out.println("  6. Reservar repuestos en una línea");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 5);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 6);
             switch (opcion) {
                 case 1:
                     crearOrden();
@@ -92,6 +94,9 @@ public class OrdenServicioView implements SubmenuVista {
                     break;
                 case 5:
                     registrarHorasTrabajadas();
+                    break;
+                case 6:
+                    reservarRepuesto();
                     break;
                 case 0:
                     ejecutando = false;
@@ -346,6 +351,48 @@ public class OrdenServicioView implements SubmenuVista {
             String nombre = tecnico != null ? tecnico.getNombre() : "ID " + asignacion.getTecnicoId();
             System.out.println("    - Técnico #" + asignacion.getTecnicoId()
                     + " (" + nombre + ") | Horas: " + asignacion.getHorasTrabajadas() + " h");
+        }
+    }
+
+    private void reservarRepuesto() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden de servicio");
+            List<OrdenServicioDetalle> lineas = ordenServicioController.listarLineas(ordenId);
+            if (lineas.isEmpty()) {
+                System.out.println("\n  [!] La orden no tiene líneas de servicio.");
+                ConsoleReader.pausar();
+                return;
+            }
+            int detalleId = seleccionarLinea(ordenId, lineas);
+            int repuestoId = ConsoleReader.leerEnteroPositivo("ID del repuesto");
+            int cantidad = ConsoleReader.leerEntero("Cantidad a reservar");
+
+            DetalleRepuesto reserva = ordenServicioController.reservarRepuesto(detalleId, repuestoId, cantidad);
+            System.out.println("\n  [✓] Repuesto reservado exitosamente.");
+            System.out.println("  Línea:             " + reserva.getDetalleId());
+            System.out.println("  Repuesto:          " + reserva.getRepuestoId() + " | " + reserva.getNombreRepuestoSnapshot());
+            System.out.println("  Cantidad asignada: " + reserva.getCantidadAsignada());
+            System.out.println("  Precio unitario:   $" + reserva.getPrecioUnitarioVenta());
+            System.out.println("  Disponible restante: " + ordenServicioController.consultarDisponible(repuestoId));
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al reservar el repuesto: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private int seleccionarLinea(int ordenId, List<OrdenServicioDetalle> lineas) {
+        System.out.println("  Líneas de la orden " + ordenId + ":");
+        for (OrdenServicioDetalle linea : lineas) {
+            System.out.println("    - Línea " + linea.getId() + " | " + linea.getNombreServicioSnapshot());
+        }
+        while (true) {
+            int idElegido = ConsoleReader.leerEnteroPositivo("ID de la línea");
+            for (OrdenServicioDetalle linea : lineas) {
+                if (linea.getId() == idElegido) {
+                    return idElegido;
+                }
+            }
+            System.out.println("  [!] Error: La línea no pertenece a la orden " + ordenId + ".");
         }
     }
 

@@ -30,4 +30,12 @@ public interface RepuestoDAO {
      * @return {@code true} si existía reserva suficiente y se actualizó el registro
      */
     boolean descontarReserva(int repuestoId, int cantidad);
+
+    /**
+     * Suma unidades a {@code cantidad_reservada} del repuesto (RN-02). El cálculo lo hace MySQL;
+     * no modifica la tabla {@code lotes}.
+     *
+     * @return {@code true} si se actualizó el repuesto
+     */
+    boolean aumentarReservado(int repuestoId, int cantidad);
 }
