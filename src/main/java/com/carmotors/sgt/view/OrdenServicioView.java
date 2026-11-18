@@ -6,9 +6,11 @@ import com.carmotors.sgt.controller.ServicioTipoController;
 import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.ConsumoRepuesto;
 import com.carmotors.sgt.model.ConsultaOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.FiltroOrdenServicio;
+import com.carmotors.sgt.model.ResultadoCompletarOrden;
 import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
@@ -85,10 +87,11 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  8. Ver detalle de una orden");
             System.out.println("  9. Retirar repuestos de una línea");
             System.out.println("  10. Pasar orden a En Proceso");
+            System.out.println("  11. Completar orden");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 10);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 11);
             switch (opcion) {
                 case 1:
                     crearOrden();
@@ -119,6 +122,9 @@ public class OrdenServicioView implements SubmenuVista {
                     break;
                 case 10:
                     pasarAEnProceso();
+                    break;
+                case 11:
+                    completarOrden();
                     break;
                 case 0:
                     ejecutando = false;
@@ -507,6 +513,37 @@ public class OrdenServicioView implements SubmenuVista {
                     + ordenServicioController.obtenerNombreEstado(orden.getEstadoId()) + ".");
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] No se pudo pasar la orden a En Proceso: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void completarOrden() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden de servicio");
+            boolean confirmar = ConsoleReader.leerConfirmacion("Completar la orden " + ordenId
+                    + " descuenta el inventario y no se puede deshacer. ¿Desea continuar?");
+            if (!confirmar) {
+                System.out.println("\n  [i] Operación cancelada; la orden no cambió.");
+                return;
+            }
+
+            ResultadoCompletarOrden resultado = ordenServicioController.completarOrden(ordenId);
+            OrdenServicio orden = resultado.getOrden();
+            System.out.println("\n  [✓] Orden " + orden.getId() + " completada.");
+            System.out.println("  Estado:            " + ordenServicioController.obtenerNombreEstado(orden.getEstadoId()));
+            System.out.println("  Fecha completado:  " + orden.getFechaCompletado().format(FORMATO_FECHA_HORA));
+            if (resultado.getConsumos().isEmpty()) {
+                System.out.println("  Repuestos:         la orden no tenía repuestos; no se descontó inventario.");
+            } else {
+                System.out.println("  Repuestos descontados del inventario:");
+                for (ConsumoRepuesto consumo : resultado.getConsumos()) {
+                    System.out.println("    - Repuesto " + consumo.getRepuestoId() + " | " + consumo.getNombreRepuesto()
+                            + " | Unidades: " + consumo.getUnidadesDescontadas());
+                }
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo completar la orden: " + e.getMessage());
         } finally {
             ConsoleReader.pausar();
         }
