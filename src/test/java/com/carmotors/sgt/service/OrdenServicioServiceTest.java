@@ -5,13 +5,22 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
+import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.ServicioTipo;
+import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.repository.ClienteDAO;
 import com.carmotors.sgt.repository.OrdenServicioDAO;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
+import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.ServicioTipoDAO;
+import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.service.state.EstadoCancelada;
+import com.carmotors.sgt.service.state.EstadoCompletado;
+import com.carmotors.sgt.service.state.EstadoEnProceso;
+import com.carmotors.sgt.service.state.EstadoEntregado;
+import com.carmotors.sgt.service.state.EstadoFacturado;
 import com.carmotors.sgt.service.state.EstadoPendiente;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,11 +46,15 @@ class OrdenServicioServiceTest {
     private OrdenServicioService service;
     private OrdenServicioDAOMock ordenDAO;
     private OrdenServicioDetalleDAOMock detalleDAO;
+    private TecnicoDAOMock tecnicoDAO;
+    private RepuestoDAOMock repuestoDAO;
 
     @BeforeEach
     void setUp() {
         ordenDAO = new OrdenServicioDAOMock();
         detalleDAO = new OrdenServicioDetalleDAOMock();
+        tecnicoDAO = new TecnicoDAOMock();
+        repuestoDAO = new RepuestoDAOMock();
 
         ClienteDAOMock clienteDAO = new ClienteDAOMock();
         clienteDAO.agregar(new Cliente(1, "María Rojas", "1094567801", "3105551101", "maria@correo.com", true));
@@ -55,7 +69,16 @@ class OrdenServicioServiceTest {
         servicioTipoDAO.agregar(new ServicioTipo(2, "Revisión y cambio de pastillas de freno", 2, 3,
                 new BigDecimal("90000.005"), null));
 
-        service = new OrdenServicioService(ordenDAO, detalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO);
+        tecnicoDAO.agregar(new Tecnico(1, "Pedro Ramírez", "1090111222", 1, "3101112233", true));
+        tecnicoDAO.agregar(new Tecnico(2, "Laura Gómez", "1090333444", 3, "3104445566", true));
+        tecnicoDAO.agregar(new Tecnico(3, "Luis Ortega", "1090555666", 1, "3107778899", false));
+
+        repuestoDAO.agregar(new Repuesto(1, 1, "Aceite sintético", "Mobil", new BigDecimal("38000.00"), 4, 2, true));
+        repuestoDAO.agregar(new Repuesto(2, 1, "Filtro de aceite", "Bosch", new BigDecimal("25000.00"), 1, 2, true));
+
+        service = new OrdenServicioService(
+                ordenDAO, detalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
+                tecnicoDAO, repuestoDAO, false);
     }
 
     private List<OrdenServicioDetalle> lineas(int... tipoIds) {
@@ -167,6 +190,133 @@ class OrdenServicioServiceTest {
         assertNadaGuardado();
     }
 
+    @Test
+    @DisplayName("T4.3: Agrega línea a orden Pendiente congelando snapshot y costo de mano de obra")
+    void agregarLineaEnOrdenPendiente() {
+        OrdenServicio orden = service.crearOrden(1, "Revisión general", lineas(1));
+
+        int nuevoDetalleId = service.agregarLinea(
+                orden.getId(), new OrdenServicioDetalle(2, "  Revisar discos  "), null, false);
+
+        assertTrue(nuevoDetalleId > 0);
+        List<OrdenServicioDetalle> guardadas = service.listarLineas(orden.getId());
+        assertEquals(2, guardadas.size());
+        OrdenServicioDetalle nueva = guardadas.get(1);
+        assertEquals("Revisión y cambio de pastillas de freno", nueva.getNombreServicioSnapshot());
+        assertEquals(new BigDecimal("90000.01"), nueva.getCostoManoObra());
+        assertEquals("Revisar discos", nueva.getObservaciones());
+        assertFalse(service.requiereTecnicoParaAgregar(orden.getId()));
+    }
+
+    @Test
+    @DisplayName("T4.3: En Proceso exige técnico activo, asigna en la misma operación y respeta RN-19")
+    void agregarLineaEnOrdenEnProcesoConValidacionesTecnicoYEspecialidad() {
+        OrdenServicio orden = service.crearOrden(1, "Falla frenos", lineas(1));
+        orden.setEstadoId(new EstadoEnProceso().getEstadoId());
+        assertTrue(service.requiereTecnicoParaAgregar(orden.getId()));
+
+        // Sin técnico -> rechaza
+        assertThrows(ValidacionException.class,
+                () -> service.agregarLinea(orden.getId(), new OrdenServicioDetalle(1, null), null, false));
+
+        // Técnico inactivo (ID 3) -> rechaza
+        assertThrows(ValidacionException.class,
+                () -> service.agregarLinea(orden.getId(), new OrdenServicioDetalle(1, null), 3, false));
+
+        // Especialidad distinta sin confirmar (Servicio 2 requiere esp. 3, Técnico 1 es esp. 1) -> rechaza
+        assertThrows(ValidacionException.class,
+                () -> service.agregarLinea(orden.getId(), new OrdenServicioDetalle(2, null), 1, false));
+
+        // Especialidad distinta confirmada -> permite y asigna
+        int detalleConfirmado = service.agregarLinea(
+                orden.getId(), new OrdenServicioDetalle(2, null), 1, true);
+        assertEquals(Integer.valueOf(1), detalleDAO.tecnicosAsignados.get(detalleConfirmado));
+
+        // Especialidad coincidente (Servicio 2 esp. 3, Técnico 2 esp. 3) -> permite sin confirmación extra
+        int detalleEspecialista = service.agregarLinea(
+                orden.getId(), new OrdenServicioDetalle(2, null), 2, false);
+        assertEquals(Integer.valueOf(2), detalleDAO.tecnicosAsignados.get(detalleEspecialista));
+    }
+
+    @Test
+    @DisplayName("T4.3: Bloquea agregar o retirar líneas en estados Completado, Facturado, Entregado y Cancelada")
+    void rechazarEdicionEnEstadosNoEditables() {
+        int[] estadosBloqueados = new int[] {
+                new EstadoCompletado().getEstadoId(),
+                new EstadoFacturado().getEstadoId(),
+                new EstadoEntregado().getEstadoId(),
+                new EstadoCancelada().getEstadoId()
+        };
+
+        for (int estadoId : estadosBloqueados) {
+            OrdenServicio orden = service.crearOrden(1, "Orden bloqueada", lineas(1, 2));
+            int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+            orden.setEstadoId(estadoId);
+
+            assertThrows(ValidacionException.class,
+                    () -> service.requiereTecnicoParaAgregar(orden.getId()));
+            assertThrows(ValidacionException.class,
+                    () -> service.agregarLinea(orden.getId(), new OrdenServicioDetalle(1, null), 1, true));
+            assertThrows(ValidacionException.class,
+                    () -> service.quitarLinea(orden.getId(), detalleId));
+        }
+    }
+
+    @Test
+    @DisplayName("T4.3: Retirar línea libera exactamente sus reservas en repuestos y protege última línea (RN-05, RN-18)")
+    void quitarLineaLiberaReservasYProtegeUltimaLinea() {
+        OrdenServicio orden = service.crearOrden(1, "Cambio aceite y alineación", lineas(1, 2));
+        List<OrdenServicioDetalle> guardadas = service.listarLineas(orden.getId());
+        int detalleConReservas = guardadas.get(0).getId();
+        int detalleSinReservas = guardadas.get(1).getId();
+
+        detalleDAO.agregarReserva(detalleConReservas, 1, 4);
+        detalleDAO.agregarReserva(detalleConReservas, 2, 1);
+
+        service.quitarLinea(orden.getId(), detalleConReservas);
+
+        assertEquals(0, repuestoDAO.buscarPorId(1).getCantidadReservada());
+        assertEquals(0, repuestoDAO.buscarPorId(2).getCantidadReservada());
+        assertEquals(1, service.listarLineas(orden.getId()).size());
+
+        // No permite retirar la última línea restante
+        assertThrows(ValidacionException.class,
+                () -> service.quitarLinea(orden.getId(), detalleSinReservas));
+    }
+
+    @Test
+    @DisplayName("T4.3: En Proceso rechaza retirar línea con horas trabajadas > 0 y permite si tiene 0.00h (RF-35)")
+    void quitarLineaEnProcesoValidaHorasTrabajadas() {
+        OrdenServicio orden = service.crearOrden(1, "Trabajo en progreso", lineas(1, 2, 1));
+        List<OrdenServicioDetalle> guardadas = service.listarLineas(orden.getId());
+        int detalleConHoras = guardadas.get(0).getId();
+        int detalleSinHoras = guardadas.get(1).getId();
+
+        detalleDAO.fijarHoras(detalleConHoras, new BigDecimal("1.50"));
+        detalleDAO.fijarHoras(detalleSinHoras, BigDecimal.ZERO);
+        orden.setEstadoId(new EstadoEnProceso().getEstadoId());
+
+        assertThrows(ValidacionException.class,
+                () -> service.quitarLinea(orden.getId(), detalleConHoras));
+        assertEquals(3, service.listarLineas(orden.getId()).size());
+
+        service.quitarLinea(orden.getId(), detalleSinHoras);
+        assertEquals(2, service.listarLineas(orden.getId()).size());
+    }
+
+    @Test
+    @DisplayName("T4.3: especialidadCoincide maneja nulos de forma segura")
+    void especialidadCoincideConNulos() {
+        ServicioTipo tipo = new ServicioTipo(1, "Aceite", 1, 2, new BigDecimal("50000"), 6);
+        Tecnico tecnicoIgual = new Tecnico(1, "Ana", "100", 2, null, true);
+        Tecnico tecnicoDistinto = new Tecnico(2, "Luis", "200", 3, null, true);
+
+        assertFalse(service.especialidadCoincide(null, tecnicoIgual));
+        assertFalse(service.especialidadCoincide(tipo, null));
+        assertFalse(service.especialidadCoincide(tipo, tecnicoDistinto));
+        assertTrue(service.especialidadCoincide(tipo, tecnicoIgual));
+    }
+
     private void assertNadaGuardado() {
         assertTrue(ordenDAO.ordenes.isEmpty());
         assertTrue(detalleDAO.detalles.isEmpty());
@@ -191,15 +341,38 @@ class OrdenServicioServiceTest {
         public OrdenServicio buscarPorId(int id) {
             return ordenes.get(id);
         }
+
+        @Override
+        public OrdenServicio buscarPorIdParaActualizar(int id) {
+            return ordenes.get(id);
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {
         private final List<OrdenServicioDetalle> detalles = new ArrayList<>();
+        private final Map<Integer, Integer> tecnicosAsignados = new HashMap<>();
+        private final Map<Integer, BigDecimal> horasPorDetalle = new HashMap<>();
+        private final Map<Integer, Map<Integer, Integer>> reservasPorDetalle = new HashMap<>();
+        private int secuencia = 0;
+
+        void agregarReserva(int detalleId, int repuestoId, int cantidad) {
+            Map<Integer, Integer> mapa = reservasPorDetalle.get(detalleId);
+            if (mapa == null) {
+                mapa = new LinkedHashMap<>();
+                reservasPorDetalle.put(detalleId, mapa);
+            }
+            mapa.put(repuestoId, cantidad);
+        }
+
+        void fijarHoras(int detalleId, BigDecimal horas) {
+            horasPorDetalle.put(detalleId, horas);
+        }
 
         @Override
         public int guardar(OrdenServicioDetalle detalle) {
+            secuencia++;
             detalles.add(detalle);
-            return detalles.size();
+            return secuencia;
         }
 
         @Override
@@ -211,6 +384,39 @@ class OrdenServicioServiceTest {
                 }
             }
             return resultado;
+        }
+
+        @Override
+        public List<OrdenServicioDetalle> listarPorOrdenParaActualizar(int ordenId) {
+            return listarPorOrden(ordenId);
+        }
+
+        @Override
+        public void asignarTecnico(int detalleId, int tecnicoId) {
+            tecnicosAsignados.put(detalleId, tecnicoId);
+        }
+
+        @Override
+        public boolean tieneHorasTrabajadas(int detalleId) {
+            BigDecimal horas = horasPorDetalle.get(detalleId);
+            return horas != null && horas.signum() > 0;
+        }
+
+        @Override
+        public Map<Integer, Integer> listarReservasParaActualizar(int detalleId) {
+            Map<Integer, Integer> mapa = reservasPorDetalle.get(detalleId);
+            return mapa != null ? new LinkedHashMap<>(mapa) : new LinkedHashMap<>();
+        }
+
+        @Override
+        public void eliminar(int ordenId, int detalleId) {
+            for (int i = 0; i < detalles.size(); i++) {
+                OrdenServicioDetalle d = detalles.get(i);
+                if (d.getOrdenId() == ordenId && d.getId() == detalleId) {
+                    detalles.remove(i);
+                    return;
+                }
+            }
         }
     }
 
@@ -335,6 +541,118 @@ class OrdenServicioServiceTest {
         @Override
         public boolean eliminar(int id) {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class TecnicoDAOMock implements TecnicoDAO {
+        private final Map<Integer, Tecnico> tecnicos = new HashMap<>();
+
+        void agregar(Tecnico tecnico) {
+            tecnicos.put(tecnico.getId(), tecnico);
+        }
+
+        @Override
+        public List<Tecnico> listarTodos() {
+            return new ArrayList<>(tecnicos.values());
+        }
+
+        @Override
+        public List<Tecnico> listarActivos() {
+            List<Tecnico> activos = new ArrayList<>();
+            for (Tecnico t : tecnicos.values()) {
+                if (t.isActivo()) {
+                    activos.add(t);
+                }
+            }
+            return activos;
+        }
+
+        @Override
+        public Tecnico buscarPorId(int id) {
+            return tecnicos.get(id);
+        }
+
+        @Override
+        public Tecnico buscarPorIdParaActualizar(int id) {
+            return tecnicos.get(id);
+        }
+
+        @Override
+        public Tecnico buscarPorDocumento(String documento) {
+            return null;
+        }
+
+        @Override
+        public int guardar(Tecnico tecnico) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean actualizar(Tecnico tecnico) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean actualizarEstadoActivo(int id, boolean activo) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class RepuestoDAOMock implements RepuestoDAO {
+        private final Map<Integer, Repuesto> repuestos = new HashMap<>();
+
+        void agregar(Repuesto repuesto) {
+            repuestos.put(repuesto.getId(), repuesto);
+        }
+
+        @Override
+        public List<Repuesto> listarTodos() {
+            return new ArrayList<>(repuestos.values());
+        }
+
+        @Override
+        public List<Repuesto> listarActivos() {
+            return new ArrayList<>(repuestos.values());
+        }
+
+        @Override
+        public Repuesto buscarPorId(int id) {
+            return repuestos.get(id);
+        }
+
+        @Override
+        public Repuesto buscarPorNombre(String nombre) {
+            return null;
+        }
+
+        @Override
+        public int guardar(Repuesto repuesto) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean actualizar(Repuesto repuesto) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean desactivar(int id) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean reactivar(int id) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean descontarReserva(int repuestoId, int cantidad) {
+            Repuesto r = repuestos.get(repuestoId);
+            if (r == null || r.getCantidadReservada() < cantidad) {
+                return false;
+            }
+            r.setCantidadReservada(r.getCantidadReservada() - cantidad);
+            return true;
         }
     }
 }

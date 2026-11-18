@@ -3,10 +3,12 @@ package com.carmotors.sgt.view;
 import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.controller.OrdenServicioController;
 import com.carmotors.sgt.controller.ServicioTipoController;
+import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.ServicioTipo;
+import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.util.ConsoleReader;
 
@@ -26,9 +28,12 @@ public class OrdenServicioView implements SubmenuVista {
     private final ClienteController clienteController;
     private final ServicioTipoController servicioTipoController;
 
+    private final TecnicoController tecnicoController;
+
     public OrdenServicioView(OrdenServicioController ordenServicioController,
                              ClienteController clienteController,
-                             ServicioTipoController servicioTipoController) {
+                             ServicioTipoController servicioTipoController,
+                             TecnicoController tecnicoController) {
         if (ordenServicioController == null) {
             throw new IllegalArgumentException("El controlador de órdenes de servicio es obligatorio.");
         }
@@ -38,9 +43,13 @@ public class OrdenServicioView implements SubmenuVista {
         if (servicioTipoController == null) {
             throw new IllegalArgumentException("El controlador de tipos de servicio es obligatorio.");
         }
+        if (tecnicoController == null) {
+            throw new IllegalArgumentException("El controlador de técnicos es obligatorio.");
+        }
         this.ordenServicioController = ordenServicioController;
         this.clienteController = clienteController;
         this.servicioTipoController = servicioTipoController;
+        this.tecnicoController = tecnicoController;
     }
 
     @Override
@@ -56,13 +65,21 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("              ÓRDENES DE SERVICIO                 ");
             System.out.println("==================================================");
             System.out.println("  1. Crear orden de servicio");
+            System.out.println("  2. Agregar línea de servicio");
+            System.out.println("  3. Retirar línea de servicio");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 1);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 3);
             switch (opcion) {
                 case 1:
                     crearOrden();
+                    break;
+                case 2:
+                    agregarLinea();
+                    break;
+                case 3:
+                    quitarLinea();
                     break;
                 case 0:
                     ejecutando = false;
@@ -108,6 +125,69 @@ public class OrdenServicioView implements SubmenuVista {
         ConsoleReader.pausar();
     }
 
+    private void agregarLinea() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden");
+            boolean requiereTecnico = ordenServicioController.requiereTecnicoParaAgregar(ordenId);
+            List<ServicioTipo> tipos = servicioTipoController.listarTodos();
+            if (tipos.isEmpty()) {
+                System.out.println("  [!] No hay tipos de servicio registrados.");
+                return;
+            }
+
+            ServicioTipo tipo = seleccionarTipoServicio(tipos);
+            String observaciones = ConsoleReader.leerTextoOpcional("Observaciones (Enter para omitir)");
+            Integer tecnicoId = null;
+            boolean confirmarOtraEspecialidad = false;
+            if (requiereTecnico) {
+                List<Tecnico> tecnicos = tecnicoController.listarActivos();
+                if (tecnicos.isEmpty()) {
+                    System.out.println("  [!] No hay técnicos activos para asignar.");
+                    return;
+                }
+                for (Tecnico tecnico : tecnicos) {
+                    System.out.println("    " + tecnico.getId() + ". " + tecnico.getNombre()
+                            + " | Especialidad ID: " + tecnico.getEspecialidadId());
+                }
+                int seleccion = ConsoleReader.leerEnteroEnRango("ID del técnico (0 para cancelar)", 0, Integer.MAX_VALUE);
+                if (seleccion == 0) {
+                    return;
+                }
+                Tecnico tecnico = tecnicoController.buscarPorId(seleccion);
+                if (!ordenServicioController.especialidadCoincide(tipo, tecnico)) {
+                    confirmarOtraEspecialidad = ConsoleReader.leerConfirmacion(
+                            "La especialidad del técnico difiere de la requerida. ¿Desea asignarlo?");
+                    if (!confirmarOtraEspecialidad) {
+                        return;
+                    }
+                }
+                tecnicoId = seleccion;
+            }
+            OrdenServicioDetalle linea = new OrdenServicioDetalle(tipo.getId(), observaciones);
+            System.out.println("  " + ordenServicioController.agregarLinea(
+                    ordenId, linea, tecnicoId, confirmarOtraEspecialidad));
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void quitarLinea() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden");
+            imprimirLineas(ordenServicioController.listarLineas(ordenId));
+            int detalleId = ConsoleReader.leerEnteroEnRango("ID de la línea (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (detalleId != 0) {
+                System.out.println("  " + ordenServicioController.quitarLinea(ordenId, detalleId));
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
     private ServicioTipo seleccionarTipoServicio(List<ServicioTipo> tipos) {
         System.out.println("  Tipos de servicio disponibles:");
         for (ServicioTipo tipo : tipos) {
@@ -133,7 +213,10 @@ public class OrdenServicioView implements SubmenuVista {
         System.out.println("  Fecha recepción:   " + orden.getFechaRecepcion().format(FORMATO_FECHA_HORA));
         System.out.println("  Problema:          " + orden.getDescripcionProblema());
         System.out.println("  Líneas de servicio:");
-        List<OrdenServicioDetalle> lineas = ordenServicioController.listarLineas(orden.getId());
+        imprimirLineas(ordenServicioController.listarLineas(orden.getId()));
+    }
+
+    private void imprimirLineas(List<OrdenServicioDetalle> lineas) {
         for (OrdenServicioDetalle linea : lineas) {
             String observaciones = linea.getObservaciones() == null ? "N/A" : linea.getObservaciones();
             System.out.println("    - Línea " + linea.getId()

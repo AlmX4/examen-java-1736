@@ -28,6 +28,24 @@ public class RepuestoDAOImpl implements RepuestoDAO {
     }
 
     @Override
+    public boolean descontarReserva(int repuestoId, int cantidad) {
+        if (conexionCompartida == null) {
+            throw new CarMotorsException("El descuento de reservas requiere una conexión transaccional compartida.");
+        }
+        String sql = "UPDATE repuestos SET cantidad_reservada = cantidad_reservada - ? "
+                + "WHERE id = ? AND cantidad_reservada >= ?";
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setInt(1, cantidad);
+            statement.setInt(2, repuestoId);
+            statement.setInt(3, cantidad);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al liberar la reserva del repuesto "
+                    + repuestoId + ": " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public List<Repuesto> listarTodos() {
         String sql = "SELECT id, repuesto_tipo_id, nombre, marca, precio_venta, cantidad_reservada, stock_minimo, activo " +
                 "FROM repuestos ORDER BY nombre ASC";

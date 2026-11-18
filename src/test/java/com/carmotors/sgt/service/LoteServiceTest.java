@@ -500,6 +500,11 @@ class LoteServiceTest {
         public boolean reactivar(int id) {
             return true;
         }
+
+        @Override
+        public boolean descontarReserva(int repuestoId, int cantidad) {
+            return false;
+        }
     }
 
     private static class ProveedorRepuestoDAOMock implements ProveedorRepuestoDAO {
