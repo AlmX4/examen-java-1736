@@ -143,6 +143,32 @@ public class LoteDAOImpl implements LoteDAO {
         }
     }
 
+    @Override
+    public boolean descontarUnidades(int loteId, int cantidad) {
+        String sql = "UPDATE lotes SET cantidad_actual = cantidad_actual - ? WHERE id = ? AND cantidad_actual >= ?";
+
+        if (conexionCompartida != null) {
+            return ejecutarDescuento(conexionCompartida, sql, loteId, cantidad);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return ejecutarDescuento(connection, sql, loteId, cantidad);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al descontar unidades del lote " + loteId + ": " + e.getMessage(), e);
+        }
+    }
+
+    private boolean ejecutarDescuento(Connection connection, String sql, int loteId, int cantidad) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, cantidad);
+            preparedStatement.setInt(2, loteId);
+            preparedStatement.setInt(3, cantidad);
+            return preparedStatement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al descontar unidades del lote " + loteId + ": " + e.getMessage(), e);
+        }
+    }
+
     private List<Lote> consultarPorVencer(Connection connection, String sql, LocalDate fechaLimite) {
         List<Lote> lotes = new ArrayList<>();
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {

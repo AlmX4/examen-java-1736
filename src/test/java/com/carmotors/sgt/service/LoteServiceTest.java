@@ -380,6 +380,11 @@ class LoteServiceTest {
             }
             return resultado;
         }
+
+        @Override
+        public boolean descontarUnidades(int loteId, int cantidad) {
+            return false;
+        }
     }
 
     private static class ProveedorDAOMock implements ProveedorDAO {

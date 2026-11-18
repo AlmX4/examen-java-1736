@@ -2,6 +2,8 @@ package com.carmotors.sgt.repository;
 
 import com.carmotors.sgt.model.OrdenServicio;
 
+import java.time.LocalDateTime;
+
 /**
  * Contrato de persistencia para la cabecera de las órdenes de servicio ({@code ordenes_servicio}).
  */
@@ -39,4 +41,15 @@ public interface OrdenServicioDAO {
      * @return {@code true} si se actualizó al menos una fila
      */
     boolean actualizarEstado(int ordenId, int nuevoEstadoId);
+
+    /**
+     * Cambia el estado de la orden a Completado y registra su fecha de finalización
+     * en una sola sentencia (RF-13).
+     *
+     * @param ordenId          identificador de la orden
+     * @param estadoId         ID del estado Completado
+     * @param fechaCompletado  fecha y hora de finalización
+     * @return {@code true} si se actualizó la orden
+     */
+    boolean marcarCompletada(int ordenId, int estadoId, LocalDateTime fechaCompletado);
 }

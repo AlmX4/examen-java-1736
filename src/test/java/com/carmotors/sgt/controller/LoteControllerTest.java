@@ -133,6 +133,11 @@ class LoteControllerTest {
             }
             return res;
         }
+
+        @Override
+        public boolean descontarUnidades(int loteId, int cantidad) {
+            return false;
+        }
     }
 
     private static class ProveedorDAOTest implements ProveedorDAO {
