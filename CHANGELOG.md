@@ -21,7 +21,7 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
-### Pendiente de integración — `feat(servicios): list and inspect service orders (T4.10)` (cierra `#44`)
+### PR #98 — `feat(servicios): list and inspect service orders (T4.10)` (`feature/gestion-servicios` → `develop`, cierra `#44`)
 - **Autor:** `@AlmX4`
 - Ajustes de revisión: aislamiento de errores JDBC, cierre explícito de la transacción de lectura y pruebas unitarias para filtros, subtotales, estados e historial.
 - Listado de órdenes en consola con filtros combinables por estado, técnico, placa, tipo de servicio y fecha de recepción. JDBC reduce la consulta inicial y Streams aplican los filtros de las asignaciones.
