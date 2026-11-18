@@ -22,6 +22,7 @@ import com.carmotors.sgt.repository.ServicioTipoDAO;
 import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
 import com.carmotors.sgt.repository.impl.ClienteDAOImpl;
+import com.carmotors.sgt.repository.impl.DetalleRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.EspecialidadDAOImpl;
 import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.LoteDAOImpl;
@@ -122,7 +123,8 @@ public class Main {
         ServicioTipoController servicioTipoController = new ServicioTipoController(servicioTipoService);
         ServicioTipoView servicioTipoView = new ServicioTipoView(servicioTipoController);
 
-        OrdenServicioService ordenServicioService = new OrdenServicioService(vehiculoDAO, clienteDAO, servicioTipoDAO);
+        OrdenServicioService ordenServicioService = new OrdenServicioService(vehiculoDAO, clienteDAO, servicioTipoDAO,
+                repuestoDAO, new DetalleRepuestoDAOImpl(), inventarioService);
         OrdenServicioController ordenServicioController = new OrdenServicioController(ordenServicioService);
         OrdenServicioView ordenServicioView =
                 new OrdenServicioView(ordenServicioController, clienteController, servicioTipoController, tecnicoController);

@@ -1,6 +1,7 @@
 package com.carmotors.sgt.controller;
 
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.ServicioTipo;
@@ -109,5 +110,13 @@ public class OrdenServicioController {
         } catch (CarMotorsException e) {
             return "No se pudieron registrar las horas: " + e.getMessage();
         }
+    }
+
+    public DetalleRepuesto reservarRepuesto(int detalleId, int repuestoId, int cantidad) {
+        return ordenServicioService.reservarRepuesto(detalleId, repuestoId, cantidad);
+    }
+
+    public int consultarDisponible(int repuestoId) {
+        return ordenServicioService.consultarDisponible(repuestoId);
     }
 }
