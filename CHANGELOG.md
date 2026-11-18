@@ -21,7 +21,7 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
-### Pendiente de integración — `feat(servicios): add technician suggestion chain (T4.5)` (`feature/gestion-servicios` → `develop`, cierra `#39`, RF-09 / RN-20 / RN-21)
+### PR #95 — `feat(servicios): add technician suggestion chain (T4.5)` (`feature/gestion-servicios` → `develop`, cierra `#39`, RF-09 / RN-20 / RN-21)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
   - Creación del DTO `SugerenciaTecnico` (`com.carmotors.sgt.service.chain`) con `tecnico`, `cargaActual`, `especialidadCoincide` y `criterioAplicado`.
