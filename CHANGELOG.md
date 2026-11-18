@@ -21,7 +21,7 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
-### Pendiente de integración — `feat(servicios): assign technicians to order lines (T4.6)` (`feature/gestion-servicios` → `develop`, cierra `#40`, RF-09 / RN-07 / RN-19 / RN-20 / RN-21 / HU-05)
+### PR #96 — `feat(servicios): assign technicians to order lines (T4.6)` (`feature/gestion-servicios` → `develop`, cierra `#40`, RF-09 / RN-07 / RN-19 / RN-20 / RN-21 / HU-05)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
   - Creación del modelo `DetalleTecnico` (`com.carmotors.sgt.model`) mapeando `detalle_tecnicos(detalle_id, tecnico_id, horas_trabajadas)` con `BigDecimal`.
