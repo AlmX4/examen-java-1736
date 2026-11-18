@@ -21,6 +21,17 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### Pendiente de integración — `feat(servicios): withdraw parts from a service line (T4.8)` (`feature/gestion-servicios` → `develop`, cierra `#42`, RF-11 / RN-05 / HU-06)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Nuevo `DetalleRepuestoDAO.eliminar(int detalleId, int repuestoId)` en la interfaz e `DetalleRepuestoDAOImpl` con `PreparedStatement` (`DELETE FROM detalle_repuestos WHERE detalle_id = ? AND repuesto_id = ?`), respetando la `Connection` compartida del constructor transaccional.
+  - `OrdenServicioService.listarRepuestosDeLinea(int detalleId)`: valida que el ID sea positivo, que la línea exista (`EntidadNoEncontradaException`) y delega en `DetalleRepuestoDAO.listarPorDetalle`.
+  - `OrdenServicioService.retirarRepuesto(int detalleId, int repuestoId)`: valida IDs positivos, existencia de la línea y de su orden, y que `EstadoOrdenFactory.desdeId(...).permiteEdicion()` sea `true` (bloquea Completado, Facturado, Entregado y Cancelada con `ValidacionException`, `RN-05`); exige que el repuesto esté reservado en la línea (`EntidadNoEncontradaException`).
+  - Liberación en una única transacción JDBC: `RepuestoDAO.descontarReserva(repuestoId, cantidadAsignada)` y `DetalleRepuestoDAO.eliminar(detalleId, repuestoId)` con la misma `Connection`, `setAutoCommit(false)`, `commit()` / `rollback()` ante `CarMotorsException`, `SQLException` y `RuntimeException`, restauración de auto-commit y cierre con try-with-resources. No elimina la línea de servicio ni modifica `lotes` (`RN-05`, `RNF-08`).
+  - `OrdenServicioController` delega `listarRepuestosDeLinea` y `retirarRepuesto` (devuelve mensaje amigable ante error) y `OrdenServicioView` añade la opción "9. Retirar repuestos de una línea" (rango 0–9): muestra las líneas de la orden, las reservas de la línea elegida, pide el repuesto, confirma con `ConsoleReader.leerConfirmacion` (S/N), informa las unidades liberadas y el disponible actualizado, sin cerrar la aplicación.
+  - Ampliación de `OrdenServicioReservaTest` a 16 pruebas: retiro válido en orden Pendiente (el reservado vuelve a su valor previo y el stock físico no cambia), retiro en En Proceso, rechazo en Completada, repuesto no reservado, línea inexistente, IDs no positivos, reserva inconsistente sin eliminar la fila y listado de reservas por línea. Se actualiza el `DetalleRepuestoDAOMock` de `OrdenServicioServiceTest` con el nuevo contrato (251 pruebas en total, 0 fallos).
+
 ### PR #98 — `feat(servicios): list and inspect service orders (T4.10)` (`feature/gestion-servicios` → `develop`, cierra `#44`)
 - **Autor:** `@AlmX4`
 - Ajustes de revisión: aislamiento de errores JDBC, cierre explícito de la transacción de lectura y pruebas unitarias para filtros, subtotales, estados e historial.
