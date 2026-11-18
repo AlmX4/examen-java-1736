@@ -1,8 +1,10 @@
 package com.carmotors.sgt.service;
 
+import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.exception.TransicionEstadoInvalidaException;
 import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.ConsultaOrdenServicio;
@@ -617,6 +619,89 @@ class OrdenServicioServiceTest {
         }
     }
 
+    // ------------------------------------------------------------------
+    // T4.9: transición de Pendiente a En Proceso (RF-12, RN-06, RN-07, HU-05)
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Pasa a En Proceso una orden cuyas líneas tienen técnico activo (RF-12, RN-07)")
+    void pasarAEnProcesoConTecnicosActivos() {
+        OrdenServicio orden = service.crearOrden(1, "Ruido en el tren delantero", lineas(1, 2));
+        for (OrdenServicioDetalle linea : detalleDAO.listarPorOrden(orden.getId())) {
+            detalleDAO.asignarTecnico(linea.getId(), 2);
+        }
+        assertEquals(1, orden.getEstadoId());
+
+        OrdenServicio actualizada = service.pasarAEnProceso(orden.getId());
+
+        assertEquals(2, actualizada.getEstadoId());
+        assertEquals(2, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+    }
+
+    @Test
+    @DisplayName("Bloquea la transición si una línea no tiene técnico e identifica la línea (HU-05)")
+    void bloquearTransicionSinTecnico() {
+        OrdenServicio orden = service.crearOrden(1, "Frenos y aceite", lineas(1, 2));
+        List<OrdenServicioDetalle> creadas = detalleDAO.listarPorOrden(orden.getId());
+        OrdenServicioDetalle primera = creadas.get(0);
+        OrdenServicioDetalle segunda = creadas.get(1);
+        detalleDAO.asignarTecnico(primera.getId(), 1);
+
+        ValidacionException error = assertThrows(ValidacionException.class,
+                () -> service.pasarAEnProceso(orden.getId()));
+
+        assertTrue(error.getMessage().contains(String.valueOf(segunda.getId())), error.getMessage());
+        assertTrue(error.getMessage().contains(segunda.getNombreServicioSnapshot()), error.getMessage());
+        assertEquals(1, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+    }
+
+    @Test
+    @DisplayName("Bloquea la transición si el único técnico de una línea está inactivo (RN-07)")
+    void bloquearTransicionConTecnicoInactivo() {
+        OrdenServicio orden = service.crearOrden(1, "Cambio de aceite", lineas(1));
+        OrdenServicioDetalle linea = detalleDAO.listarPorOrden(orden.getId()).get(0);
+        detalleDAO.asignarTecnico(linea.getId(), 3);
+
+        ValidacionException error = assertThrows(ValidacionException.class,
+                () -> service.pasarAEnProceso(orden.getId()));
+
+        assertTrue(error.getMessage().contains(String.valueOf(linea.getId())), error.getMessage());
+        assertEquals(1, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+    }
+
+    @Test
+    @DisplayName("Rechaza la transición cuando la orden no está en Pendiente (RN-06)")
+    void rechazarTransicionDesdeEstadoNoPendiente() {
+        OrdenServicio orden = service.crearOrden(1, "Diagnóstico eléctrico", lineas(1));
+        OrdenServicioDetalle linea = detalleDAO.listarPorOrden(orden.getId()).get(0);
+        detalleDAO.asignarTecnico(linea.getId(), 1);
+        orden.setEstadoId(3);
+
+        assertThrows(TransicionEstadoInvalidaException.class,
+                () -> service.pasarAEnProceso(orden.getId()));
+        assertEquals(3, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+    }
+
+    @Test
+    @DisplayName("Rechaza una orden inexistente o un ID no positivo al pasar a En Proceso")
+    void rechazarOrdenInexistenteOIdInvalido() {
+        assertThrows(EntidadNoEncontradaException.class, () -> service.pasarAEnProceso(999));
+        assertThrows(ValidacionException.class, () -> service.pasarAEnProceso(0));
+        assertThrows(ValidacionException.class, () -> service.pasarAEnProceso(-5));
+    }
+
+    @Test
+    @DisplayName("Si el DAO no actualiza el estado se lanza CarMotorsException y la orden no cambia")
+    void fallarActualizacionDeEstado() {
+        OrdenServicio orden = service.crearOrden(1, "Alineación", lineas(1));
+        OrdenServicioDetalle linea = detalleDAO.listarPorOrden(orden.getId()).get(0);
+        detalleDAO.asignarTecnico(linea.getId(), 1);
+        ordenDAO.deshabilitarActualizarEstado();
+
+        assertThrows(CarMotorsException.class, () -> service.pasarAEnProceso(orden.getId()));
+        assertEquals(1, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+    }
+
     private class DetalleRepuestoDAOMock implements DetalleRepuestoDAO {
         @Override
         public boolean guardar(DetalleRepuesto detalleRepuesto) {
@@ -651,6 +736,11 @@ class OrdenServicioServiceTest {
     private static class OrdenServicioDAOMock implements OrdenServicioDAO {
         private final Map<Integer, OrdenServicio> ordenes = new HashMap<>();
         private int secuencia = 0;
+        private boolean permitirActualizarEstado = true;
+
+        void deshabilitarActualizarEstado() {
+            permitirActualizarEstado = false;
+        }
 
         @Override
         public int guardar(OrdenServicio orden) {
@@ -667,6 +757,19 @@ class OrdenServicioServiceTest {
         @Override
         public OrdenServicio buscarPorIdParaActualizar(int id) {
             return ordenes.get(id);
+        }
+
+        @Override
+        public boolean actualizarEstado(int ordenId, int nuevoEstadoId) {
+            if (!permitirActualizarEstado) {
+                return false;
+            }
+            OrdenServicio orden = ordenes.get(ordenId);
+            if (orden == null) {
+                return false;
+            }
+            orden.setEstadoId(nuevoEstadoId);
+            return true;
         }
     }
 

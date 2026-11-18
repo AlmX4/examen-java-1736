@@ -147,6 +147,16 @@ class OrdenServicioControllerTest {
         public OrdenServicio buscarPorIdParaActualizar(int id) {
             return ordenes.get(id);
         }
+
+        @Override
+        public boolean actualizarEstado(int ordenId, int nuevoEstadoId) {
+            OrdenServicio orden = ordenes.get(ordenId);
+            if (orden == null) {
+                return false;
+            }
+            orden.setEstadoId(nuevoEstadoId);
+            return true;
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {
