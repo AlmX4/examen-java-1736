@@ -1,7 +1,12 @@
 package com.carmotors.sgt.service.chain;
 
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.CargaLineaTecnico;
+import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
+import com.carmotors.sgt.repository.EspecialidadDAO;
+import com.carmotors.sgt.repository.TecnicoDAO;
+import com.carmotors.sgt.service.TecnicoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -160,6 +165,105 @@ class SugerenciaTecnicoChainTest {
                 () -> chain.sugerir(0, tecnicos, Collections.emptyMap()));
         assertThrows(ValidacionException.class,
                 () -> chain.sugerir(-3, tecnicos, Collections.emptyMap()));
+    }
+
+    @Test
+    @DisplayName("Debe integrar TecnicoService consultando técnicos activos y cargas reales")
+    void debeSugerirIntegrandoTecnicoService() {
+        List<Tecnico> tecnicosActivos = Arrays.asList(
+                tecnico(10, "Bruno", ESP_FRENOS, true),
+                tecnico(2, "Carlos", ESP_MOTOR, true),
+                tecnico(5, "Diana", ESP_MOTOR, true)
+        );
+        Map<Integer, Integer> cargas = new HashMap<>();
+        cargas.put(2, 2);
+        cargas.put(5, 1);
+
+        TecnicoService tecnicoService = crearTecnicoServiceEnMemoria(tecnicosActivos, cargas);
+        SugerenciaTecnico resultado = chain.sugerir(ESP_MOTOR, tecnicoService);
+
+        assertNotNull(resultado);
+        assertEquals(5, resultado.getTecnico().getId());
+        assertEquals(1, resultado.getCargaActual());
+        assertTrue(resultado.isEspecialidadCoincide());
+        assertEquals("Especialista con menor carga", resultado.getCriterioAplicado());
+    }
+
+    @Test
+    @DisplayName("Debe lanzar ValidacionException si TecnicoService es nulo")
+    void debeRechazarTecnicoServiceNulo() {
+        assertThrows(ValidacionException.class,
+                () -> chain.sugerir(ESP_MOTOR, (TecnicoService) null));
+    }
+
+    private TecnicoService crearTecnicoServiceEnMemoria(
+            List<Tecnico> activos,
+            Map<Integer, Integer> cargas) {
+        TecnicoDAO tecnicoDAO = new TecnicoDAO() {
+            @Override
+            public List<Tecnico> listarTodos() {
+                return activos;
+            }
+
+            @Override
+            public List<Tecnico> listarActivos() {
+                return activos;
+            }
+
+            @Override
+            public Tecnico buscarPorId(int id) {
+                return null;
+            }
+
+            @Override
+            public Tecnico buscarPorIdParaActualizar(int id) {
+                return null;
+            }
+
+            @Override
+            public Tecnico buscarPorDocumento(String documento) {
+                return null;
+            }
+
+            @Override
+            public int guardar(Tecnico tecnico) {
+                return 0;
+            }
+
+            @Override
+            public boolean actualizar(Tecnico tecnico) {
+                return false;
+            }
+
+            @Override
+            public boolean actualizarEstadoActivo(int id, boolean activo) {
+                return false;
+            }
+
+            @Override
+            public List<CargaLineaTecnico> listarCargaPorTecnico(int tecnicoId) {
+                return Collections.emptyList();
+            }
+
+            @Override
+            public Map<Integer, Integer> contarCargaActivaPorTecnico() {
+                return cargas;
+            }
+        };
+
+        EspecialidadDAO especialidadDAO = new EspecialidadDAO() {
+            @Override
+            public List<Especialidad> listarTodos() {
+                return Collections.emptyList();
+            }
+
+            @Override
+            public Especialidad buscarPorId(int id) {
+                return null;
+            }
+        };
+
+        return new TecnicoService(tecnicoDAO, especialidadDAO);
     }
 
     private Tecnico tecnico(int id, String nombre, int especialidadId, boolean activo) {

@@ -2,6 +2,7 @@ package com.carmotors.sgt.service.chain;
 
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Tecnico;
+import com.carmotors.sgt.service.TecnicoService;
 
 import java.util.Collections;
 import java.util.List;
@@ -54,5 +55,23 @@ public class SugerenciaTecnicoChain {
                 : cargasPorTecnico;
 
         return primerEslabon.sugerir(especialidadRequeridaId, listaSegura, cargasSeguras);
+    }
+
+    /**
+     * Consulta los técnicos activos y sus cargas actuales mediante {@link TecnicoService}
+     * y ejecuta la cadena de sugerencia (RF-09, RN-20, RN-21).
+     *
+     * @param especialidadRequeridaId ID de la especialidad requerida por el servicio (debe ser &gt; 0).
+     * @param tecnicoService          servicio de técnicos ya configurado.
+     * @return la sugerencia encontrada o {@code null} si no hay técnicos activos disponibles.
+     */
+    public SugerenciaTecnico sugerir(int especialidadRequeridaId, TecnicoService tecnicoService) {
+        if (tecnicoService == null) {
+            throw new ValidacionException("El servicio de técnicos es obligatorio para sugerir un técnico.");
+        }
+        return sugerir(
+                especialidadRequeridaId,
+                tecnicoService.listarActivos(),
+                tecnicoService.obtenerCargasActivasPorTecnico());
     }
 }
