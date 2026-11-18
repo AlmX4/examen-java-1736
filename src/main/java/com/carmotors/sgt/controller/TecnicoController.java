@@ -1,5 +1,6 @@
 package com.carmotors.sgt.controller;
 
+import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.service.TecnicoService;
@@ -60,5 +61,13 @@ public class TecnicoController {
 
     public Tecnico reactivar(int id) {
         return tecnicoService.reactivarTecnico(id);
+    }
+
+    public int obtenerCargaTrabajo(int tecnicoId) {
+        return tecnicoService.obtenerCargaTrabajo(tecnicoId);
+    }
+
+    public List<CargaLineaTecnico> consultarCargaTrabajo(int tecnicoId) {
+        return tecnicoService.consultarCargaTrabajo(tecnicoId);
     }
 }

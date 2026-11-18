@@ -21,6 +21,14 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### Pendiente de integración — `feat(tecnicos): add technician workload query (T4.4)` (`feature/gestion-tecnicos` → `develop`, cierra `#38`, RF-34 / RN-21 / HU-16)
+- **Cambios incluidos:**
+  - Creación del DTO `CargaLineaTecnico` (`com.carmotors.sgt.model`) con `ordenId`, `detalleId`, `placa`, `tipoServicio`, `estadoId`, `estadoNombre` y `horasTrabajadas` (`BigDecimal`).
+  - Extensión de `TecnicoDAO` / `TecnicoDAOImpl` con `listarCargaPorTecnico(int tecnicoId)` (JOIN de `detalle_tecnicos`, `orden_servicio_detalle`, `ordenes_servicio`, `vehiculos` y `servicio_estados`, filtrando por `EstadoPendiente` y `EstadoEnProceso`, ordenado por `os.id ASC, osd.id ASC`) y `contarCargaActivaPorTecnico()` (`COUNT(DISTINCT dt.detalle_id)` agrupado por técnico), con `PreparedStatement` y soporte de conexión compartida.
+  - Ampliación de `TecnicoService` (conservando el constructor existente) con `obtenerCargaTrabajo(int)`, `consultarCargaTrabajo(int)` y `obtenerCargasActivasPorTecnico()`, validando ID positivo y existencia del técnico (incluyendo técnicos inactivos con historial vigente).
+  - Exposición en `TecnicoController` (`obtenerCargaTrabajo`, `consultarCargaTrabajo`) e incorporación de la opción `9. Consultar carga de trabajo de un técnico` en `TecnicoView` (rango `0–9`) con tabla formateada y manejo controlado de `CarMotorsException`.
+  - Ampliación de `TecnicoServiceTest` cubriendo líneas en `Pendiente` y `En Proceso`, exclusión de estados cerrados/cancelados, técnico sin carga, técnico inexistente, ID inválido, técnico inactivo con historial y `obtenerCargasActivasPorTecnico()`.
+
 ### Pendiente de integración — `feat(servicios): add service order creation (T4.2)` (`feature/gestion-servicios` → `develop`, cierra `#36`, RF-08 / RN-11 / RN-18 / HU-04)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**

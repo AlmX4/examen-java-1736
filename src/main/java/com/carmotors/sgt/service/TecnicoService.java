@@ -3,13 +3,17 @@ package com.carmotors.sgt.service;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.repository.EspecialidadDAO;
 import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.util.InputValidator;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Capa de lógica de negocio para la gestión de técnicos y su especialidad (RF-33, RN-17).
@@ -135,6 +139,42 @@ public class TecnicoService {
         }
         tecnico.setActivo(true);
         return tecnico;
+    }
+
+    /**
+     * Calcula la carga de trabajo actual de un técnico como el total de líneas
+     * asignadas en órdenes con estado Pendiente o En Proceso (RF-34, RN-21).
+     *
+     * @param tecnicoId identificador del técnico
+     * @return cantidad de líneas activas asignadas
+     */
+    public int obtenerCargaTrabajo(int tecnicoId) {
+        return consultarCargaTrabajo(tecnicoId).size();
+    }
+
+    /**
+     * Consulta las líneas de trabajo activas asignadas a un técnico en órdenes
+     * con estado Pendiente o En Proceso (RF-34, RN-21, HU-16).
+     * Permite consultar técnicos activos e inactivos que aún tengan historial vigente.
+     *
+     * @param tecnicoId identificador del técnico
+     * @return lista de líneas activas asignadas
+     */
+    public List<CargaLineaTecnico> consultarCargaTrabajo(int tecnicoId) {
+        buscarPorId(tecnicoId);
+        List<CargaLineaTecnico> lineas = tecnicoDAO.listarCargaPorTecnico(tecnicoId);
+        return lineas != null ? lineas : new ArrayList<>();
+    }
+
+    /**
+     * Obtiene el mapa de carga activa por técnico ({@code tecnicoId -> cantidadLineas})
+     * para los eslabones de sugerencia de técnicos (RN-20, RN-21).
+     *
+     * @return mapa con la carga activa de cada técnico que tiene asignaciones vigentes
+     */
+    public Map<Integer, Integer> obtenerCargasActivasPorTecnico() {
+        Map<Integer, Integer> cargas = tecnicoDAO.contarCargaActivaPorTecnico();
+        return cargas != null ? cargas : new HashMap<>();
     }
 
     private void validarYNormalizarDatos(Tecnico tecnico) {
