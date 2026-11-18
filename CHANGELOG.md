@@ -21,7 +21,7 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
-### Pendiente de integración — `feat(servicios): reserve parts on service lines (T4.7)` (`feature/gestion-servicios` → `develop`, cierra `#41`, RF-10 / RN-01 / RN-02 / RN-11 / HU-06)
+### PR #97 — `feat(servicios): reserve parts on service lines (T4.7)` (`feature/gestion-servicios` → `develop`, cierra `#41`, RF-10 / RN-01 / RN-02 / RN-11 / HU-06)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
   - Creación de la entidad `DetalleRepuesto` (`com.carmotors.sgt.model`) para `detalle_repuestos` (clave compuesta `detalleId` + `repuestoId`, sin `id`), con `precioUnitarioVenta` en `BigDecimal`.
