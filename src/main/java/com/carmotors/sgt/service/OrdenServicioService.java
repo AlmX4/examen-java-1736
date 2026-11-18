@@ -1027,6 +1027,68 @@ public class OrdenServicioService {
     }
 
     /**
+     * Pasa una orden de servicio de {@code Pendiente} a {@code En Proceso} (RF-12, RN-06, RN-07).
+     *
+     * <p>Exige que cada línea tenga al menos un técnico activo asignado; si una línea no lo tiene,
+     * la transición se bloquea indicando la línea (HU-05). El cambio de estado se ejecuta en una
+     * única unidad de trabajo JDBC que bloquea la cabecera con {@code FOR UPDATE}.</p>
+     *
+     * @param ordenId identificador de la orden
+     * @return la orden actualizada con su nuevo estado
+     */
+    public OrdenServicio pasarAEnProceso(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+
+        if (!usarTransaccionJdbc) {
+            OrdenServicio orden = ordenServicioDAO.buscarPorIdParaActualizar(ordenId);
+            EstadoOrden nuevoEstado = validarTransicionAEnProceso(orden, ordenId,
+                    ordenServicioDetalleDAO, tecnicoDAO);
+            if (!ordenServicioDAO.actualizarEstado(ordenId, nuevoEstado.getEstadoId())) {
+                throw new CarMotorsException("No se pudo actualizar el estado de la orden " + ordenId + ".");
+            }
+            orden.setEstadoId(nuevoEstado.getEstadoId());
+            return orden;
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                OrdenServicioDAO ordenDaoTransaccional = new OrdenServicioDAOImpl(connection);
+                OrdenServicioDetalleDAO detalleDaoTransaccional = new OrdenServicioDetalleDAOImpl(connection);
+                TecnicoDAO tecnicoDaoTransaccional = new TecnicoDAOImpl(connection);
+
+                OrdenServicio orden = ordenDaoTransaccional.buscarPorIdParaActualizar(ordenId);
+                EstadoOrden nuevoEstado = validarTransicionAEnProceso(orden, ordenId,
+                        detalleDaoTransaccional, tecnicoDaoTransaccional);
+                if (!ordenDaoTransaccional.actualizarEstado(ordenId, nuevoEstado.getEstadoId())) {
+                    throw new CarMotorsException("No se pudo actualizar el estado de la orden " + ordenId + ".");
+                }
+
+                connection.commit();
+                orden.setEstadoId(nuevoEstado.getEstadoId());
+                return orden;
+            } catch (CarMotorsException e) {
+                connection.rollback();
+                throw e;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new CarMotorsException("No se pudo pasar la orden a En Proceso: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new CarMotorsException("Error inesperado al pasar la orden a En Proceso: "
+                        + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transición de la orden a En Proceso: "
+                    + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Retorna el disponible para nuevas reservas de un repuesto (sección 2.5).
      *
      * @param repuestoId identificador del repuesto
@@ -1078,6 +1140,38 @@ public class OrdenServicioService {
             throw new CarMotorsException("No se pudo eliminar la reserva del repuesto "
                     + reserva.getRepuestoId() + " de la línea " + reserva.getDetalleId() + ".");
         }
+    }
+
+    private EstadoOrden validarTransicionAEnProceso(OrdenServicio orden, int ordenId,
+                                                    OrdenServicioDetalleDAO detalleDao, TecnicoDAO tecnicoDao) {
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró una orden de servicio con el ID: " + ordenId);
+        }
+        EstadoOrden estadoActual = EstadoOrdenFactory.desdeId(orden.getEstadoId());
+        EstadoOrden nuevoEstado = estadoActual.iniciarProceso();
+
+        List<OrdenServicioDetalle> lineas = detalleDao.listarPorOrdenParaActualizar(ordenId);
+        if (lineas.isEmpty()) {
+            throw new ValidacionException("La orden " + ordenId + " no tiene líneas de servicio (RN-18).");
+        }
+        for (OrdenServicioDetalle linea : lineas) {
+            if (!tieneTecnicoActivo(detalleDao, tecnicoDao, linea.getId())) {
+                throw new ValidacionException("La línea " + linea.getId() + " ('"
+                        + linea.getNombreServicioSnapshot() + "') no tiene un técnico activo asignado; "
+                        + "no se puede pasar la orden a En Proceso (RN-07).");
+            }
+        }
+        return nuevoEstado;
+    }
+
+    private boolean tieneTecnicoActivo(OrdenServicioDetalleDAO detalleDao, TecnicoDAO tecnicoDao, int detalleId) {
+        for (DetalleTecnico asignacion : detalleDao.listarTecnicosAsignados(detalleId)) {
+            Tecnico tecnico = tecnicoDao.buscarPorId(asignacion.getTecnicoId());
+            if (tecnico != null && tecnico.isActivo()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void validarVehiculoYCliente(int vehiculoId) {
