@@ -52,10 +52,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Reglas de negocio para crear órdenes, editar sus líneas y reservar repuestos en ellas
@@ -63,6 +64,7 @@ import java.util.Set;
  */
 public class OrdenServicioService {
 
+    private static final Logger LOGGER = Logger.getLogger(OrdenServicioService.class.getName());
     private static final int MAX_LONGITUD_DESCRIPCION = 255;
     private static final int MAX_LONGITUD_OBSERVACIONES = 255;
     private static final BigDecimal MAX_HORAS_TRABAJADAS = new BigDecimal("999.99");
@@ -78,6 +80,7 @@ public class OrdenServicioService {
     private final DetalleRepuestoDAO detalleRepuestoDAO;
     private final InventarioService inventarioService;
     private final boolean usarTransaccionJdbc;
+    private final ConsultaOrdenServicioDAO consultaOrdenServicioDAO;
 
     /**
      * Constructor de producción: usa DAOs JDBC y transacción con una única {@link Connection}.
@@ -139,6 +142,26 @@ public class OrdenServicioService {
                                  TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO,
                                  DetalleRepuestoDAO detalleRepuestoDAO, InventarioService inventarioService,
                                  boolean usarTransaccionJdbc, boolean exigirDependenciasReserva) {
+        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
+                tecnicoDAO, repuestoDAO, detalleRepuestoDAO, inventarioService,
+                usarTransaccionJdbc, exigirDependenciasReserva, null);
+    }
+
+    /** Construye el servicio con repositorios en memoria para las consultas. */
+    public OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
+                                VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
+                                TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO, DetalleRepuestoDAO detalleRepuestoDAO,
+                                ConsultaOrdenServicioDAO consultaOrdenServicioDAO) {
+        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
+                tecnicoDAO, repuestoDAO, detalleRepuestoDAO, null, false, false, consultaOrdenServicioDAO);
+    }
+
+    private OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
+                                 VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
+                                 TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO,
+                                 DetalleRepuestoDAO detalleRepuestoDAO, InventarioService inventarioService,
+                                 boolean usarTransaccionJdbc, boolean exigirDependenciasReserva,
+                                 ConsultaOrdenServicioDAO consultaOrdenServicioDAO) {
         if (ordenServicioDAO == null) {
             throw new ValidacionException("El DAO de órdenes de servicio es obligatorio.");
         }
@@ -179,6 +202,7 @@ public class OrdenServicioService {
         this.detalleRepuestoDAO = detalleRepuestoDAO;
         this.inventarioService = inventarioService;
         this.usarTransaccionJdbc = usarTransaccionJdbc;
+        this.consultaOrdenServicioDAO = consultaOrdenServicioDAO;
     }
 
     /**
@@ -233,6 +257,9 @@ public class OrdenServicioService {
     }
 
     public List<ResumenOrdenServicio> consultarOrdenes(FiltroOrdenServicio filtro) {
+        if (filtro == null) {
+            throw new ValidacionException("Indique los filtros de búsqueda de la orden.");
+        }
         if (filtro.getEstadoId() != null) {
             EstadoOrdenFactory.desdeId(filtro.getEstadoId());
         }
@@ -250,59 +277,153 @@ public class OrdenServicioService {
 
         FiltroOrdenServicio normalizado = new FiltroOrdenServicio(filtro.getEstadoId(), filtro.getTecnicoId(),
                 placa, filtro.getServicioTipoId(), filtro.getDesde(), filtro.getHasta());
-        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
-            ConsultaOrdenServicioDAO consultas = new ConsultaOrdenServicioDAOImpl(connection);
-            return consultas.listar(normalizado).stream()
-                    .filter(orden -> filtro.getTecnicoId() == null
-                            || orden.getTecnicos().containsKey(filtro.getTecnicoId()))
-                    .filter(orden -> filtro.getServicioTipoId() == null
-                            || orden.getTiposServicio().contains(filtro.getServicioTipoId()))
-                    .toList();
-        } catch (SQLException e) {
-            throw new CarMotorsException("No se pudieron listar las órdenes de servicio.", e);
+        if (!usarTransaccionJdbc) {
+            return filtrarOrdenes(obtenerDaoConsultaEnMemoria(), normalizado);
         }
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return filtrarOrdenes(new ConsultaOrdenServicioDAOImpl(connection), normalizado);
+        } catch (SQLException e) {
+            throw falloJdbcConsulta("No se pudieron listar las órdenes de servicio.", e);
+        } catch (CarMotorsException e) {
+            if (e.getCause() instanceof SQLException) {
+                throw falloJdbcConsulta("No se pudieron listar las órdenes de servicio.", e);
+            }
+            throw e;
+        }
+    }
+
+    private List<ResumenOrdenServicio> filtrarOrdenes(ConsultaOrdenServicioDAO consultas, FiltroOrdenServicio filtro) {
+        return consultas.listar(filtro).stream()
+                .filter(orden -> filtro.getTecnicoId() == null || orden.getTecnicos().containsKey(filtro.getTecnicoId()))
+                .filter(orden -> filtro.getServicioTipoId() == null
+                        || orden.getTiposServicio().contains(filtro.getServicioTipoId()))
+                .collect(Collectors.toList());
     }
 
     public ConsultaOrdenServicio consultarDetalle(int ordenId) {
         if (ordenId <= 0) {
             throw new ValidacionException("El ID de la orden debe ser un número positivo.");
         }
+        if (!usarTransaccionJdbc) {
+            return cargarDetalle(ordenId, ordenServicioDAO, vehiculoDAO, clienteDAO, obtenerDaoConsultaEnMemoria(),
+                    ordenServicioDetalleDAO, detalleRepuestoDAO, tecnicoDAO);
+        }
         try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
             connection.setReadOnly(true);
             connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             connection.setAutoCommit(false);
-            OrdenServicio orden = new OrdenServicioDAOImpl(connection).buscarPorId(ordenId);
-            if (orden == null) {
-                throw new EntidadNoEncontradaException("No existe una orden de servicio con el ID " + ordenId + ".");
-            }
-            Vehiculo vehiculo = new VehiculoDAOImpl(connection).buscarPorId(orden.getVehiculoId());
-            Cliente cliente = new ClienteDAOImpl(connection).buscarPorId(vehiculo.getClienteId());
-            ConsultaOrdenServicioDAO consultas = new ConsultaOrdenServicioDAOImpl(connection);
-            consultas.cargarDatosFacturados(ordenId, cliente, vehiculo);
-
-            OrdenServicioDetalleDAO detalles = new OrdenServicioDetalleDAOImpl(connection);
-            DetalleRepuestoDAO repuestos = new DetalleRepuestoDAOImpl(connection);
-            TecnicoDAO tecnicos = new TecnicoDAOImpl(connection);
-            Map<Integer, Tecnico> tecnicosPorId = new HashMap<>();
-            List<ConsultaOrdenServicio.Linea> lineas = new ArrayList<>();
-            for (OrdenServicioDetalle detalle : detalles.listarPorOrden(ordenId)) {
-                List<DetalleRepuesto> piezas = repuestos.listarPorDetalle(detalle.getId());
-                Map<Tecnico, BigDecimal> horasPorTecnico = new LinkedHashMap<>();
-                for (DetalleTecnico asignacion : detalles.listarTecnicosAsignados(detalle.getId())) {
-                    Tecnico tecnico = tecnicosPorId.computeIfAbsent(asignacion.getTecnicoId(), tecnicos::buscarPorId);
-                    horasPorTecnico.put(tecnico, asignacion.getHorasTrabajadas());
+            Throwable fallo = null;
+            boolean transaccionCerrada = false;
+            try {
+                ConsultaOrdenServicio detalle = cargarDetalle(ordenId, new OrdenServicioDAOImpl(connection),
+                        new VehiculoDAOImpl(connection), new ClienteDAOImpl(connection),
+                        new ConsultaOrdenServicioDAOImpl(connection), new OrdenServicioDetalleDAOImpl(connection),
+                        new DetalleRepuestoDAOImpl(connection), new TecnicoDAOImpl(connection));
+                connection.commit();
+                transaccionCerrada = true;
+                return detalle;
+            } catch (SQLException | RuntimeException e) {
+                fallo = e;
+                try {
+                    connection.rollback();
+                    transaccionCerrada = true;
+                } catch (SQLException falloRollback) {
+                    e.addSuppressed(falloRollback);
+                    LOGGER.warning("Falló el rollback de la consulta de órdenes (código JDBC "
+                            + falloRollback.getErrorCode() + ").");
                 }
-                BigDecimal subtotal = piezas.stream()
-                        .map(pieza -> pieza.getPrecioUnitarioVenta().multiply(BigDecimal.valueOf(pieza.getCantidadAsignada())))
-                        .reduce(detalle.getCostoManoObra(), BigDecimal::add)
-                        .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
-                lineas.add(new ConsultaOrdenServicio.Linea(detalle, horasPorTecnico, piezas, subtotal));
+                throw e;
+            } finally {
+                // Activar auto-commit puede cerrar una transacción cuyo rollback falló.
+                if (transaccionCerrada) {
+                    restaurarConexionConsulta(connection, fallo);
+                }
             }
-            connection.commit();
-            return new ConsultaOrdenServicio(orden, cliente, vehiculo, estadoRepuestos(orden), lineas);
         } catch (SQLException e) {
-            throw new CarMotorsException("No se pudo consultar el detalle de la orden.", e);
+            throw falloJdbcConsulta("No se pudo consultar el detalle de la orden.", e);
+        } catch (CarMotorsException e) {
+            if (e.getCause() instanceof SQLException) {
+                throw falloJdbcConsulta("No se pudo consultar el detalle de la orden.", e);
+            }
+            throw e;
         }
+    }
+
+    private void restaurarConexionConsulta(Connection connection, Throwable fallo) throws SQLException {
+        try {
+            connection.setAutoCommit(true);
+        } catch (SQLException e) {
+            if (fallo == null) {
+                fallo = e;
+                throw e;
+            }
+            fallo.addSuppressed(e);
+        } finally {
+            try {
+                connection.setReadOnly(false);
+            } catch (SQLException e) {
+                if (fallo == null) {
+                    throw e;
+                }
+                fallo.addSuppressed(e);
+            }
+        }
+    }
+
+    private CarMotorsException falloJdbcConsulta(String mensaje, Throwable fallo) {
+        SQLException error = fallo instanceof SQLException ? (SQLException) fallo : (SQLException) fallo.getCause();
+        LOGGER.warning("Falló una consulta de órdenes (código JDBC " + error.getErrorCode() + ").");
+        return new CarMotorsException(mensaje, fallo);
+    }
+
+    private ConsultaOrdenServicioDAO obtenerDaoConsultaEnMemoria() {
+        if (consultaOrdenServicioDAO == null) {
+            throw new ValidacionException("El DAO de consultas de órdenes es obligatorio.");
+        }
+        return consultaOrdenServicioDAO;
+    }
+
+    private ConsultaOrdenServicio cargarDetalle(int ordenId, OrdenServicioDAO ordenes, VehiculoDAO vehiculos,
+                                                ClienteDAO clientes, ConsultaOrdenServicioDAO consultas,
+                                                OrdenServicioDetalleDAO detalles, DetalleRepuestoDAO repuestos,
+                                                TecnicoDAO tecnicos) {
+        OrdenServicio orden = ordenes.buscarPorId(ordenId);
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No existe una orden de servicio con el ID " + ordenId + ".");
+        }
+        if (repuestos == null) {
+            throw new ValidacionException("El DAO de repuestos por línea es obligatorio.");
+        }
+        Vehiculo vehiculoActual = vehiculos.buscarPorId(orden.getVehiculoId());
+        Cliente clienteActual = clientes.buscarPorId(vehiculoActual.getClienteId());
+        Vehiculo vehiculo = new Vehiculo(vehiculoActual.getId(), vehiculoActual.getClienteId(),
+                vehiculoActual.getPlaca(), vehiculoActual.getMarca(), vehiculoActual.getModelo());
+        Cliente cliente = new Cliente(clienteActual.getId(), clienteActual.getNombre(),
+                clienteActual.getDocumentoIdentidad(), clienteActual.getTelefono(), clienteActual.getEmail(),
+                clienteActual.isActivo());
+        consultas.cargarDatosFacturados(ordenId, cliente, vehiculo);
+
+        Map<Integer, Tecnico> tecnicosPorId = new HashMap<>();
+        List<ConsultaOrdenServicio.Linea> lineas = new ArrayList<>();
+        for (OrdenServicioDetalle detalle : detalles.listarPorOrden(ordenId)) {
+            List<DetalleRepuesto> piezas = repuestos.listarPorDetalle(detalle.getId());
+            List<ConsultaOrdenServicio.HorasTecnico> horasPorTecnico = new ArrayList<>();
+            for (DetalleTecnico asignacion : detalles.listarTecnicosAsignados(detalle.getId())) {
+                int tecnicoId = asignacion.getTecnicoId();
+                Tecnico tecnico = tecnicosPorId.get(tecnicoId);
+                if (tecnico == null) {
+                    tecnico = tecnicos.buscarPorId(tecnicoId);
+                    tecnicosPorId.put(tecnicoId, tecnico);
+                }
+                horasPorTecnico.add(new ConsultaOrdenServicio.HorasTecnico(tecnico, asignacion.getHorasTrabajadas()));
+            }
+            BigDecimal subtotal = piezas.stream()
+                    .map(pieza -> pieza.getPrecioUnitarioVenta().multiply(BigDecimal.valueOf(pieza.getCantidadAsignada())))
+                    .reduce(detalle.getCostoManoObra(), BigDecimal::add)
+                    .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+            lineas.add(new ConsultaOrdenServicio.Linea(detalle, horasPorTecnico, piezas, subtotal));
+        }
+        return new ConsultaOrdenServicio(orden, cliente, vehiculo, estadoRepuestos(orden), lineas);
     }
 
     private String estadoRepuestos(OrdenServicio orden) {

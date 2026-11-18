@@ -14,17 +14,12 @@ import com.carmotors.sgt.service.OrdenServicioService;
 import com.carmotors.sgt.service.chain.SugerenciaTecnico;
 
 import java.math.BigDecimal;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 /**
  * Controlador de órdenes de servicio (RNF-04): delega en {@link OrdenServicioService}.
  */
 public class OrdenServicioController {
-
-    private static final Logger LOGGER = Logger.getLogger(OrdenServicioController.class.getName());
 
     private final OrdenServicioService ordenServicioService;
 
@@ -35,38 +30,12 @@ public class OrdenServicioController {
         this.ordenServicioService = ordenServicioService;
     }
 
-    public Consulta<List<ResumenOrdenServicio>> consultarOrdenes(FiltroOrdenServicio filtro) {
-        return consultar(() -> ordenServicioService.consultarOrdenes(filtro));
+    public List<ResumenOrdenServicio> consultarOrdenes(FiltroOrdenServicio filtro) {
+        return ordenServicioService.consultarOrdenes(filtro);
     }
 
-    public Consulta<ConsultaOrdenServicio> consultarDetalle(int ordenId) {
-        return consultar(() -> ordenServicioService.consultarDetalle(ordenId));
-    }
-
-    private <T> Consulta<T> consultar(Supplier<T> operacion) {
-        try {
-            return new Consulta<>(operacion.get(), null);
-        } catch (CarMotorsException e) {
-            if (e.getCause() instanceof SQLException) {
-                SQLException error = (SQLException) e.getCause();
-                LOGGER.warning("Falló una consulta de órdenes (código JDBC " + error.getErrorCode() + ").");
-                return new Consulta<>(null, "No se pudo consultar la información de órdenes.");
-            }
-            return new Consulta<>(null, e.getMessage());
-        }
-    }
-
-    public static class Consulta<T> {
-        private final T datos;
-        private final String error;
-
-        private Consulta(T datos, String error) {
-            this.datos = datos;
-            this.error = error;
-        }
-
-        public T getDatos() { return datos; }
-        public String getError() { return error; }
+    public ConsultaOrdenServicio consultarDetalle(int ordenId) {
+        return ordenServicioService.consultarDetalle(ordenId);
     }
 
     public OrdenServicio crearOrden(int vehiculoId, String descripcionProblema, List<OrdenServicioDetalle> lineas) {

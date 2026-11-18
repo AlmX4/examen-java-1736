@@ -2,7 +2,6 @@ package com.carmotors.sgt.model;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 public class ConsultaOrdenServicio {
     private final OrdenServicio orden;
@@ -28,11 +27,11 @@ public class ConsultaOrdenServicio {
 
     public static class Linea {
         private final OrdenServicioDetalle detalle;
-        private final Map<Tecnico, BigDecimal> horasPorTecnico;
+        private final List<HorasTecnico> horasPorTecnico;
         private final List<DetalleRepuesto> repuestos;
         private final BigDecimal subtotal;
 
-        public Linea(OrdenServicioDetalle detalle, Map<Tecnico, BigDecimal> horasPorTecnico,
+        public Linea(OrdenServicioDetalle detalle, List<HorasTecnico> horasPorTecnico,
                      List<DetalleRepuesto> repuestos, BigDecimal subtotal) {
             this.detalle = detalle;
             this.horasPorTecnico = horasPorTecnico;
@@ -41,8 +40,21 @@ public class ConsultaOrdenServicio {
         }
 
         public OrdenServicioDetalle getDetalle() { return detalle; }
-        public Map<Tecnico, BigDecimal> getHorasPorTecnico() { return horasPorTecnico; }
+        public List<HorasTecnico> getHorasPorTecnico() { return horasPorTecnico; }
         public List<DetalleRepuesto> getRepuestos() { return repuestos; }
         public BigDecimal getSubtotal() { return subtotal; }
+    }
+
+    public static class HorasTecnico {
+        private final Tecnico tecnico;
+        private final BigDecimal horasTrabajadas;
+
+        public HorasTecnico(Tecnico tecnico, BigDecimal horasTrabajadas) {
+            this.tecnico = tecnico;
+            this.horasTrabajadas = horasTrabajadas;
+        }
+
+        public Tecnico getTecnico() { return tecnico; }
+        public BigDecimal getHorasTrabajadas() { return horasTrabajadas; }
     }
 }

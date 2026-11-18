@@ -26,7 +26,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Submenú de consola para las órdenes de servicio (RF-08, RF-10, RNF-03, RNF-24).
@@ -137,14 +136,12 @@ public class OrdenServicioView implements SubmenuVista {
                 estado == 0 ? null : estado, tecnico == 0 ? null : tecnico, placa,
                 tipo == 0 ? null : tipo, desde, hasta);
 
-        OrdenServicioController.Consulta<List<ResumenOrdenServicio>> resultado =
-                ordenServicioController.consultarOrdenes(filtro);
-        if (resultado.getError() != null) {
-            System.out.println("  [!] " + resultado.getError());
-        } else if (resultado.getDatos().isEmpty()) {
-            System.out.println("  No se encontraron órdenes con los filtros indicados.");
-        } else {
-            for (ResumenOrdenServicio orden : resultado.getDatos()) {
+        try {
+            List<ResumenOrdenServicio> ordenes = ordenServicioController.consultarOrdenes(filtro);
+            if (ordenes.isEmpty()) {
+                System.out.println("  No se encontraron órdenes con los filtros indicados.");
+            }
+            for (ResumenOrdenServicio orden : ordenes) {
                 String tecnicos = orden.getTecnicos().isEmpty() ? "Sin asignar"
                         : String.join(", ", orden.getTecnicos().values());
                 System.out.println("  Orden " + orden.getId() + " | " + orden.getPlaca()
@@ -152,18 +149,18 @@ public class OrdenServicioView implements SubmenuVista {
                         + " | Recepción: " + orden.getFechaRecepcion().format(FORMATO_FECHA_HORA)
                         + " | Técnicos: " + tecnicos);
             }
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
         }
         ConsoleReader.pausar();
     }
 
     private void consultarDetalle() {
         int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden");
-        OrdenServicioController.Consulta<ConsultaOrdenServicio> resultado =
-                ordenServicioController.consultarDetalle(ordenId);
-        if (resultado.getError() != null) {
-            System.out.println("  [!] " + resultado.getError());
-        } else {
-            imprimirDetalle(resultado.getDatos());
+        try {
+            imprimirDetalle(ordenServicioController.consultarDetalle(ordenId));
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
         }
         ConsoleReader.pausar();
     }
@@ -192,10 +189,10 @@ public class OrdenServicioView implements SubmenuVista {
             if (linea.getHorasPorTecnico().isEmpty()) {
                 System.out.println("        Sin técnicos asignados.");
             }
-            for (Map.Entry<Tecnico, BigDecimal> asignacion : linea.getHorasPorTecnico().entrySet()) {
-                Tecnico tecnico = asignacion.getKey();
+            for (ConsultaOrdenServicio.HorasTecnico asignacion : linea.getHorasPorTecnico()) {
+                Tecnico tecnico = asignacion.getTecnico();
                 System.out.println("        " + tecnico.getNombre() + " (ID " + tecnico.getId()
-                        + ") | " + asignacion.getValue().toPlainString() + " h");
+                        + ") | " + asignacion.getHorasTrabajadas().toPlainString() + " h");
             }
             System.out.println("      Repuestos:");
             if (linea.getRepuestos().isEmpty()) {
