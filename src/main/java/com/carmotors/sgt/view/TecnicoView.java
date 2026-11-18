@@ -2,6 +2,7 @@ package com.carmotors.sgt.view;
 
 import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.util.ConsoleReader;
@@ -42,10 +43,11 @@ public class TecnicoView implements SubmenuVista {
             System.out.println("  6. Actualizar técnico");
             System.out.println("  7. Desactivar técnico");
             System.out.println("  8. Reactivar técnico");
+            System.out.println("  9. Consultar carga de trabajo de un técnico");
             System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 9);
             switch (opcion) {
                 case 1:
                     listarTecnicos(true);
@@ -70,6 +72,9 @@ public class TecnicoView implements SubmenuVista {
                     break;
                 case 8:
                     reactivarTecnico();
+                    break;
+                case 9:
+                    consultarCargaTrabajo();
                     break;
                 case 0:
                     ejecutando = false;
@@ -220,6 +225,50 @@ public class TecnicoView implements SubmenuVista {
             System.out.println("\n  [!] Error al reactivar técnico: " + e.getMessage());
         }
         ConsoleReader.pausar();
+    }
+
+    private void consultarCargaTrabajo() {
+        try {
+            int id = ConsoleReader.leerEnteroPositivo("ID del técnico");
+            Tecnico tecnico = tecnicoController.buscarPorId(id);
+            List<CargaLineaTecnico> lineas = tecnicoController.consultarCargaTrabajo(id);
+
+            System.out.println("\n--- Carga de Trabajo del Técnico ---");
+            imprimirDetalleTecnico(tecnico);
+            System.out.println("  Total de líneas activas (Pendiente / En Proceso): " + lineas.size());
+
+            if (lineas.isEmpty()) {
+                System.out.println("\n  [i] El técnico no tiene líneas de trabajo activas asignadas.");
+            } else {
+                String formato = "  %-7s %-10s %-36s %-14s %-8s%n";
+                System.out.println();
+                System.out.printf(formato, "Orden", "Placa", "Servicio", "Estado", "Horas");
+                System.out.println("  --------------------------------------------------------------------------------");
+                for (CargaLineaTecnico linea : lineas) {
+                    System.out.printf(
+                            formato,
+                            linea.getOrdenId(),
+                            linea.getPlaca(),
+                            recortarTexto(linea.getTipoServicio(), 36),
+                            linea.getEstadoNombre(),
+                            linea.getHorasTrabajadas()
+                    );
+                }
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] Error al consultar la carga de trabajo: " + e.getMessage());
+        }
+        ConsoleReader.pausar();
+    }
+
+    private String recortarTexto(String texto, int maxLongitud) {
+        if (texto == null) {
+            return "";
+        }
+        if (texto.length() <= maxLongitud) {
+            return texto;
+        }
+        return texto.substring(0, maxLongitud - 3) + "...";
     }
 
     private int seleccionarEspecialidad(List<Especialidad> especialidades) {

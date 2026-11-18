@@ -1,8 +1,10 @@
 package com.carmotors.sgt.repository;
 
+import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Tecnico;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Contrato de persistencia para la gestión de técnicos del taller (RF-33, RN-17).
@@ -71,4 +73,21 @@ public interface TecnicoDAO {
      * @return {@code true} si el registro fue actualizado
      */
     boolean actualizarEstadoActivo(int id, boolean activo);
+
+    /**
+     * Lista las líneas de servicio activas asignadas a un técnico en órdenes
+     * en estado Pendiente o En Proceso (RF-34, RN-21).
+     *
+     * @param tecnicoId identificador del técnico
+     * @return lista ordenada de líneas de carga activas
+     */
+    List<CargaLineaTecnico> listarCargaPorTecnico(int tecnicoId);
+
+    /**
+     * Cuenta la cantidad de líneas activas (Pendiente o En Proceso) asignadas
+     * a cada técnico (RN-21, contrato para sugerencia de técnicos).
+     *
+     * @return mapa {@code tecnicoId -> cantidadDeLineasActivas}
+     */
+    Map<Integer, Integer> contarCargaActivaPorTecnico();
 }
