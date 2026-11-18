@@ -632,6 +632,11 @@ class OrdenServicioServiceTest {
         public List<DetalleRepuesto> listarPorDetalle(int detalleId) {
             return piezasPorLinea.getOrDefault(detalleId, List.of());
         }
+
+        @Override
+        public boolean eliminar(int detalleId, int repuestoId) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     private void assertNadaGuardado() {
