@@ -32,4 +32,13 @@ public interface DetalleRepuestoDAO {
      * @return lista de reservas (vacía si la línea no tiene repuestos)
      */
     List<DetalleRepuesto> listarPorDetalle(int detalleId);
+
+    /**
+     * Elimina la reserva de un repuesto en una línea de servicio (RF-11, RN-05).
+     *
+     * @param detalleId  identificador de la línea de servicio
+     * @param repuestoId identificador del repuesto reservado
+     * @return {@code true} si se eliminó la fila de {@code detalle_repuestos}
+     */
+    boolean eliminar(int detalleId, int repuestoId);
 }
