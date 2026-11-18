@@ -5,6 +5,10 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.ConsultaOrdenServicio;
+import com.carmotors.sgt.model.DetalleRepuesto;
+import com.carmotors.sgt.model.FiltroOrdenServicio;
+import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
@@ -13,6 +17,8 @@ import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.ConsultaOrdenServicioDAO;
+import com.carmotors.sgt.repository.DetalleRepuestoDAO;
 import com.carmotors.sgt.repository.OrdenServicioDAO;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
 import com.carmotors.sgt.repository.RepuestoDAO;
@@ -32,6 +38,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,6 +60,9 @@ class OrdenServicioServiceTest {
     private OrdenServicioDetalleDAOMock detalleDAO;
     private TecnicoDAOMock tecnicoDAO;
     private RepuestoDAOMock repuestoDAO;
+    private OrdenServicioService servicioConsulta;
+    private ConsultaOrdenDAOMock consultaDAO;
+    private final Map<Integer, List<DetalleRepuesto>> piezasPorLinea = new HashMap<>();
 
     @BeforeEach
     void setUp() {
@@ -84,6 +94,10 @@ class OrdenServicioServiceTest {
         service = new OrdenServicioService(
                 ordenDAO, detalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
                 tecnicoDAO, repuestoDAO, false);
+
+        consultaDAO = new ConsultaOrdenDAOMock();
+        servicioConsulta = new OrdenServicioService(ordenDAO, detalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO,
+                tecnicoDAO, repuestoDAO, new DetalleRepuestoDAOMock(), consultaDAO);
     }
 
     private List<OrdenServicioDetalle> lineas(int... tipoIds) {
@@ -480,6 +494,143 @@ class OrdenServicioServiceTest {
                     () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 2, BigDecimal.ZERO, true));
             assertThrows(ValidacionException.class,
                     () -> service.registrarHorasTrabajadas(orden.getId(), detalleId, 1, BigDecimal.TEN));
+        }
+    }
+
+    @Test
+    void combinaFiltrosDeCabeceraConTecnicoYTipoDeServicio() {
+        LocalDate fecha = LocalDate.of(2026, 11, 11);
+        ResumenOrdenServicio coincide = new ResumenOrdenServicio(2, 2, "ABC123", fecha.atTime(23, 59));
+        coincide.getTecnicos().put(1, "Pedro");
+        coincide.getTiposServicio().add(2);
+
+        ResumenOrdenServicio otroTecnico = new ResumenOrdenServicio(3, 2, "ABC123", fecha.atTime(12, 0));
+        otroTecnico.getTecnicos().put(3, "Luis");
+        otroTecnico.getTiposServicio().add(2);
+
+        ResumenOrdenServicio otroTipo = new ResumenOrdenServicio(4, 2, "ABC123", fecha.atTime(12, 0));
+        otroTipo.getTecnicos().put(1, "Pedro");
+        otroTipo.getTiposServicio().add(1);
+        consultaDAO.resultados = List.of(coincide, otroTecnico, otroTipo);
+
+        List<ResumenOrdenServicio> resultados = servicioConsulta.consultarOrdenes(
+                new FiltroOrdenServicio(2, 1, " abc-123 ", 2, fecha, fecha));
+        assertEquals(List.of(coincide), resultados);
+        assertEquals(2, consultaDAO.filtroRecibido.getEstadoId());
+        assertEquals("ABC123", consultaDAO.filtroRecibido.getPlaca());
+        assertEquals(fecha, consultaDAO.filtroRecibido.getDesde());
+        assertEquals(fecha, consultaDAO.filtroRecibido.getHasta());
+    }
+
+    @Test
+    void rechazaRangoInvertidoAntesDeConsultar() {
+        LocalDate hoy = LocalDate.of(2026, 11, 11);
+        assertThrows(ValidacionException.class, () -> servicioConsulta.consultarOrdenes(
+                new FiltroOrdenServicio(null, null, null, null, hoy, hoy.minusDays(1))));
+        assertNull(consultaDAO.filtroRecibido);
+    }
+
+    @Test
+    void rechazaPlacaInvalidaAntesDeConsultar() {
+        assertThrows(ValidacionException.class, () -> servicioConsulta.consultarOrdenes(
+                new FiltroOrdenServicio(null, null, "A!", null, null, null)));
+        assertNull(consultaDAO.filtroRecibido);
+    }
+
+    @Test
+    void rechazaFiltroNulo() {
+        assertThrows(ValidacionException.class, () -> servicioConsulta.consultarOrdenes(null));
+        assertNull(consultaDAO.filtroRecibido);
+    }
+
+    @Test
+    void retornaListaVaciaSiNingunaOrdenCumpleElFiltro() {
+        consultaDAO.resultados = List.of(new ResumenOrdenServicio(2, 2, "ABC123", LocalDateTime.now()));
+        assertTrue(servicioConsulta.consultarOrdenes(
+                new FiltroOrdenServicio(null, 99, null, null, null, null)).isEmpty());
+    }
+
+    @Test
+    void detalleIncluyeHorasYSubtotalConPreciosHistoricos() {
+        OrdenServicio orden = service.crearOrden(1, "Prueba", lineas(1));
+        int lineaId = detalleDAO.listarPorOrden(orden.getId()).get(0).getId();
+        detalleDAO.asignarTecnico(lineaId, 3, new BigDecimal("1.25"));
+        piezasPorLinea.put(lineaId, List.of(
+                new DetalleRepuesto(lineaId, 1, 4, "Aceite guardado", new BigDecimal("38000.00")),
+                new DetalleRepuesto(lineaId, 2, 1, "Filtro guardado", new BigDecimal("25000.00"))));
+
+        ConsultaOrdenServicio resultado = servicioConsulta.consultarDetalle(orden.getId());
+        ConsultaOrdenServicio.Linea linea = resultado.getLineas().get(0);
+        assertEquals(new BigDecimal("237000.00"), linea.getSubtotal());
+        assertEquals("Aceite guardado", linea.getRepuestos().get(0).getNombreRepuestoSnapshot());
+        assertEquals(3, linea.getHorasPorTecnico().get(0).getTecnico().getId());
+        assertEquals(new BigDecimal("1.25"), linea.getHorasPorTecnico().get(0).getHorasTrabajadas());
+    }
+
+    @Test
+    void clasificaRepuestosSegunLosSeisEstados() {
+        OrdenServicio orden = service.crearOrden(1, "Prueba de estados", lineas(1));
+        String[] etiquetas = {"Reservados", "Reservados", "Consumidos", "Consumidos", "Consumidos", "Liberados"};
+        for (int i = 0; i < etiquetas.length; i++) {
+            orden.setEstadoId(i + 1);
+            assertEquals(etiquetas[i], servicioConsulta.consultarDetalle(orden.getId()).getEstadoRepuestos());
+        }
+    }
+
+    @Test
+    void usaSnapshotFacturadoSinModificarElClienteNiElVehiculoActual() {
+        OrdenServicio orden = service.crearOrden(1, "Prueba de factura", lineas(1));
+        orden.setEstadoId(new EstadoFacturado().getEstadoId());
+        consultaDAO.ordenFacturada = orden.getId();
+        ConsultaOrdenServicio historica = servicioConsulta.consultarDetalle(orden.getId());
+        assertEquals("Cliente histórico", historica.getCliente().getNombre());
+        assertEquals("HIS123", historica.getVehiculo().getPlaca());
+
+        OrdenServicio pendiente = service.crearOrden(1, "Otra orden", lineas(1));
+        ConsultaOrdenServicio actual = servicioConsulta.consultarDetalle(pendiente.getId());
+        assertEquals("María Rojas", actual.getCliente().getNombre());
+        assertEquals("ABC123", actual.getVehiculo().getPlaca());
+    }
+
+    @Test
+    void informaCuandoLaOrdenNoExiste() {
+        assertThrows(EntidadNoEncontradaException.class, () -> servicioConsulta.consultarDetalle(999));
+    }
+
+    private static class ConsultaOrdenDAOMock implements ConsultaOrdenServicioDAO {
+        private List<ResumenOrdenServicio> resultados = List.of();
+        private FiltroOrdenServicio filtroRecibido;
+        private int ordenFacturada;
+
+        @Override
+        public List<ResumenOrdenServicio> listar(FiltroOrdenServicio filtro) {
+            filtroRecibido = filtro;
+            return resultados;
+        }
+
+        @Override
+        public void cargarDatosFacturados(int ordenId, Cliente cliente, Vehiculo vehiculo) {
+            if (ordenId == ordenFacturada) {
+                cliente.setNombre("Cliente histórico");
+                vehiculo.setPlaca("HIS123");
+            }
+        }
+    }
+
+    private class DetalleRepuestoDAOMock implements DetalleRepuestoDAO {
+        @Override
+        public boolean guardar(DetalleRepuesto detalleRepuesto) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public DetalleRepuesto buscar(int detalleId, int repuestoId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<DetalleRepuesto> listarPorDetalle(int detalleId) {
+            return piezasPorLinea.getOrDefault(detalleId, List.of());
         }
     }
 

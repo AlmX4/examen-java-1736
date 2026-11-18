@@ -1,6 +1,9 @@
 package com.carmotors.sgt.controller;
 
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.ConsultaOrdenServicio;
+import com.carmotors.sgt.model.FiltroOrdenServicio;
+import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
@@ -25,6 +28,14 @@ public class OrdenServicioController {
             throw new IllegalArgumentException("El servicio de órdenes de servicio es obligatorio.");
         }
         this.ordenServicioService = ordenServicioService;
+    }
+
+    public List<ResumenOrdenServicio> consultarOrdenes(FiltroOrdenServicio filtro) {
+        return ordenServicioService.consultarOrdenes(filtro);
+    }
+
+    public ConsultaOrdenServicio consultarDetalle(int ordenId) {
+        return ordenServicioService.consultarDetalle(ordenId);
     }
 
     public OrdenServicio crearOrden(int vehiculoId, String descripcionProblema, List<OrdenServicioDetalle> lineas) {
