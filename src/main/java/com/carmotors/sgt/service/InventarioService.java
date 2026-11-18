@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
@@ -31,6 +33,8 @@ import com.carmotors.sgt.service.observer.StockObserver;
 public class InventarioService {
 
     private static final String PROVEEDOR_NO_DEFINIDO = "No definido";
+
+    private static final Logger LOGGER = Logger.getLogger(InventarioService.class.getName());
 
     private final RepuestoDAO repuestoDAO;
     private final LoteDAO loteDAO;
@@ -149,11 +153,18 @@ public class InventarioService {
     }
 
     private void notificarStockBajo(StockRepuesto stock) {
-        for (StockObserver observer : observers) {
+        List<StockObserver> copiaObservers = new ArrayList<>(observers);
+        for (StockObserver observer : copiaObservers) {
             try {
                 observer.onStockBajo(stock);
             } catch (RuntimeException e) {
-                // Protección para no interrumpir el flujo del servicio si un observador falla
+                int repuestoId = 0;
+                if (stock != null && stock.getRepuesto() != null) {
+                    repuestoId = stock.getRepuesto().getId();
+                }
+                LOGGER.log(Level.WARNING, "El observador " + observer.getClass().getName()
+                        + " falló al notificar el stock bajo del repuesto " + repuestoId
+                        + ". Se continúa con los demás observadores.", e);
             }
         }
     }

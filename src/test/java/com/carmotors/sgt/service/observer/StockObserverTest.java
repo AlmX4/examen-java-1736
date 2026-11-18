@@ -163,6 +163,26 @@ class StockObserverTest {
     }
 
     @Test
+    @DisplayName("Un observador que se desuscribe durante la notificación no debe interrumpir a los demás")
+    void desuscribirDuranteNotificacionNoInterrumpe() {
+        Repuesto repuesto = new Repuesto(7, 1, "Bomba de agua", "ACDelco", BigDecimal.valueOf(95000), 0, 3, true);
+        repuestoDAO.agregar(repuesto);
+        loteDAO.fijarStock(7, 1, 1);
+
+        StockObserverEspia espiaValido = new StockObserverEspia();
+        inventarioService.agregarObserver(new ObserverQueSeDesuscribe());
+        inventarioService.agregarObserver(espiaValido);
+
+        StockRepuesto resultado = inventarioService.evaluarYNotificarStockBajo(7);
+
+        assertNotNull(resultado);
+        assertEquals(1, espiaValido.alertas.size(),
+                "La copia defensiva debe permitir notificar al resto de observadores.");
+        assertEquals(1, inventarioService.getObservers().size(),
+                "El observador que se desuscribió no debe permanecer en la lista.");
+    }
+
+    @Test
     @DisplayName("AlertaStockBajoObserver debe imprimir formato completo de alerta por consola")
     void alertaStockBajoObserverImprimeFormatoCorrecto() {
         Repuesto repuesto = new Repuesto(6, 1, "Líquido de frenos", "Wagner", BigDecimal.valueOf(25000), 2, 5, true);
@@ -184,6 +204,13 @@ class StockObserverTest {
         assertTrue(texto.contains("Líquido de frenos"));
         assertTrue(texto.contains("Frenos del Valle"));
         assertTrue(texto.contains("Disponible:         2"));
+    }
+
+    private class ObserverQueSeDesuscribe implements StockObserver {
+        @Override
+        public void onStockBajo(StockRepuesto stock) {
+            inventarioService.eliminarObserver(this);
+        }
     }
 
     private static class StockObserverEspia implements StockObserver {
