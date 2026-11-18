@@ -21,11 +21,14 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
-### Pendiente de integración — `feat(servicios): support adding and removing order lines (T4.3)` (cierra `#37`, RF-35 / RN-05 / RN-07 / RN-18)
-- Opciones para agregar y retirar líneas desde el submenú Órdenes de Servicio. El estado de la orden determina si puede editarse.
-- Las altas conservan el nombre y precio base del servicio. En Proceso, la línea y su asignación a un técnico activo se guardan en la misma transacción.
-- Los retiros protegen la última línea y las líneas con horas en órdenes En Proceso. La eliminación y la liberación de las reservas de esa línea se confirman juntas.
-- Datos de prueba para retirar una línea con reservas en Pendiente y una línea sin horas en En Proceso.
+### PR #93 — `feat(servicios): support adding and removing order lines (T4.3)` (`feature/gestion-servicios` → `develop`, cierra `#37`, RF-35 / RN-05 / RN-07 / RN-18 / RN-19)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Contratos de edición transaccional declarados en las interfaces `OrdenServicioDAO`, `OrdenServicioDetalleDAO`, `RepuestoDAO` y `TecnicoDAO`, con guardas de conexión compartida en sus `*DAOImpl`.
+  - Opciones en `OrdenServicioView` y `OrdenServicioController` para agregar y retirar líneas desde el submenú Órdenes de Servicio, validando controles nulos y delegando reglas a `OrdenServicioService`.
+  - Las altas conservan el nombre y precio base del servicio (`BigDecimal` escala 2, `HALF_UP`); en `En Proceso`, la línea y la asignación de un técnico activo se confirman en la misma transacción JDBC (`setAutoCommit(false)` / `commit()` / `rollback()`).
+  - Los retiros protegen la última línea (`RN-18`) y las líneas con horas trabajadas en `En Proceso` (`RF-35`), liberando exactamente las reservas en `repuestos.cantidad_reservada` en la misma transacción (`RN-05`).
+  - Datos de prueba en `database/data.sql` y ampliación de `OrdenServicioServiceTest` con cobertura JUnit 5 en memoria para altas, retiros, estados bloqueados, liberación de reservas y confirmación de especialidad.
 
 ### Pendiente de integración — `feat(servicios): add service order creation (T4.2)` (`feature/gestion-servicios` → `develop`, cierra `#36`, RF-08 / RN-11 / RN-18 / HU-04)
 - **Autor:** `@JopsWtD`

@@ -13,7 +13,9 @@ import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.repository.ClienteDAO;
 import com.carmotors.sgt.repository.OrdenServicioDAO;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
+import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.ServicioTipoDAO;
+import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
 import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
@@ -44,6 +46,8 @@ public class OrdenServicioService {
     private final VehiculoDAO vehiculoDAO;
     private final ClienteDAO clienteDAO;
     private final ServicioTipoDAO servicioTipoDAO;
+    private final TecnicoDAO tecnicoDAO;
+    private final RepuestoDAO repuestoDAO;
     private final boolean usarTransaccionJdbc;
 
     /**
@@ -51,7 +55,7 @@ public class OrdenServicioService {
      */
     public OrdenServicioService(VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO) {
         this(new OrdenServicioDAOImpl(), new OrdenServicioDetalleDAOImpl(), vehiculoDAO, clienteDAO,
-                servicioTipoDAO, true);
+                servicioTipoDAO, new TecnicoDAOImpl(), new RepuestoDAOImpl(), true);
     }
 
     /**
@@ -59,12 +63,20 @@ public class OrdenServicioService {
      */
     public OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
                                 VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO) {
-        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO, servicioTipoDAO, false);
+        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO,
+                servicioTipoDAO, new TecnicoDAOImpl(), new RepuestoDAOImpl(), false);
     }
 
     public OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
                                 VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
                                 boolean usarTransaccionJdbc) {
+        this(ordenServicioDAO, ordenServicioDetalleDAO, vehiculoDAO, clienteDAO,
+                servicioTipoDAO, new TecnicoDAOImpl(), new RepuestoDAOImpl(), usarTransaccionJdbc);
+    }
+
+    public OrdenServicioService(OrdenServicioDAO ordenServicioDAO, OrdenServicioDetalleDAO ordenServicioDetalleDAO,
+                                VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, ServicioTipoDAO servicioTipoDAO,
+                                TecnicoDAO tecnicoDAO, RepuestoDAO repuestoDAO, boolean usarTransaccionJdbc) {
         if (ordenServicioDAO == null) {
             throw new ValidacionException("El DAO de órdenes de servicio es obligatorio.");
         }
@@ -80,11 +92,19 @@ public class OrdenServicioService {
         if (servicioTipoDAO == null) {
             throw new ValidacionException("El DAO de tipos de servicio es obligatorio.");
         }
+        if (tecnicoDAO == null) {
+            throw new ValidacionException("El DAO de técnicos es obligatorio.");
+        }
+        if (repuestoDAO == null) {
+            throw new ValidacionException("El DAO de repuestos es obligatorio.");
+        }
         this.ordenServicioDAO = ordenServicioDAO;
         this.ordenServicioDetalleDAO = ordenServicioDetalleDAO;
         this.vehiculoDAO = vehiculoDAO;
         this.clienteDAO = clienteDAO;
         this.servicioTipoDAO = servicioTipoDAO;
+        this.tecnicoDAO = tecnicoDAO;
+        this.repuestoDAO = repuestoDAO;
         this.usarTransaccionJdbc = usarTransaccionJdbc;
     }
 
@@ -140,28 +160,36 @@ public class OrdenServicioService {
     }
 
     public boolean requiereTecnicoParaAgregar(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
         return validarEstadoEditable(ordenServicioDAO.buscarPorId(ordenId), ordenId) instanceof EstadoEnProceso;
     }
 
     public boolean especialidadCoincide(ServicioTipo tipo, Tecnico tecnico) {
+        if (tipo == null || tecnico == null) {
+            return false;
+        }
         return tipo.getEspecialidadId() == tecnico.getEspecialidadId();
     }
 
     public int agregarLinea(int ordenId, OrdenServicioDetalle solicitada, Integer tecnicoId,
                             boolean confirmarOtraEspecialidad) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
         if (solicitada == null) {
             throw new ValidacionException("La línea de servicio es obligatoria.");
         }
-        return editarLineas(ordenId, (connection, estado) -> {
-            ServicioTipo tipo = new ServicioTipoDAOImpl(connection).buscarPorId(solicitada.getServicioTipoId());
+        return editarLineas(ordenId, (detallesDao, tiposDao, tecnicosDao, repuestosDao, estado) -> {
+            ServicioTipo tipo = tiposDao.buscarPorId(solicitada.getServicioTipoId());
             OrdenServicioDetalle linea = prepararLinea(solicitada, tipo, 1);
-            OrdenServicioDetalleDAOImpl detalles = new OrdenServicioDetalleDAOImpl(connection);
             Tecnico tecnico = null;
             if (estado instanceof EstadoEnProceso) {
-                if (tecnicoId == null) {
+                if (tecnicoId == null || tecnicoId <= 0) {
                     throw new ValidacionException("Una orden En Proceso exige asignar un técnico activo a la nueva línea.");
                 }
-                tecnico = new TecnicoDAOImpl(connection).buscarPorIdParaActualizar(tecnicoId);
+                tecnico = tecnicosDao.buscarPorIdParaActualizar(tecnicoId);
                 if (tecnico == null || !tecnico.isActivo()) {
                     throw new ValidacionException("Seleccione un técnico existente y activo.");
                 }
@@ -171,18 +199,24 @@ public class OrdenServicioService {
             }
 
             linea.setOrdenId(ordenId);
-            int detalleId = detalles.guardar(linea);
+            int detalleId = detallesDao.guardar(linea);
+            linea.setId(detalleId);
             if (tecnico != null) {
-                detalles.asignarTecnico(detalleId, tecnico.getId());
+                detallesDao.asignarTecnico(detalleId, tecnico.getId());
             }
             return detalleId;
         });
     }
 
     public void quitarLinea(int ordenId, int detalleId) {
-        editarLineas(ordenId, (connection, estado) -> {
-            OrdenServicioDetalleDAOImpl detalles = new OrdenServicioDetalleDAOImpl(connection);
-            List<OrdenServicioDetalle> lineas = detalles.listarPorOrdenParaActualizar(ordenId);
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+        if (detalleId <= 0) {
+            throw new ValidacionException("El ID de la línea debe ser un número positivo.");
+        }
+        editarLineas(ordenId, (detallesDao, tiposDao, tecnicosDao, repuestosDao, estado) -> {
+            List<OrdenServicioDetalle> lineas = detallesDao.listarPorOrdenParaActualizar(ordenId);
             boolean pertenece = false;
             for (OrdenServicioDetalle linea : lineas) {
                 if (linea.getId() == detalleId) {
@@ -196,17 +230,16 @@ public class OrdenServicioService {
             if (lineas.size() == 1) {
                 throw new ValidacionException("La orden debe conservar al menos una línea de servicio.");
             }
-            if (estado instanceof EstadoEnProceso && detalles.tieneHorasTrabajadas(detalleId)) {
+            if (estado instanceof EstadoEnProceso && detallesDao.tieneHorasTrabajadas(detalleId)) {
                 throw new ValidacionException("La línea tiene horas trabajadas registradas y no se puede retirar.");
             }
 
-            RepuestoDAOImpl repuestos = new RepuestoDAOImpl(connection);
-            for (Map.Entry<Integer, Integer> reserva : detalles.listarReservasParaActualizar(detalleId).entrySet()) {
-                if (!repuestos.descontarReserva(reserva.getKey(), reserva.getValue())) {
+            for (Map.Entry<Integer, Integer> reserva : detallesDao.listarReservasParaActualizar(detalleId).entrySet()) {
+                if (!repuestosDao.descontarReserva(reserva.getKey(), reserva.getValue())) {
                     throw new ValidacionException("La reserva del repuesto " + reserva.getKey() + " es inconsistente.");
                 }
             }
-            detalles.eliminar(ordenId, detalleId);
+            detallesDao.eliminar(ordenId, detalleId);
             return detalleId;
         });
     }
@@ -223,14 +256,28 @@ public class OrdenServicioService {
     }
 
     private int editarLineas(int ordenId, EdicionLineas edicion) {
+        if (!usarTransaccionJdbc) {
+            OrdenServicio orden = ordenServicioDAO.buscarPorIdParaActualizar(ordenId);
+            EstadoOrden estado = validarEstadoEditable(orden, ordenId);
+            return edicion.ejecutar(ordenServicioDetalleDAO, servicioTipoDAO, tecnicoDAO, repuestoDAO, estado);
+        }
+
         try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
             connection.setAutoCommit(false);
             try {
-                OrdenServicio orden = new OrdenServicioDAOImpl(connection).buscarPorIdParaActualizar(ordenId);
-                int detalleId = edicion.ejecutar(connection, validarEstadoEditable(orden, ordenId));
+                OrdenServicioDAO ordenDao = new OrdenServicioDAOImpl(connection);
+                OrdenServicioDetalleDAO detalleDao = new OrdenServicioDetalleDAOImpl(connection);
+                ServicioTipoDAO tipoDao = new ServicioTipoDAOImpl(connection);
+                TecnicoDAO tecnicoDaoTransaccional = new TecnicoDAOImpl(connection);
+                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
+
+                OrdenServicio orden = ordenDao.buscarPorIdParaActualizar(ordenId);
+                EstadoOrden estado = validarEstadoEditable(orden, ordenId);
+                int detalleId = edicion.ejecutar(
+                        detalleDao, tipoDao, tecnicoDaoTransaccional, repuestoDaoTransaccional, estado);
                 connection.commit();
                 return detalleId;
-            } catch (SQLException | RuntimeException e) {
+            } catch (RuntimeException e) {
                 try {
                     connection.rollback();
                 } catch (SQLException errorRollback) {
@@ -244,7 +291,11 @@ public class OrdenServicioService {
     }
 
     private interface EdicionLineas {
-        int ejecutar(Connection connection, EstadoOrden estado) throws SQLException;
+        int ejecutar(OrdenServicioDetalleDAO detalleDao,
+                     ServicioTipoDAO servicioTipoDao,
+                     TecnicoDAO tecnicoDao,
+                     RepuestoDAO repuestoDao,
+                     EstadoOrden estado);
     }
 
     /**

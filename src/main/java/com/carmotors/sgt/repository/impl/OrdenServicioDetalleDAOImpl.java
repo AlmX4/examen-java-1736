@@ -6,6 +6,7 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -69,37 +70,51 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
         }
     }
 
+    @Override
     public List<OrdenServicioDetalle> listarPorOrdenParaActualizar(int ordenId) {
+        validarConexionCompartida();
         String sql = "SELECT id, orden_id, servicio_tipo_id, nombre_servicio_snapshot, costo_mano_obra, observaciones "
                 + "FROM orden_servicio_detalle WHERE orden_id = ? ORDER BY id ASC FOR UPDATE";
         return consultarPorOrden(conexionCompartida, sql, ordenId);
     }
 
-    public void asignarTecnico(int detalleId, int tecnicoId) throws SQLException {
+    @Override
+    public void asignarTecnico(int detalleId, int tecnicoId) {
+        validarConexionCompartida();
         String sql = "INSERT INTO detalle_tecnicos (detalle_id, tecnico_id) VALUES (?, ?)";
         try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
             statement.setInt(1, detalleId);
             statement.setInt(2, tecnicoId);
             statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al asignar técnico a la línea " + detalleId + ": " + e.getMessage(), e);
         }
     }
 
-    public boolean tieneHorasTrabajadas(int detalleId) throws SQLException {
+    @Override
+    public boolean tieneHorasTrabajadas(int detalleId) {
+        validarConexionCompartida();
         String sql = "SELECT horas_trabajadas FROM detalle_tecnicos WHERE detalle_id = ? FOR UPDATE";
         try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
             statement.setInt(1, detalleId);
             try (ResultSet filas = statement.executeQuery()) {
                 while (filas.next()) {
-                    if (filas.getBigDecimal("horas_trabajadas").signum() > 0) {
+                    BigDecimal horas = filas.getBigDecimal("horas_trabajadas");
+                    if (horas != null && horas.signum() > 0) {
                         return true;
                     }
                 }
                 return false;
             }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al verificar horas trabajadas de la línea "
+                    + detalleId + ": " + e.getMessage(), e);
         }
     }
 
-    public Map<Integer, Integer> listarReservasParaActualizar(int detalleId) throws SQLException {
+    @Override
+    public Map<Integer, Integer> listarReservasParaActualizar(int detalleId) {
+        validarConexionCompartida();
         String sql = "SELECT repuesto_id, cantidad_asignada FROM detalle_repuestos "
                 + "WHERE detalle_id = ? ORDER BY repuesto_id FOR UPDATE";
         Map<Integer, Integer> reservas = new LinkedHashMap<>();
@@ -110,11 +125,16 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
                     reservas.put(filas.getInt("repuesto_id"), filas.getInt("cantidad_asignada"));
                 }
             }
+            return reservas;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar reservas de la línea "
+                    + detalleId + ": " + e.getMessage(), e);
         }
-        return reservas;
     }
 
-    public void eliminar(int ordenId, int detalleId) throws SQLException {
+    @Override
+    public void eliminar(int ordenId, int detalleId) {
+        validarConexionCompartida();
         // Las claves foráneas eliminan las asignaciones de esta línea.
         String sql = "DELETE FROM orden_servicio_detalle WHERE orden_id = ? AND id = ?";
         try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
@@ -123,6 +143,14 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
             if (statement.executeUpdate() != 1) {
                 throw new CarMotorsException("No se pudo retirar la línea de servicio.");
             }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al retirar la línea " + detalleId + ": " + e.getMessage(), e);
+        }
+    }
+
+    private void validarConexionCompartida() {
+        if (conexionCompartida == null) {
+            throw new CarMotorsException("Esta operación transaccional requiere una conexión compartida.");
         }
     }
 

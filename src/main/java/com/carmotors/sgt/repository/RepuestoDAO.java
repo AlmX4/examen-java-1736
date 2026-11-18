@@ -21,4 +21,13 @@ public interface RepuestoDAO {
     boolean desactivar(int id);
 
     boolean reactivar(int id);
+
+    /**
+     * Descuenta unidades reservadas de un repuesto dentro de una transacción activa.
+     *
+     * @param repuestoId identificador del repuesto
+     * @param cantidad   unidades a liberar
+     * @return {@code true} si existía reserva suficiente y se actualizó el registro
+     */
+    boolean descontarReserva(int repuestoId, int cantidad);
 }

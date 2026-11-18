@@ -43,6 +43,9 @@ public class OrdenServicioView implements SubmenuVista {
         if (servicioTipoController == null) {
             throw new IllegalArgumentException("El controlador de tipos de servicio es obligatorio.");
         }
+        if (tecnicoController == null) {
+            throw new IllegalArgumentException("El controlador de técnicos es obligatorio.");
+        }
         this.ordenServicioController = ordenServicioController;
         this.clienteController = clienteController;
         this.servicioTipoController = servicioTipoController;

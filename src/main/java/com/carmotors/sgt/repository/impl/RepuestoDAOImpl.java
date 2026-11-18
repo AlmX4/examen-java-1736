@@ -27,7 +27,11 @@ public class RepuestoDAOImpl implements RepuestoDAO {
         this.conexionCompartida = conexionCompartida;
     }
 
-    public boolean descontarReserva(int repuestoId, int cantidad) throws SQLException {
+    @Override
+    public boolean descontarReserva(int repuestoId, int cantidad) {
+        if (conexionCompartida == null) {
+            throw new CarMotorsException("El descuento de reservas requiere una conexión transaccional compartida.");
+        }
         String sql = "UPDATE repuestos SET cantidad_reservada = cantidad_reservada - ? "
                 + "WHERE id = ? AND cantidad_reservada >= ?";
         try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
@@ -35,6 +39,9 @@ public class RepuestoDAOImpl implements RepuestoDAO {
             statement.setInt(2, repuestoId);
             statement.setInt(3, cantidad);
             return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al liberar la reserva del repuesto "
+                    + repuestoId + ": " + e.getMessage(), e);
         }
     }
 
