@@ -2,6 +2,7 @@ package com.carmotors.sgt.service;
 
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
@@ -595,6 +596,16 @@ class OrdenServicioServiceTest {
         @Override
         public boolean actualizarEstadoActivo(int id, boolean activo) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<CargaLineaTecnico> listarCargaPorTecnico(int tecnicoId) {
+            return new ArrayList<>();
+        }
+
+        @Override
+        public Map<Integer, Integer> contarCargaActivaPorTecnico() {
+            return new HashMap<>();
         }
     }
 
