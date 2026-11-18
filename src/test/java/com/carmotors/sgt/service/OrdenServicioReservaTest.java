@@ -306,6 +306,11 @@ class OrdenServicioReservaTest {
         public OrdenServicio buscarPorIdParaActualizar(int id) {
             return ordenes.get(id);
         }
+
+        @Override
+        public boolean actualizarEstado(int ordenId, int nuevoEstadoId) {
+            throw new UnsupportedOperationException("No se usa en estas pruebas.");
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {

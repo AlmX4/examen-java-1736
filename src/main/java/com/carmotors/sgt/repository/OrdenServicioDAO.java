@@ -30,4 +30,13 @@ public interface OrdenServicioDAO {
      * @return la orden encontrada o {@code null} si no existe
      */
     OrdenServicio buscarPorIdParaActualizar(int id);
+
+    /**
+     * Actualiza el estado de una orden existente (RF-12, RN-06).
+     *
+     * @param ordenId       identificador de la orden
+     * @param nuevoEstadoId identificador del nuevo estado en {@code servicio_estados}
+     * @return {@code true} si se actualizó al menos una fila
+     */
+    boolean actualizarEstado(int ordenId, int nuevoEstadoId);
 }

@@ -84,10 +84,11 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  7. Listar órdenes de servicio");
             System.out.println("  8. Ver detalle de una orden");
             System.out.println("  9. Retirar repuestos de una línea");
+            System.out.println("  10. Pasar orden a En Proceso");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 9);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 10);
             switch (opcion) {
                 case 1:
                     crearOrden();
@@ -115,6 +116,9 @@ public class OrdenServicioView implements SubmenuVista {
                     break;
                 case 9:
                     retirarRepuesto();
+                    break;
+                case 10:
+                    pasarAEnProceso();
                     break;
                 case 0:
                     ejecutando = false;
@@ -493,6 +497,19 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("\n  [!] Error al reservar el repuesto: " + e.getMessage());
         }
         ConsoleReader.pausar();
+    }
+
+    private void pasarAEnProceso() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden de servicio");
+            OrdenServicio orden = ordenServicioController.pasarAEnProceso(ordenId);
+            System.out.println("\n  [✓] Orden " + orden.getId() + " pasada a estado "
+                    + ordenServicioController.obtenerNombreEstado(orden.getEstadoId()) + ".");
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo pasar la orden a En Proceso: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
     }
 
     private void retirarRepuesto() {

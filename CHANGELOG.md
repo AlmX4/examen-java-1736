@@ -21,6 +21,17 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### PR #100 — `feat(servicios): move service order to in progress (T4.9)` (`feature/gestion-servicios` → `develop`, cierra `#43`, RF-12 / RN-06 / RN-07 / HU-05)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Nuevo `OrdenServicioDAO.actualizarEstado(int ordenId, int nuevoEstadoId)` e `OrdenServicioDAOImpl` con `PreparedStatement` (`UPDATE ordenes_servicio SET estado_id = ? WHERE id = ?`), respetando la `Connection` compartida del constructor transaccional y devolviendo `executeUpdate() > 0`.
+  - `OrdenServicioService.pasarAEnProceso(int ordenId)`: valida el ID, la existencia de la orden (`EntidadNoEncontradaException`) y aplica el patrón State con `EstadoOrdenFactory.desdeId(...).iniciarProceso()` (solo desde `Pendiente`; en cualquier otro estado lanza `TransicionEstadoInvalidaException`, `RN-06`).
+  - Verificación de `RN-07`/`HU-05` línea por línea: cada línea debe tener al menos un técnico asignado que exista y esté activo (`listarTecnicosAsignados` + `TecnicoDAO.buscarPorId(...).isActivo()`); si falta, `ValidacionException` que identifica la línea por `id` y `nombreServicioSnapshot`.
+  - Transición en una única unidad de trabajo JDBC con `buscarPorIdParaActualizar` (`FOR UPDATE`) y `listarPorOrdenParaActualizar`, `commit()` / `rollback()` ante `CarMotorsException`, `SQLException` y `RuntimeException`, restauración de auto-commit y cierre con try-with-resources (`RNF-08`).
+  - `OrdenServicioController` delega `pasarAEnProceso` y `OrdenServicioView` añade la opción "10. Pasar orden a En Proceso" (rango 0–10) informando el nuevo estado y capturando `CarMotorsException` sin cerrar la consola.
+  - Seis pruebas JUnit 5 nuevas en `OrdenServicioServiceTest`: transición válida con técnicos activos, bloqueo por línea sin técnico (mensaje con la línea), bloqueo por único técnico inactivo, rechazo desde estado distinto de `Pendiente`, orden inexistente/ID no positivo y fallo del DAO al actualizar. Se actualizan los mocks de `OrdenServicioDAO` en `OrdenServicioServiceTest`, `OrdenServicioReservaTest` y `OrdenServicioControllerTest` (257 pruebas en total, 0 fallos).
+
 ### PR #99 — `feat(servicios): withdraw parts from a service line (T4.8)` (`feature/gestion-servicios` → `develop`, cierra `#42`, RF-11 / RN-05 / HU-06)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`

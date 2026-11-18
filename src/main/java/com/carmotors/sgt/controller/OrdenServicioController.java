@@ -144,4 +144,8 @@ public class OrdenServicioController {
     public int consultarDisponible(int repuestoId) {
         return ordenServicioService.consultarDisponible(repuestoId);
     }
+
+    public OrdenServicio pasarAEnProceso(int ordenId) {
+        return ordenServicioService.pasarAEnProceso(ordenId);
+    }
 }

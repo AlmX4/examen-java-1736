@@ -77,6 +77,22 @@ public class OrdenServicioDAOImpl implements OrdenServicioDAO {
         return consultarPorId(conexionCompartida, sql, id);
     }
 
+    @Override
+    public boolean actualizarEstado(int ordenId, int nuevoEstadoId) {
+        String sql = "UPDATE ordenes_servicio SET estado_id = ? WHERE id = ?";
+
+        if (conexionCompartida != null) {
+            return actualizarEstadoOrden(conexionCompartida, sql, ordenId, nuevoEstadoId);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return actualizarEstadoOrden(connection, sql, ordenId, nuevoEstadoId);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al actualizar el estado de la orden " + ordenId + ": "
+                    + e.getMessage(), e);
+        }
+    }
+
     private int insertarOrden(Connection connection, String sql, OrdenServicio orden) {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setInt(1, orden.getVehiculoId());
@@ -115,6 +131,17 @@ public class OrdenServicioDAOImpl implements OrdenServicioDAO {
             }
         } catch (SQLException e) {
             throw new CarMotorsException("Error al consultar la orden de servicio " + id + ": " + e.getMessage(), e);
+        }
+    }
+
+    private boolean actualizarEstadoOrden(Connection connection, String sql, int ordenId, int nuevoEstadoId) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, nuevoEstadoId);
+            preparedStatement.setInt(2, ordenId);
+            return preparedStatement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al actualizar el estado de la orden " + ordenId + ": "
+                    + e.getMessage(), e);
         }
     }
 
