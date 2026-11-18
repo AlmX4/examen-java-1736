@@ -3,10 +3,12 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -80,14 +82,68 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
 
     @Override
     public void asignarTecnico(int detalleId, int tecnicoId) {
+        asignarTecnico(detalleId, tecnicoId, BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+    }
+
+    @Override
+    public void asignarTecnico(int detalleId, int tecnicoId, BigDecimal horasTrabajadas) {
         validarConexionCompartida();
-        String sql = "INSERT INTO detalle_tecnicos (detalle_id, tecnico_id) VALUES (?, ?)";
+        String sql = "INSERT INTO detalle_tecnicos (detalle_id, tecnico_id, horas_trabajadas) VALUES (?, ?, ?)";
         try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
             statement.setInt(1, detalleId);
             statement.setInt(2, tecnicoId);
+            statement.setBigDecimal(3, normalizarHoras(horasTrabajadas));
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new CarMotorsException("Error al asignar técnico a la línea " + detalleId + ": " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public boolean existeTecnicoAsignado(int detalleId, int tecnicoId) {
+        if (conexionCompartida != null) {
+            String sql = "SELECT 1 FROM detalle_tecnicos WHERE detalle_id = ? AND tecnico_id = ? FOR UPDATE";
+            return consultarExistenciaTecnico(conexionCompartida, sql, detalleId, tecnicoId);
+        }
+
+        String sql = "SELECT 1 FROM detalle_tecnicos WHERE detalle_id = ? AND tecnico_id = ?";
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarExistenciaTecnico(connection, sql, detalleId, tecnicoId);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al verificar asignación del técnico " + tecnicoId
+                    + " en la línea " + detalleId + ": " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<DetalleTecnico> listarTecnicosAsignados(int detalleId) {
+        String sql = "SELECT detalle_id, tecnico_id, horas_trabajadas "
+                + "FROM detalle_tecnicos WHERE detalle_id = ? ORDER BY tecnico_id ASC";
+
+        if (conexionCompartida != null) {
+            return consultarTecnicosAsignados(conexionCompartida, sql, detalleId);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarTecnicosAsignados(connection, sql, detalleId);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al listar técnicos asignados de la línea "
+                    + detalleId + ": " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public boolean actualizarHorasTrabajadas(int detalleId, int tecnicoId, BigDecimal horasTrabajadas) {
+        validarConexionCompartida();
+        String sql = "UPDATE detalle_tecnicos SET horas_trabajadas = ? WHERE detalle_id = ? AND tecnico_id = ?";
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setBigDecimal(1, normalizarHoras(horasTrabajadas));
+            statement.setInt(2, detalleId);
+            statement.setInt(3, tecnicoId);
+            return statement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al actualizar horas trabajadas del técnico " + tecnicoId
+                    + " en la línea " + detalleId + ": " + e.getMessage(), e);
         }
     }
 
@@ -207,5 +263,45 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
         detalle.setCostoManoObra(resultSet.getBigDecimal("costo_mano_obra"));
         detalle.setObservaciones(resultSet.getString("observaciones"));
         return detalle;
+    }
+
+    private boolean consultarExistenciaTecnico(Connection connection, String sql, int detalleId, int tecnicoId) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, detalleId);
+            statement.setInt(2, tecnicoId);
+            try (ResultSet filas = statement.executeQuery()) {
+                return filas.next();
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar la asignación del técnico " + tecnicoId
+                    + " en la línea " + detalleId + ": " + e.getMessage(), e);
+        }
+    }
+
+    private List<DetalleTecnico> consultarTecnicosAsignados(Connection connection, String sql, int detalleId) {
+        List<DetalleTecnico> asignaciones = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, detalleId);
+            try (ResultSet filas = statement.executeQuery()) {
+                while (filas.next()) {
+                    DetalleTecnico asignacion = new DetalleTecnico();
+                    asignacion.setDetalleId(filas.getInt("detalle_id"));
+                    asignacion.setTecnicoId(filas.getInt("tecnico_id"));
+                    asignacion.setHorasTrabajadas(normalizarHoras(filas.getBigDecimal("horas_trabajadas")));
+                    asignaciones.add(asignacion);
+                }
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar técnicos de la línea "
+                    + detalleId + ": " + e.getMessage(), e);
+        }
+        return asignaciones;
+    }
+
+    private BigDecimal normalizarHoras(BigDecimal horasTrabajadas) {
+        if (horasTrabajadas == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return horasTrabajadas.setScale(2, RoundingMode.HALF_UP);
     }
 }

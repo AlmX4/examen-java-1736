@@ -1,7 +1,9 @@
 package com.carmotors.sgt.repository;
 
+import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -35,12 +37,48 @@ public interface OrdenServicioDetalleDAO {
     List<OrdenServicioDetalle> listarPorOrdenParaActualizar(int ordenId);
 
     /**
-     * Asocia un técnico a una línea de servicio recién creada.
+     * Asocia un técnico a una línea de servicio recién creada con horas iniciales en {@code 0.00}.
      *
      * @param detalleId identificador de la línea
      * @param tecnicoId identificador del técnico activo
      */
     void asignarTecnico(int detalleId, int tecnicoId);
+
+    /**
+     * Asocia un técnico a una línea de servicio con el registro inicial de horas trabajadas (RF-09).
+     *
+     * @param detalleId       identificador de la línea
+     * @param tecnicoId       identificador del técnico activo
+     * @param horasTrabajadas horas trabajadas iniciales (no negativas)
+     */
+    void asignarTecnico(int detalleId, int tecnicoId, BigDecimal horasTrabajadas);
+
+    /**
+     * Verifica si un técnico ya se encuentra asignado a la línea indicada (RF-09).
+     *
+     * @param detalleId identificador de la línea
+     * @param tecnicoId identificador del técnico
+     * @return {@code true} si ya existe la asignación en {@code detalle_tecnicos}
+     */
+    boolean existeTecnicoAsignado(int detalleId, int tecnicoId);
+
+    /**
+     * Retorna las asignaciones de técnicos de una línea ordenadas por {@code tecnico_id} ascendente.
+     *
+     * @param detalleId identificador de la línea
+     * @return lista de asignaciones con sus horas trabajadas
+     */
+    List<DetalleTecnico> listarTecnicosAsignados(int detalleId);
+
+    /**
+     * Actualiza las horas trabajadas registradas para un técnico en una línea (RF-09).
+     *
+     * @param detalleId       identificador de la línea
+     * @param tecnicoId       identificador del técnico asignado
+     * @param horasTrabajadas nuevo total de horas trabajadas (no negativo)
+     * @return {@code true} si se actualizó la fila correspondiente
+     */
+    boolean actualizarHorasTrabajadas(int detalleId, int tecnicoId, BigDecimal horasTrabajadas);
 
     /**
      * Indica si una línea tiene horas trabajadas mayores a cero registradas.
