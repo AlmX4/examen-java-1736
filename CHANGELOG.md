@@ -6,6 +6,18 @@
 
 ---
 
+## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
+
+### Pendiente de integración — `feat(inventario): implement StockObserver pattern for low stock alerts (T5.1)` (`feature/gestion-inventario` → `develop`, cierra `#45`, RN-22 / RF-05 / RNF-09 / RNF-10 / RNF-11)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de la interfaz `StockObserver` (`com.carmotors.sgt.service.observer`) con `void onStockBajo(StockRepuesto stock)` aplicando el principio de segregación de interfaces (ISP).
+  - Creación del observador desacoplado `AlertaStockBajoObserver` (`com.carmotors.sgt.service.observer`) que formatea y emite alertas en consola con datos completos de repuesto, stock físico, operativo, reservado, disponible, mínimo, déficit y proveedor habitual activo (o "No definido").
+  - Extensión de `InventarioService` (`com.carmotors.sgt.service`) como sujeto observable: lista interna de observadores, métodos de suscripción `agregarObserver(StockObserver)` (con prevención de nulos y duplicados), `eliminarObserver(StockObserver)`, `getObservers()` y el método evaluador `evaluarYNotificarStockBajo(int repuestoId)` que evalúa si el repuesto activo tiene `disponible <= stockMinimo` para notificar a los suscriptores (`RN-22`), conservando todos los constructores existentes.
+  - Registro de `AlertaStockBajoObserver` en `Main.java` durante el arranque de la aplicación.
+  - Creación de la suite de pruebas unitarias `StockObserverTest` (7 pruebas) validando alertas al caer en o bajo el mínimo, silencio cuando supera el mínimo o el repuesto está inactivo, desuscripción efectiva, robustez ante observadores con fallos y formato de alerta por consola (194 pruebas en total, 0 fallos).
+
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
 ### Pendiente de integración — `feat(servicios): add service order creation (T4.2)` (`feature/gestion-servicios` → `develop`, cierra `#36`, RF-08 / RN-11 / RN-18 / HU-04)
