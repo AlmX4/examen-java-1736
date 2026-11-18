@@ -32,6 +32,16 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### Pendiente de integración — `feat(inventario): add expiring and expired lots report (T3.8)` (`feature/gestion-inventario` → `develop`, cierra `#34`, RF-06 / RNF-11 / RNF-12 / HU-03)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación del DTO `LotePorVencer` (`com.carmotors.sgt.model`) con `lote`, `nombreRepuesto`, `nombreProveedor`, `estado` (`"VENCIDO"` o `"POR VENCER"`) y `diasRestantes` (long, negativo si ya venció, cero si vence hoy, positivo si futuro).
+  - Declaración e implementación de `LoteDAO.listarPorVencer(LocalDate fechaLimite)` y `LoteDAOImpl.listarPorVencer` usando `PreparedStatement`: filtra `cantidad_actual > 0 AND fecha_caducidad IS NOT NULL AND fecha_caducidad <= ?` con orden `fecha_caducidad ASC, id ASC`, compatible con conexión compartida transaccional e independiente (`ConnectionFactory`).
+  - Creación de `LoteService.generarReporteLotesPorVencer(int dias)` y sobrecarga por defecto `generarReporteLotesPorVencer()` (30 días por defecto, `RF-06`, `HU-03`): valida `dias > 0` (`ValidacionException`), clasifica con Lambdas y `Stream API` en `"VENCIDO"` (`fechaCaducidad < hoy`) vs. `"POR VENCER"` (`hoy <= fechaCaducidad <= hoy + dias`) y resuelve nombres asociados de repuestos (`RepuestoDAO`) y proveedores (`ProveedorDAO`).
+  - Exposición en `LoteController` e incorporación de la opción `4. Reporte de lotes por vencer` en `LoteView` (rango `0–4` en `ConsoleReader`): lectura opcional de días con Enter por defecto (30 días), tabla formateada con alineación de columnas y captura controlada de `CarMotorsException` sin cerrar la consola (`RNF-12`).
+  - Creación de pruebas unitarias en `LoteServiceTest` (exclusión de lotes agotados, sin caducidad y lejanos, clasificación vencido vs. por vencer con cálculo de días relativos a `LocalDate.now()`, validaciones de días inválidos y sobrecarga por defecto), `LotePorVencerTest` y `LoteControllerTest` (187 pruebas en total, 0 fallos).
+
 ### PR #91 — `feat(proveedores): compare active suppliers by spare part (T3.2)` (`feature/gestion-proveedores` → `develop`, cierra `#28`, RF-30 / RN-16 / RN-17 / RNF-11)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`

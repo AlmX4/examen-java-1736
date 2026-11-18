@@ -121,6 +121,43 @@ public class LoteDAOImpl implements LoteDAO {
         }
     }
 
+    @Override
+    public List<Lote> listarPorVencer(LocalDate fechaLimite) {
+        if (fechaLimite == null) {
+            throw new ValidacionException("La fecha límite para el reporte de lotes por vencer es obligatoria.");
+        }
+
+        String sql = "SELECT id, codigo_lote, proveedor_id, repuesto_id, fecha_ingreso, fecha_caducidad, cantidad_inicial, cantidad_actual "
+                + "FROM lotes "
+                + "WHERE cantidad_actual > 0 AND fecha_caducidad IS NOT NULL AND fecha_caducidad <= ? "
+                + "ORDER BY fecha_caducidad ASC, id ASC";
+
+        if (conexionCompartida != null) {
+            return consultarPorVencer(conexionCompartida, sql, fechaLimite);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarPorVencer(connection, sql, fechaLimite);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar los lotes por vencer: " + e.getMessage(), e);
+        }
+    }
+
+    private List<Lote> consultarPorVencer(Connection connection, String sql, LocalDate fechaLimite) {
+        List<Lote> lotes = new ArrayList<>();
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setDate(1, Date.valueOf(fechaLimite));
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    lotes.add(mapearLote(resultSet));
+                }
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar los lotes por vencer: " + e.getMessage(), e);
+        }
+        return lotes;
+    }
+
     private List<Lote> consultarPorRepuesto(Connection connection, String sql, int repuestoId) {
         List<Lote> lotes = new ArrayList<>();
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {

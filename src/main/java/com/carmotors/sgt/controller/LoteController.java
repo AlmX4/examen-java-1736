@@ -3,6 +3,7 @@ package com.carmotors.sgt.controller;
 import java.util.List;
 
 import com.carmotors.sgt.model.Lote;
+import com.carmotors.sgt.model.LotePorVencer;
 import com.carmotors.sgt.service.LoteService;
 
 public class LoteController {
@@ -30,5 +31,13 @@ public class LoteController {
 
     public List<Lote> listarPorRepuesto(int repuestoId) {
         return loteService.listarPorRepuesto(repuestoId);
+    }
+
+    public List<LotePorVencer> generarReporteLotesPorVencer() {
+        return loteService.generarReporteLotesPorVencer();
+    }
+
+    public List<LotePorVencer> generarReporteLotesPorVencer(int dias) {
+        return loteService.generarReporteLotesPorVencer(dias);
     }
 }

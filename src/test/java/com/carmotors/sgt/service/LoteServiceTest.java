@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Lote;
+import com.carmotors.sgt.model.LotePorVencer;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
@@ -211,6 +213,102 @@ class LoteServiceTest {
         assertThrows(EntidadNoEncontradaException.class, () -> service.listarPorRepuesto(99));
     }
 
+    @Test
+    @DisplayName("Debe excluir lotes sin caducidad, agotados y con caducidad posterior al límite")
+    void generarReporteLotesPorVencer_excluyeLotesAgotadosSinCaducidadYFuturosLejanos() {
+        LocalDate hoy = LocalDate.of(2026, 11, 15);
+
+        // Lote sin caducidad (null)
+        loteDAO.agregar(new Lote(1, "LOT-SIN-CAD", 1, 10, hoy.minusDays(10), null, 20, 20));
+        // Lote agotado (cantidadActual = 0)
+        loteDAO.agregar(new Lote(2, "LOT-AGOTADO", 1, 10, hoy.minusDays(30), hoy.plusDays(5), 10, 0));
+        // Lote con caducidad posterior al horizonte (hoy + 60 con N = 30)
+        loteDAO.agregar(new Lote(3, "LOT-LEJANO", 1, 10, hoy.minusDays(5), hoy.plusDays(60), 15, 15));
+
+        List<LotePorVencer> reporte = service.generarReporteLotesPorVencer(30, hoy);
+
+        assertTrue(reporte.isEmpty(), "Ningún lote sin caducidad, agotado o posterior a 30 días debe incluirse.");
+    }
+
+    @Test
+    @DisplayName("Debe clasificar correctamente lotes VENCIDO y POR VENCER con cálculo de días y nombres")
+    void generarReporteLotesPorVencer_clasificaVencidoYPorVencerCorrectamente() {
+        LocalDate hoy = LocalDate.of(2026, 11, 15);
+
+        // Lote vencido hace 5 días
+        loteDAO.agregar(new Lote(1, "LOT-VENCIDO", 1, 10, hoy.minusDays(60), hoy.minusDays(5), 10, 4));
+        // Lote que vence hoy
+        loteDAO.agregar(new Lote(2, "LOT-HOY", 1, 10, hoy.minusDays(30), hoy, 20, 15));
+        // Lote por vencer en 12 días
+        loteDAO.agregar(new Lote(3, "LOT-PROXIMO", 1, 10, hoy.minusDays(20), hoy.plusDays(12), 30, 25));
+
+        List<LotePorVencer> reporte = service.generarReporteLotesPorVencer(30, hoy);
+
+        assertEquals(3, reporte.size());
+
+        // Ordenado por caducidad ascendente:
+        // 1. LOT-VENCIDO
+        LotePorVencer itemVencido = reporte.get(0);
+        assertEquals("LOT-VENCIDO", itemVencido.getLote().getCodigoLote());
+        assertEquals("VENCIDO", itemVencido.getEstado());
+        assertEquals(-5, itemVencido.getDiasRestantes());
+        assertEquals("Filtro de aire", itemVencido.getNombreRepuesto());
+        assertEquals("Importadora Sur", itemVencido.getNombreProveedor());
+
+        // 2. LOT-HOY
+        LotePorVencer itemHoy = reporte.get(1);
+        assertEquals("LOT-HOY", itemHoy.getLote().getCodigoLote());
+        assertEquals("POR VENCER", itemHoy.getEstado());
+        assertEquals(0, itemHoy.getDiasRestantes());
+
+        // 3. LOT-PROXIMO
+        LotePorVencer itemProximo = reporte.get(2);
+        assertEquals("LOT-PROXIMO", itemProximo.getLote().getCodigoLote());
+        assertEquals("POR VENCER", itemProximo.getEstado());
+        assertEquals(12, itemProximo.getDiasRestantes());
+    }
+
+    @Test
+    @DisplayName("Debe rechazar días menor o igual a cero")
+    void generarReporteLotesPorVencer_diasInvalido_lanzaValidacionException() {
+        LocalDate hoy = LocalDate.of(2026, 11, 15);
+        assertThrows(ValidacionException.class, () -> service.generarReporteLotesPorVencer(0, hoy));
+        assertThrows(ValidacionException.class, () -> service.generarReporteLotesPorVencer(-5, hoy));
+        assertThrows(ValidacionException.class, () -> service.generarReporteLotesPorVencer(0));
+    }
+
+    @Test
+    @DisplayName("Debe rechazar fecha de referencia nula")
+    void generarReporteLotesPorVencer_fechaReferenciaNula_lanzaValidacionException() {
+        assertThrows(ValidacionException.class, () -> service.generarReporteLotesPorVencer(30, null));
+    }
+
+    @Test
+    @DisplayName("Debe resolver fallback cuando proveedor o repuesto no existen")
+    void generarReporteLotesPorVencer_resuelveNombresDesconocidosFallback() {
+        LocalDate hoy = LocalDate.of(2026, 11, 15);
+        loteDAO.agregar(new Lote(1, "LOT-HUERFANO", 999, 888, hoy.minusDays(10), hoy.plusDays(5), 10, 5));
+
+        List<LotePorVencer> reporte = service.generarReporteLotesPorVencer(30, hoy);
+
+        assertEquals(1, reporte.size());
+        assertEquals("Proveedor #999", reporte.get(0).getNombreProveedor());
+        assertEquals("Repuesto #888", reporte.get(0).getNombreRepuesto());
+    }
+
+    @Test
+    @DisplayName("Debe usar sobrecarga por defecto con 30 días")
+    void generarReporteLotesPorVencer_sobrecargaPorDefecto() {
+        LocalDate hoy = LocalDate.now();
+        loteDAO.agregar(new Lote(1, "LOT-DEF-1", 1, 10, hoy.minusDays(10), hoy.plusDays(10), 10, 8));
+        loteDAO.agregar(new Lote(2, "LOT-DEF-2", 1, 10, hoy.minusDays(10), hoy.plusDays(40), 10, 8));
+
+        List<LotePorVencer> reporte = service.generarReporteLotesPorVencer();
+
+        assertEquals(1, reporte.size());
+        assertEquals("LOT-DEF-1", reporte.get(0).getLote().getCodigoLote());
+    }
+
     private static class LoteDAOMock implements LoteDAO {
         private final List<Lote> datos = new ArrayList<>();
         private int nextId = 1;
@@ -269,6 +367,18 @@ class LoteServiceTest {
                 }
             }
             return total;
+        }
+
+        @Override
+        public List<Lote> listarPorVencer(LocalDate fechaLimite) {
+            List<Lote> resultado = new ArrayList<>();
+            for (Lote lote : datos) {
+                if (lote.getCantidadActual() > 0 && lote.getFechaCaducidad() != null
+                        && !lote.getFechaCaducidad().isAfter(fechaLimite)) {
+                    resultado.add(lote);
+                }
+            }
+            return resultado;
         }
     }
 

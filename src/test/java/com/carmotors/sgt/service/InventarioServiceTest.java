@@ -288,6 +288,18 @@ class InventarioServiceTest {
             }
             return resultado;
         }
+
+        @Override
+        public List<Lote> listarPorVencer(LocalDate fechaLimite) {
+            List<Lote> resultado = new ArrayList<>();
+            for (Lote lote : datos) {
+                if (lote.getCantidadActual() > 0 && lote.getFechaCaducidad() != null
+                        && !lote.getFechaCaducidad().isAfter(fechaLimite)) {
+                    resultado.add(lote);
+                }
+            }
+            return resultado;
+        }
     }
 
     private static class RepuestoDAOMock implements RepuestoDAO {
