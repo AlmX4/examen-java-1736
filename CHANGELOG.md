@@ -21,6 +21,12 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### Pendiente de integración — `feat(servicios): support adding and removing order lines (T4.3)` (cierra `#37`, RF-35 / RN-05 / RN-07 / RN-18)
+- Opciones para agregar y retirar líneas desde el submenú Órdenes de Servicio. El estado de la orden determina si puede editarse.
+- Las altas conservan el nombre y precio base del servicio. En Proceso, la línea y su asignación a un técnico activo se guardan en la misma transacción.
+- Los retiros protegen la última línea y las líneas con horas en órdenes En Proceso. La eliminación y la liberación de las reservas de esa línea se confirman juntas.
+- Datos de prueba para retirar una línea con reservas en Pendiente y una línea sin horas en En Proceso.
+
 ### Pendiente de integración — `feat(servicios): add service order creation (T4.2)` (`feature/gestion-servicios` → `develop`, cierra `#36`, RF-08 / RN-11 / RN-18 / HU-04)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**

@@ -27,6 +27,17 @@ public class RepuestoDAOImpl implements RepuestoDAO {
         this.conexionCompartida = conexionCompartida;
     }
 
+    public boolean descontarReserva(int repuestoId, int cantidad) throws SQLException {
+        String sql = "UPDATE repuestos SET cantidad_reservada = cantidad_reservada - ? "
+                + "WHERE id = ? AND cantidad_reservada >= ?";
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setInt(1, cantidad);
+            statement.setInt(2, repuestoId);
+            statement.setInt(3, cantidad);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
     @Override
     public List<Repuesto> listarTodos() {
         String sql = "SELECT id, repuesto_tipo_id, nombre, marca, precio_venta, cantidad_reservada, stock_minimo, activo " +

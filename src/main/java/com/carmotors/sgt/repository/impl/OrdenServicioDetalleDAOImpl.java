@@ -14,6 +14,8 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Implementación JDBC de las líneas de servicio ({@code orden_servicio_detalle}).
@@ -64,6 +66,63 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
             return consultarPorOrden(connection, sql, ordenId);
         } catch (SQLException e) {
             throw new CarMotorsException("Error al listar las líneas de la orden " + ordenId + ": " + e.getMessage(), e);
+        }
+    }
+
+    public List<OrdenServicioDetalle> listarPorOrdenParaActualizar(int ordenId) {
+        String sql = "SELECT id, orden_id, servicio_tipo_id, nombre_servicio_snapshot, costo_mano_obra, observaciones "
+                + "FROM orden_servicio_detalle WHERE orden_id = ? ORDER BY id ASC FOR UPDATE";
+        return consultarPorOrden(conexionCompartida, sql, ordenId);
+    }
+
+    public void asignarTecnico(int detalleId, int tecnicoId) throws SQLException {
+        String sql = "INSERT INTO detalle_tecnicos (detalle_id, tecnico_id) VALUES (?, ?)";
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setInt(1, detalleId);
+            statement.setInt(2, tecnicoId);
+            statement.executeUpdate();
+        }
+    }
+
+    public boolean tieneHorasTrabajadas(int detalleId) throws SQLException {
+        String sql = "SELECT horas_trabajadas FROM detalle_tecnicos WHERE detalle_id = ? FOR UPDATE";
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setInt(1, detalleId);
+            try (ResultSet filas = statement.executeQuery()) {
+                while (filas.next()) {
+                    if (filas.getBigDecimal("horas_trabajadas").signum() > 0) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
+    public Map<Integer, Integer> listarReservasParaActualizar(int detalleId) throws SQLException {
+        String sql = "SELECT repuesto_id, cantidad_asignada FROM detalle_repuestos "
+                + "WHERE detalle_id = ? ORDER BY repuesto_id FOR UPDATE";
+        Map<Integer, Integer> reservas = new LinkedHashMap<>();
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setInt(1, detalleId);
+            try (ResultSet filas = statement.executeQuery()) {
+                while (filas.next()) {
+                    reservas.put(filas.getInt("repuesto_id"), filas.getInt("cantidad_asignada"));
+                }
+            }
+        }
+        return reservas;
+    }
+
+    public void eliminar(int ordenId, int detalleId) throws SQLException {
+        // Las claves foráneas eliminan las asignaciones de esta línea.
+        String sql = "DELETE FROM orden_servicio_detalle WHERE orden_id = ? AND id = ?";
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setInt(1, ordenId);
+            statement.setInt(2, detalleId);
+            if (statement.executeUpdate() != 1) {
+                throw new CarMotorsException("No se pudo retirar la línea de servicio.");
+            }
         }
     }
 

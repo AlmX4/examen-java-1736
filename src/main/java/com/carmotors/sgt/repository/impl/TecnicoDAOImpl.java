@@ -79,6 +79,10 @@ public class TecnicoDAOImpl implements TecnicoDAO {
         }
     }
 
+    public Tecnico buscarPorIdParaActualizar(int id) {
+        return ejecutarBusquedaPorEntero(conexionCompartida, COLUMNAS_SELECT + " WHERE id = ? FOR UPDATE", id);
+    }
+
     @Override
     public Tecnico buscarPorDocumento(String documento) {
         String sql = COLUMNAS_SELECT + " WHERE documento_identidad = ?";

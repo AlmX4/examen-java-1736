@@ -67,6 +67,12 @@ public class OrdenServicioDAOImpl implements OrdenServicioDAO {
         }
     }
 
+    public OrdenServicio buscarPorIdParaActualizar(int id) {
+        String sql = "SELECT id, vehiculo_id, estado_id, fecha_recepcion, fecha_completado, fecha_entrega, "
+                + "fecha_cancelacion, descripcion_problema FROM ordenes_servicio WHERE id = ? FOR UPDATE";
+        return consultarPorId(conexionCompartida, sql, id);
+    }
+
     private int insertarOrden(Connection connection, String sql, OrdenServicio orden) {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setInt(1, orden.getVehiculoId());

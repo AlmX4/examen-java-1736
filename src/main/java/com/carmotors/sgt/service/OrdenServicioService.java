@@ -9,6 +9,7 @@ import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Vehiculo;
+import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.repository.ClienteDAO;
 import com.carmotors.sgt.repository.OrdenServicioDAO;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
@@ -16,6 +17,11 @@ import com.carmotors.sgt.repository.ServicioTipoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
 import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
+import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
+import com.carmotors.sgt.repository.impl.ServicioTipoDAOImpl;
+import com.carmotors.sgt.repository.impl.TecnicoDAOImpl;
+import com.carmotors.sgt.service.state.EstadoEnProceso;
+import com.carmotors.sgt.service.state.EstadoOrden;
 import com.carmotors.sgt.service.state.EstadoOrdenFactory;
 import com.carmotors.sgt.service.state.EstadoPendiente;
 import com.carmotors.sgt.util.InputValidator;
@@ -25,13 +31,9 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-/**
- * Reglas de negocio para la creación de órdenes de servicio (RF-08, RN-11, RN-18).
- *
- * <p>Todas las validaciones se ejecutan antes de abrir la transacción. La cabecera y sus
- * líneas iniciales se guardan en una única unidad de trabajo JDBC (sección 5.6).</p>
- */
+/** Reglas de negocio para crear órdenes y editar sus líneas (RF-08 y RF-35). */
 public class OrdenServicioService {
 
     private static final int MAX_LONGITUD_DESCRIPCION = 255;
@@ -137,6 +139,114 @@ public class OrdenServicioService {
         }
     }
 
+    public boolean requiereTecnicoParaAgregar(int ordenId) {
+        return validarEstadoEditable(ordenServicioDAO.buscarPorId(ordenId), ordenId) instanceof EstadoEnProceso;
+    }
+
+    public boolean especialidadCoincide(ServicioTipo tipo, Tecnico tecnico) {
+        return tipo.getEspecialidadId() == tecnico.getEspecialidadId();
+    }
+
+    public int agregarLinea(int ordenId, OrdenServicioDetalle solicitada, Integer tecnicoId,
+                            boolean confirmarOtraEspecialidad) {
+        if (solicitada == null) {
+            throw new ValidacionException("La línea de servicio es obligatoria.");
+        }
+        return editarLineas(ordenId, (connection, estado) -> {
+            ServicioTipo tipo = new ServicioTipoDAOImpl(connection).buscarPorId(solicitada.getServicioTipoId());
+            OrdenServicioDetalle linea = prepararLinea(solicitada, tipo, 1);
+            OrdenServicioDetalleDAOImpl detalles = new OrdenServicioDetalleDAOImpl(connection);
+            Tecnico tecnico = null;
+            if (estado instanceof EstadoEnProceso) {
+                if (tecnicoId == null) {
+                    throw new ValidacionException("Una orden En Proceso exige asignar un técnico activo a la nueva línea.");
+                }
+                tecnico = new TecnicoDAOImpl(connection).buscarPorIdParaActualizar(tecnicoId);
+                if (tecnico == null || !tecnico.isActivo()) {
+                    throw new ValidacionException("Seleccione un técnico existente y activo.");
+                }
+                if (!especialidadCoincide(tipo, tecnico) && !confirmarOtraEspecialidad) {
+                    throw new ValidacionException("Confirme la asignación del técnico de otra especialidad.");
+                }
+            }
+
+            linea.setOrdenId(ordenId);
+            int detalleId = detalles.guardar(linea);
+            if (tecnico != null) {
+                detalles.asignarTecnico(detalleId, tecnico.getId());
+            }
+            return detalleId;
+        });
+    }
+
+    public void quitarLinea(int ordenId, int detalleId) {
+        editarLineas(ordenId, (connection, estado) -> {
+            OrdenServicioDetalleDAOImpl detalles = new OrdenServicioDetalleDAOImpl(connection);
+            List<OrdenServicioDetalle> lineas = detalles.listarPorOrdenParaActualizar(ordenId);
+            boolean pertenece = false;
+            for (OrdenServicioDetalle linea : lineas) {
+                if (linea.getId() == detalleId) {
+                    pertenece = true;
+                    break;
+                }
+            }
+            if (!pertenece) {
+                throw new EntidadNoEncontradaException("La línea indicada no pertenece a la orden.");
+            }
+            if (lineas.size() == 1) {
+                throw new ValidacionException("La orden debe conservar al menos una línea de servicio.");
+            }
+            if (estado instanceof EstadoEnProceso && detalles.tieneHorasTrabajadas(detalleId)) {
+                throw new ValidacionException("La línea tiene horas trabajadas registradas y no se puede retirar.");
+            }
+
+            RepuestoDAOImpl repuestos = new RepuestoDAOImpl(connection);
+            for (Map.Entry<Integer, Integer> reserva : detalles.listarReservasParaActualizar(detalleId).entrySet()) {
+                if (!repuestos.descontarReserva(reserva.getKey(), reserva.getValue())) {
+                    throw new ValidacionException("La reserva del repuesto " + reserva.getKey() + " es inconsistente.");
+                }
+            }
+            detalles.eliminar(ordenId, detalleId);
+            return detalleId;
+        });
+    }
+
+    private EstadoOrden validarEstadoEditable(OrdenServicio orden, int ordenId) {
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró una orden de servicio con el ID: " + ordenId);
+        }
+        EstadoOrden estado = EstadoOrdenFactory.desdeId(orden.getEstadoId());
+        if (!estado.permiteEdicion()) {
+            throw new ValidacionException("No se pueden editar las líneas de una orden en estado " + estado.getNombre() + ".");
+        }
+        return estado;
+    }
+
+    private int editarLineas(int ordenId, EdicionLineas edicion) {
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                OrdenServicio orden = new OrdenServicioDAOImpl(connection).buscarPorIdParaActualizar(ordenId);
+                int detalleId = edicion.ejecutar(connection, validarEstadoEditable(orden, ordenId));
+                connection.commit();
+                return detalleId;
+            } catch (SQLException | RuntimeException e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException errorRollback) {
+                    e.addSuppressed(errorRollback);
+                }
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo editar la orden de servicio: " + e.getMessage(), e);
+        }
+    }
+
+    private interface EdicionLineas {
+        int ejecutar(Connection connection, EstadoOrden estado) throws SQLException;
+    }
+
     /**
      * Retorna las líneas de una orden existente.
      *
@@ -208,31 +318,35 @@ public class OrdenServicioService {
                 throw new ValidacionException("La línea " + numero + " de la orden no puede ser nula.");
             }
             ServicioTipo tipo = servicioTipoDAO.buscarPorId(solicitada.getServicioTipoId());
-            if (tipo == null) {
-                throw new EntidadNoEncontradaException("Línea " + numero + ": no existe un tipo de servicio con el ID: "
-                        + solicitada.getServicioTipoId());
-            }
-            if (tipo.getPrecioManoObraBase() == null) {
-                throw new ValidacionException("El tipo de servicio '" + tipo.getNombre()
-                        + "' no tiene precio base de mano de obra.");
-            }
-
-            String observaciones = InputValidator.normalizarTexto(solicitada.getObservaciones());
-            if (observaciones.length() > MAX_LONGITUD_OBSERVACIONES) {
-                throw new ValidacionException("Línea " + numero + ": las observaciones no pueden superar los "
-                        + MAX_LONGITUD_OBSERVACIONES + " caracteres.");
-            }
-
-            OrdenServicioDetalle linea = new OrdenServicioDetalle();
-            linea.setServicioTipoId(tipo.getId());
-            linea.setNombreServicioSnapshot(tipo.getNombre());
-            linea.setCostoManoObra(tipo.getPrecioManoObraBase()
-                    .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO));
-            linea.setObservaciones(observaciones.isEmpty() ? null : observaciones);
-            preparadas.add(linea);
+            preparadas.add(prepararLinea(solicitada, tipo, numero));
             numero++;
         }
         return preparadas;
+    }
+
+    private OrdenServicioDetalle prepararLinea(OrdenServicioDetalle solicitada, ServicioTipo tipo, int numero) {
+        if (tipo == null) {
+            throw new EntidadNoEncontradaException("Línea " + numero + ": no existe un tipo de servicio con el ID: "
+                    + solicitada.getServicioTipoId());
+        }
+        if (tipo.getPrecioManoObraBase() == null) {
+            throw new ValidacionException("El tipo de servicio '" + tipo.getNombre()
+                    + "' no tiene precio base de mano de obra.");
+        }
+
+        String observaciones = InputValidator.normalizarTexto(solicitada.getObservaciones());
+        if (observaciones.length() > MAX_LONGITUD_OBSERVACIONES) {
+            throw new ValidacionException("Línea " + numero + ": las observaciones no pueden superar los "
+                    + MAX_LONGITUD_OBSERVACIONES + " caracteres.");
+        }
+
+        OrdenServicioDetalle linea = new OrdenServicioDetalle();
+        linea.setServicioTipoId(tipo.getId());
+        linea.setNombreServicioSnapshot(tipo.getNombre());
+        linea.setCostoManoObra(tipo.getPrecioManoObraBase()
+                .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO));
+        linea.setObservaciones(observaciones.isEmpty() ? null : observaciones);
+        return linea;
     }
 
     private void guardarOrdenYLineas(OrdenServicio orden, List<OrdenServicioDetalle> lineas,
