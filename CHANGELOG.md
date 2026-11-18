@@ -22,12 +22,22 @@
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
 ### Pendiente de integración — `feat(tecnicos): add technician workload query (T4.4)` (`feature/gestion-tecnicos` → `develop`, cierra `#38`, RF-34 / RN-21 / HU-16)
+- **Autor:** `@julio7879`
 - **Cambios incluidos:**
   - Creación del DTO `CargaLineaTecnico` (`com.carmotors.sgt.model`) con `ordenId`, `detalleId`, `placa`, `tipoServicio`, `estadoId`, `estadoNombre` y `horasTrabajadas` (`BigDecimal`).
   - Extensión de `TecnicoDAO` / `TecnicoDAOImpl` con `listarCargaPorTecnico(int tecnicoId)` (JOIN de `detalle_tecnicos`, `orden_servicio_detalle`, `ordenes_servicio`, `vehiculos` y `servicio_estados`, filtrando por `EstadoPendiente` y `EstadoEnProceso`, ordenado por `os.id ASC, osd.id ASC`) y `contarCargaActivaPorTecnico()` (`COUNT(DISTINCT dt.detalle_id)` agrupado por técnico), con `PreparedStatement` y soporte de conexión compartida.
   - Ampliación de `TecnicoService` (conservando el constructor existente) con `obtenerCargaTrabajo(int)`, `consultarCargaTrabajo(int)` y `obtenerCargasActivasPorTecnico()`, validando ID positivo y existencia del técnico (incluyendo técnicos inactivos con historial vigente).
   - Exposición en `TecnicoController` (`obtenerCargaTrabajo`, `consultarCargaTrabajo`) e incorporación de la opción `9. Consultar carga de trabajo de un técnico` en `TecnicoView` (rango `0–9`) con tabla formateada y manejo controlado de `CarMotorsException`.
   - Ampliación de `TecnicoServiceTest` cubriendo líneas en `Pendiente` y `En Proceso`, exclusión de estados cerrados/cancelados, técnico sin carga, técnico inexistente, ID inválido, técnico inactivo con historial y `obtenerCargasActivasPorTecnico()`.
+
+### PR #93 — `feat(servicios): support adding and removing order lines (T4.3)` (`feature/gestion-servicios` → `develop`, cierra `#37`, RF-35 / RN-05 / RN-07 / RN-18 / RN-19)
+- **Autor:** `@AlmX4`
+- **Cambios incluidos:**
+  - Contratos de edición transaccional declarados en las interfaces `OrdenServicioDAO`, `OrdenServicioDetalleDAO`, `RepuestoDAO` y `TecnicoDAO`, con guardas de conexión compartida en sus `*DAOImpl`.
+  - Opciones en `OrdenServicioView` y `OrdenServicioController` para agregar y retirar líneas desde el submenú Órdenes de Servicio, validando controles nulos y delegando reglas a `OrdenServicioService`.
+  - Las altas conservan el nombre y precio base del servicio (`BigDecimal` escala 2, `HALF_UP`); en `En Proceso`, la línea y la asignación de un técnico activo se confirman en la misma transacción JDBC (`setAutoCommit(false)` / `commit()` / `rollback()`).
+  - Los retiros protegen la última línea (`RN-18`) y las líneas con horas trabajadas en `En Proceso` (`RF-35`), liberando exactamente las reservas en `repuestos.cantidad_reservada` en la misma transacción (`RN-05`).
+  - Datos de prueba en `database/data.sql` y ampliación de `OrdenServicioServiceTest` con cobertura JUnit 5 en memoria para altas, retiros, estados bloqueados, liberación de reservas y confirmación de especialidad.
 
 ### Pendiente de integración — `feat(servicios): add service order creation (T4.2)` (`feature/gestion-servicios` → `develop`, cierra `#36`, RF-08 / RN-11 / RN-18 / HU-04)
 - **Autor:** `@JopsWtD`

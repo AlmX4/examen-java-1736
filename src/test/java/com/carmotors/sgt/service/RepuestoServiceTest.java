@@ -369,6 +369,11 @@ class RepuestoServiceTest {
             }
             return false;
         }
+
+        @Override
+        public boolean descontarReserva(int repuestoId, int cantidad) {
+            return false;
+        }
     }
 
     private static class ProveedorDAOMock implements ProveedorDAO {

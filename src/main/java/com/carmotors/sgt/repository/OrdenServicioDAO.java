@@ -22,4 +22,12 @@ public interface OrdenServicioDAO {
      * @return la orden encontrada o {@code null} si no existe
      */
     OrdenServicio buscarPorId(int id);
+
+    /**
+     * Busca y bloquea una orden dentro de una transacción JDBC activa ({@code FOR UPDATE}).
+     *
+     * @param id identificador de la orden
+     * @return la orden encontrada o {@code null} si no existe
+     */
+    OrdenServicio buscarPorIdParaActualizar(int id);
 }

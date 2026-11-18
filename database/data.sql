@@ -183,7 +183,9 @@ INSERT INTO orden_servicio_detalle (id, orden_id, servicio_tipo_id, nombre_servi
     (5, 4, 1, 'Cambio de aceite y filtro',               60000.00, NULL),
     (6, 4, 5, 'Afinación de motor',                     150000.00, 'Incluye cambio de bujías'),
     (7, 5, 1, 'Cambio de aceite y filtro',               60000.00, NULL),
-    (8, 6, 3, 'Alineación y balanceo',                   70000.00, NULL);
+    (8, 6, 3, 'Alineación y balanceo',                   70000.00, NULL),
+    (9, 1, 3, 'Alineación y balanceo',                   70000.00, 'Línea adicional para probar el retiro con reservas'),
+    (10, 2, 2, 'Revisión y cambio de pastillas de freno', 90000.00, 'Trabajo aún sin horas registradas');
 
 -- Técnicos por línea (las líneas de órdenes Pendiente / Cancelada no tienen técnico)
 INSERT INTO detalle_tecnicos (detalle_id, tecnico_id, horas_trabajadas) VALUES
@@ -192,7 +194,8 @@ INSERT INTO detalle_tecnicos (detalle_id, tecnico_id, horas_trabajadas) VALUES
     (4, 3, 1.00),
     (5, 5, 1.00),
     (6, 2, 3.00),
-    (7, 5, 1.00);
+    (7, 5, 1.00),
+    (10, 1, 0.00);
 
 -- Repuestos por línea (el precio queda copiado al asignar - RN-11)
 INSERT INTO detalle_repuestos (detalle_id, repuesto_id, cantidad_asignada, nombre_repuesto_snapshot, precio_unitario_venta) VALUES

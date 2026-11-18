@@ -314,6 +314,11 @@ class TecnicoServiceTest {
         }
 
         @Override
+        public Tecnico buscarPorIdParaActualizar(int id) {
+            return buscarPorId(id);
+        }
+
+        @Override
         public Tecnico buscarPorDocumento(String documento) {
             for (Tecnico tecnico : datos) {
                 if (tecnico.getDocumentoIdentidad().equals(documento)) {

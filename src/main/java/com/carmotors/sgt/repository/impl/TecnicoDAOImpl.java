@@ -87,6 +87,14 @@ public class TecnicoDAOImpl implements TecnicoDAO {
     }
 
     @Override
+    public Tecnico buscarPorIdParaActualizar(int id) {
+        if (conexionCompartida == null) {
+            throw new CarMotorsException("La consulta con bloqueo requiere una conexión transaccional compartida.");
+        }
+        return ejecutarBusquedaPorEntero(conexionCompartida, COLUMNAS_SELECT + " WHERE id = ? FOR UPDATE", id);
+    }
+
+    @Override
     public Tecnico buscarPorDocumento(String documento) {
         String sql = COLUMNAS_SELECT + " WHERE documento_identidad = ?";
         if (conexionCompartida != null) {

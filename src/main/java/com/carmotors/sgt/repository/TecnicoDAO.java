@@ -34,6 +34,14 @@ public interface TecnicoDAO {
     Tecnico buscarPorId(int id);
 
     /**
+     * Busca y bloquea un técnico por su ID dentro de una transacción JDBC activa ({@code FOR UPDATE}).
+     *
+     * @param id identificador del técnico
+     * @return el técnico encontrado o {@code null} si no existe
+     */
+    Tecnico buscarPorIdParaActualizar(int id);
+
+    /**
      * Busca un técnico por su documento de identidad exacto.
      *
      * @param documento documento de identidad

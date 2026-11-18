@@ -125,7 +125,7 @@ public class Main {
         OrdenServicioService ordenServicioService = new OrdenServicioService(vehiculoDAO, clienteDAO, servicioTipoDAO);
         OrdenServicioController ordenServicioController = new OrdenServicioController(ordenServicioService);
         OrdenServicioView ordenServicioView =
-                new OrdenServicioView(ordenServicioController, clienteController, servicioTipoController);
+                new OrdenServicioView(ordenServicioController, clienteController, servicioTipoController, tecnicoController);
         menuPrincipal.setSubmenuServicios(new ServiciosMenuView(servicioTipoView, ordenServicioView));
 
         // Conexión de submenús por módulo (implementar SubmenuVista en com.carmotors.sgt.view):
