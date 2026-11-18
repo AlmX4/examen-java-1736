@@ -21,7 +21,7 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
-### Pendiente de integración — `feat(servicios): move service order to in progress (T4.9)` (`feature/gestion-servicios` → `develop`, cierra `#43`, RF-12 / RN-06 / RN-07 / HU-05)
+### PR #100 — `feat(servicios): move service order to in progress (T4.9)` (`feature/gestion-servicios` → `develop`, cierra `#43`, RF-12 / RN-06 / RN-07 / HU-05)
 - **Autor:** `@Sofi11017`
 - **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
