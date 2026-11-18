@@ -21,6 +21,12 @@
 
 ## [En curso] — Sprint 4: Servicios y órdenes (`develop`)
 
+### Pendiente de integración — `feat(servicios): list and inspect service orders (T4.10)` (cierra `#44`)
+- Listado de órdenes en consola con filtros combinables por estado, técnico, placa, tipo de servicio y fecha de recepción. JDBC reduce la consulta inicial y Streams aplican los filtros de las asignaciones.
+- Consulta de cabecera y líneas con datos del cliente y vehículo, técnicos, horas, repuestos reservados, consumidos o liberados, mano de obra y subtotales calculados con los precios guardados.
+- Requerimientos cubiertos: RF-15, RF-16, RNF-11 y HU-08.
+
+
 ### PR #97 — `feat(servicios): reserve parts on service lines (T4.7)` (`feature/gestion-servicios` → `develop`, cierra `#41`, RF-10 / RN-01 / RN-02 / RN-11 / HU-06)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**

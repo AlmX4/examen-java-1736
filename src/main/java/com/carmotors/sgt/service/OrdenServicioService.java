@@ -7,6 +7,9 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.StockInsuficienteException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.ConsultaOrdenServicio;
+import com.carmotors.sgt.model.FiltroOrdenServicio;
+import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
@@ -16,6 +19,7 @@ import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.ConsultaOrdenServicioDAO;
 import com.carmotors.sgt.repository.DetalleRepuestoDAO;
 import com.carmotors.sgt.repository.OrdenServicioDAO;
 import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
@@ -23,7 +27,10 @@ import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.ServicioTipoDAO;
 import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.repository.impl.ClienteDAOImpl;
+import com.carmotors.sgt.repository.impl.ConsultaOrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.DetalleRepuestoDAOImpl;
+import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
@@ -31,6 +38,7 @@ import com.carmotors.sgt.repository.impl.ServicioTipoDAOImpl;
 import com.carmotors.sgt.repository.impl.TecnicoDAOImpl;
 import com.carmotors.sgt.service.chain.SugerenciaTecnico;
 import com.carmotors.sgt.service.chain.SugerenciaTecnicoChain;
+import com.carmotors.sgt.service.state.EstadoCancelada;
 import com.carmotors.sgt.service.state.EstadoEnProceso;
 import com.carmotors.sgt.service.state.EstadoOrden;
 import com.carmotors.sgt.service.state.EstadoOrdenFactory;
@@ -42,7 +50,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -220,6 +230,90 @@ public class OrdenServicioService {
             throw new CarMotorsException("No se pudo completar la transacción de la orden de servicio: "
                     + e.getMessage(), e);
         }
+    }
+
+    public List<ResumenOrdenServicio> consultarOrdenes(FiltroOrdenServicio filtro) {
+        if (filtro.getEstadoId() != null) {
+            EstadoOrdenFactory.desdeId(filtro.getEstadoId());
+        }
+        if ((filtro.getTecnicoId() != null && filtro.getTecnicoId() <= 0)
+                || (filtro.getServicioTipoId() != null && filtro.getServicioTipoId() <= 0)) {
+            throw new ValidacionException("Los IDs de técnico y tipo de servicio deben ser positivos.");
+        }
+        String placa = InputValidator.normalizarPlaca(InputValidator.normalizarTexto(filtro.getPlaca()));
+        if (!placa.isEmpty() && !InputValidator.esPlacaValida(placa)) {
+            throw new ValidacionException("La placa debe tener entre 5 y 10 caracteres alfanuméricos.");
+        }
+        if (filtro.getDesde() != null && filtro.getHasta() != null && filtro.getDesde().isAfter(filtro.getHasta())) {
+            throw new ValidacionException("La fecha inicial debe ser anterior o igual a la fecha final.");
+        }
+
+        FiltroOrdenServicio normalizado = new FiltroOrdenServicio(filtro.getEstadoId(), filtro.getTecnicoId(),
+                placa, filtro.getServicioTipoId(), filtro.getDesde(), filtro.getHasta());
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            ConsultaOrdenServicioDAO consultas = new ConsultaOrdenServicioDAOImpl(connection);
+            return consultas.listar(normalizado).stream()
+                    .filter(orden -> filtro.getTecnicoId() == null
+                            || orden.getTecnicos().containsKey(filtro.getTecnicoId()))
+                    .filter(orden -> filtro.getServicioTipoId() == null
+                            || orden.getTiposServicio().contains(filtro.getServicioTipoId()))
+                    .toList();
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudieron listar las órdenes de servicio.", e);
+        }
+    }
+
+    public ConsultaOrdenServicio consultarDetalle(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setReadOnly(true);
+            connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+            connection.setAutoCommit(false);
+            OrdenServicio orden = new OrdenServicioDAOImpl(connection).buscarPorId(ordenId);
+            if (orden == null) {
+                throw new EntidadNoEncontradaException("No existe una orden de servicio con el ID " + ordenId + ".");
+            }
+            Vehiculo vehiculo = new VehiculoDAOImpl(connection).buscarPorId(orden.getVehiculoId());
+            Cliente cliente = new ClienteDAOImpl(connection).buscarPorId(vehiculo.getClienteId());
+            ConsultaOrdenServicioDAO consultas = new ConsultaOrdenServicioDAOImpl(connection);
+            consultas.cargarDatosFacturados(ordenId, cliente, vehiculo);
+
+            OrdenServicioDetalleDAO detalles = new OrdenServicioDetalleDAOImpl(connection);
+            DetalleRepuestoDAO repuestos = new DetalleRepuestoDAOImpl(connection);
+            TecnicoDAO tecnicos = new TecnicoDAOImpl(connection);
+            Map<Integer, Tecnico> tecnicosPorId = new HashMap<>();
+            List<ConsultaOrdenServicio.Linea> lineas = new ArrayList<>();
+            for (OrdenServicioDetalle detalle : detalles.listarPorOrden(ordenId)) {
+                List<DetalleRepuesto> piezas = repuestos.listarPorDetalle(detalle.getId());
+                Map<Tecnico, BigDecimal> horasPorTecnico = new LinkedHashMap<>();
+                for (DetalleTecnico asignacion : detalles.listarTecnicosAsignados(detalle.getId())) {
+                    Tecnico tecnico = tecnicosPorId.computeIfAbsent(asignacion.getTecnicoId(), tecnicos::buscarPorId);
+                    horasPorTecnico.put(tecnico, asignacion.getHorasTrabajadas());
+                }
+                BigDecimal subtotal = piezas.stream()
+                        .map(pieza -> pieza.getPrecioUnitarioVenta().multiply(BigDecimal.valueOf(pieza.getCantidadAsignada())))
+                        .reduce(detalle.getCostoManoObra(), BigDecimal::add)
+                        .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+                lineas.add(new ConsultaOrdenServicio.Linea(detalle, horasPorTecnico, piezas, subtotal));
+            }
+            connection.commit();
+            return new ConsultaOrdenServicio(orden, cliente, vehiculo, estadoRepuestos(orden), lineas);
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo consultar el detalle de la orden.", e);
+        }
+    }
+
+    private String estadoRepuestos(OrdenServicio orden) {
+        EstadoOrden estado = EstadoOrdenFactory.desdeId(orden.getEstadoId());
+        if (estado.permiteEdicion()) {
+            return "Reservados";
+        }
+        if (estado instanceof EstadoCancelada) {
+            return "Liberados";
+        }
+        return "Consumidos";
     }
 
     public boolean requiereTecnicoParaAgregar(int ordenId) {
