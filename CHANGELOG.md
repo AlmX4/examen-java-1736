@@ -32,6 +32,16 @@
 
 ## [En curso] — Sprint 2: Entidades dependientes de catálogos (`develop`)
 
+### Pendiente de integración — `feat(proveedores): compare active suppliers by spare part (T3.2)` (`feature/gestion-proveedores` → `develop`, cierra `#28`, RF-30 / RN-16 / RN-17 / RNF-11)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación del DTO `ComparacionProveedor` (`com.carmotors.sgt.model`) con `proveedorId`, `nombreProveedor`, `costo` (`BigDecimal` escala 2 `HALF_UP`), `tiempoEntregaDias`, `esHabitual`, `promedioEvaluacion` (`BigDecimal` escala 1 `HALF_UP` o `null` para "Sin evaluar") y `cantidadEvaluaciones`.
+  - Extensión de `ProveedorRepuestoService` (`com.carmotors.sgt.service`) inyectando `EvaluacionProveedorDAO` (conservando constructores previos) e implementando `compararProveedoresPorRepuesto(int repuestoId)` con Lambdas y `Stream API`: valida repuesto existente, filtra solo proveedores activos (`RN-17`), calcula promedio con `BigDecimal` (`RN-16`) y ordena por costo ascendente (`RNF-11`).
+  - Exposición en `ProveedorRepuestoController` y actualización de `Main.java` con la nueva inyección.
+  - Implementación de `compararProveedoresDeRepuesto()` en `CatalogoProveedorView` y nueva opción `9. Comparar proveedores de un repuesto` en `ProveedorView` (rango `0–9`), mostrando tabla formateada con calificaciones o `"Sin evaluar"` y captura amigable de `CarMotorsException`.
+  - Ampliación de `ProveedorRepuestoServiceTest` con 6 nuevas pruebas en memoria (21 pruebas en total) y creación de `ComparacionProveedorTest` (4 pruebas) validando orden por costo, filtrado de inactivos, promedios y manejo de excepciones (175 pruebas en total, 0 fallos).
+
 ### Pendiente de integración — `feat(inventario): add low stock report (T3.7)` (`feature/gestion-inventario` → `develop`, cierra `#33`)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**

@@ -89,7 +89,7 @@ public class Main {
         RepuestoController repuestoController = new RepuestoController(repuestoService);
 
         ProveedorRepuestoService proveedorRepuestoService =
-                new ProveedorRepuestoService(proveedorRepuestoDAO, proveedorDAO, repuestoDAO);
+                new ProveedorRepuestoService(proveedorRepuestoDAO, proveedorDAO, repuestoDAO, evaluacionProveedorDAO);
         ProveedorRepuestoController proveedorRepuestoController = new ProveedorRepuestoController(proveedorRepuestoService);
         CatalogoProveedorView catalogoProveedorView =
                 new CatalogoProveedorView(proveedorRepuestoController, proveedorController, repuestoController);

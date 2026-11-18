@@ -51,10 +51,11 @@ public class ProveedorView implements SubmenuVista {
             System.out.println("  6. Reactivar proveedor");
             System.out.println("  7. Evaluaciones de proveedores");
             System.out.println("  8. Catálogo de repuestos del proveedor");
+            System.out.println("  9. Comparar proveedores de un repuesto");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 8);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 9);
             switch (opcion) {
                 case 1:
                     listarProveedores();
@@ -85,6 +86,14 @@ public class ProveedorView implements SubmenuVista {
                 case 8:
                     if (catalogoProveedorView != null) {
                         catalogoProveedorView.gestionarCatalogoProveedor();
+                    } else {
+                        System.out.println("\n  [i] El catálogo proveedor-repuesto aún no está conectado.");
+                        ConsoleReader.pausar();
+                    }
+                    break;
+                case 9:
+                    if (catalogoProveedorView != null) {
+                        catalogoProveedorView.compararProveedoresDeRepuesto();
                     } else {
                         System.out.println("\n  [i] El catálogo proveedor-repuesto aún no está conectado.");
                         ConsoleReader.pausar();

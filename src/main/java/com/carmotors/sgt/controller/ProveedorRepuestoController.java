@@ -3,6 +3,7 @@ package com.carmotors.sgt.controller;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.carmotors.sgt.model.ComparacionProveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.service.ProveedorRepuestoService;
 
@@ -44,5 +45,9 @@ public class ProveedorRepuestoController {
 
     public ProveedorRepuesto marcarHabitual(int proveedorId, int repuestoId) {
         return proveedorRepuestoService.marcarHabitual(proveedorId, repuestoId);
+    }
+
+    public List<ComparacionProveedor> compararProveedoresPorRepuesto(int repuestoId) {
+        return proveedorRepuestoService.compararProveedoresPorRepuesto(repuestoId);
     }
 }
