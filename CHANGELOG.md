@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
-### Pendiente de integración — `feat(reportes): add technician productivity report (T7.2)` (`feature/reportes` → `develop`, cierra `#54`, RF-26 / §4.2 / §4.3 / RNF-11 / RNF-15)
+### PR #107 — `feat(reportes): add technician productivity report (T7.2)` (`feature/reportes` → `develop`, cierra `#54`, RF-26 / §4.2 / §4.3 / RNF-11 / RNF-15)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
   - Nuevo `ReporteDAO.listarProductividadTecnicos(LocalDate, LocalDate)` en `ReporteDAOImpl` con `PreparedStatement`: un registro plano por técnico asignado a cada línea de órdenes Completadas, Facturadas o Entregadas (estados como constantes con nombre enlazadas como parámetros), filtrando `fecha_completado` desde el inicio del día "desde" hasta el final del día "hasta" (§4.2). Usa `LEFT JOIN` hacia `detalle_tecnicos` y `tecnicos` para que las líneas sin técnicos lleguen con `tecnico_id` nulo.
