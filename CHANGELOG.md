@@ -19,7 +19,7 @@
 
 ## [En curso] — Sprint 6: Facturación y entrega (`develop`)
 
-### Pendiente de integración — `feat(facturacion): generate invoice (T6.1)` (`feature/facturacion` → `develop`, cierra `#49`, RF-22 / RF-23 / RN-09 / RN-11 / RN-12 / RNF-15 / HU-12)
+### PR #106 — `feat(facturacion): generate invoice (T6.1)` (`feature/facturacion` → `develop`, cierra `#49`, RF-22 / RF-23 / RN-09 / RN-11 / RN-12 / RNF-15 / HU-12)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
   - Creación de los modelos `Factura`, `FacturaSnapshot` y `FacturaDetalle` (`com.carmotors.sgt.model`) según `facturas`, `factura_snapshot` y `factura_detalles`, con montos y `tasaIva` en `BigDecimal`, del enum `TipoConcepto` (`MANO_OBRA`, `REPUESTO`) y del DTO `ConsultaFactura` (factura, snapshot y conceptos).
