@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
 
-### Pendiente de integración — `feat(servicios): complete order and deduct stock (T5.2)` (`feature/gestion-servicios` → `develop`, cierra `#46`, RF-13 / RN-03 / RN-04 / RN-08 / RN-22 / HU-07)
+### PR #101 — `feat(servicios): complete order and deduct stock (T5.2)` (`feature/gestion-servicios` → `develop`, cierra `#46`, RF-13 / RN-03 / RN-04 / RN-08 / RN-22 / HU-07)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
   - Nuevo `LoteDAO.descontarUnidades(int, int)` (`UPDATE lotes SET cantidad_actual = cantidad_actual - ? WHERE id = ? AND cantidad_actual >= ?`; si no afecta ninguna fila, el servicio lo trata como error y hace `rollback`) y nuevo `OrdenServicioDAO.marcarCompletada(int, int, LocalDateTime)`, que cambia el estado y registra `fecha_completado` en una sola sentencia. `actualizarEstado` y `listarPorRepuesto` no cambian: su `ORDER BY` ya coincide con el orden FEFO de la sección 2.6.
