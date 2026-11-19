@@ -8,6 +8,15 @@
 
 ## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
 
+### Pendiente de integración — `feat(servicios): cancel service order and release reservations (T5.3)` (`feature/gestion-servicios` → `develop`, cierra `#47`, RF-14 / RN-04 / RN-05 / RN-06 / HU-08)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Nuevo método `OrdenServicioDAO.marcarCancelada(int, int, LocalDateTime)` e implementación en `OrdenServicioDAOImpl` (`UPDATE ordenes_servicio SET estado_id = ?, fecha_cancelacion = ? WHERE id = ?`, respetando `conexionCompartida` dentro de transacciones JDBC).
+  - Creación de los DTO `ReservaLiberada` y `ResultadoCancelarOrden` (`com.carmotors.sgt.model`) con la orden cancelada y el detalle de unidades reservadas liberadas por repuesto.
+  - Creación de `OrdenServicioService.cancelarOrden(int)` en una única transacción JDBC (`RN-04`): bloquea la cabecera con `buscarPorIdParaActualizar`, valida la transición con el patrón State (`EstadoOrdenFactory.desdeId(...).cancelar()`, solo permitida desde `Pendiente` o `En Proceso`; estados `Completado`, `Facturado`, `Entregado` y `Cancelada` lanzan `TransicionEstadoInvalidaException`, `RN-06`), consolida las cantidades de `detalle_repuestos` en todas las líneas, libera exactamente las reservas en `repuestos` mediante `descontarReserva` sin tocar lotes físicos (`RN-05`), conserva líneas, horas y repuestos como historial (`RF-14`) y registra `estado_id = 6` (`Cancelada`) junto con `fecha_cancelacion`. Ante cualquier error ejecuta `rollback()` y restaura `autoCommit` en `finally`.
+  - Exposición en `OrdenServicioController.cancelarOrden(int)` e incorporación de la opción `12. Cancelar orden` en `OrdenServicioView` (rango `0–12`) con confirmación explícita `(S/N)` y manejo amigable de excepciones sin cerrar la consola.
+  - Creación de `OrdenServicioCancelarTest` (8 pruebas unitarias: cancelación desde `Pendiente` multi-línea, desde `En Proceso` conservando técnicos y horas, orden sin repuestos, rechazo en estados no permitidos, ID inválido/inexistente, inmutabilidad posterior de orden cancelada y manejo de errores) y actualización de dobles de prueba en `OrdenServicioControllerTest`, `OrdenServicioCompletarTest`, `OrdenServicioReservaTest` y `OrdenServicioServiceTest` (`mvn clean test`: 281 pruebas, 0 fallos).
+
 ### PR #101 — `feat(servicios): complete order and deduct stock (T5.2)` (`feature/gestion-servicios` → `develop`, cierra `#46`, RF-13 / RN-03 / RN-04 / RN-08 / RN-22 / HU-07)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
