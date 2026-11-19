@@ -29,5 +29,15 @@ public interface ProveedorRepuestoDAO {
      */
     int desmarcarHabitual(int repuestoId);
 
+    /**
+     * Quita la marca de habitual en todos los repuestos donde el proveedor dado era habitual (RF-28, RN-18).
+     *
+     * @param proveedorId identificador del proveedor desactivado
+     * @return cantidad de filas desmarcadas
+     */
+    default int desmarcarHabitualesDeProveedor(int proveedorId) {
+        return 0;
+    }
+
     boolean marcarHabitual(int proveedorId, int repuestoId);
 }

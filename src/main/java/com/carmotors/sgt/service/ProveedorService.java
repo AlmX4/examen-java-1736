@@ -1,33 +1,55 @@
 package com.carmotors.sgt.service;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import com.carmotors.sgt.config.ConnectionFactory;
+import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.repository.ProveedorDAO;
+import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
+import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.util.InputValidator;
 
 public class ProveedorService {
 
+    private static final Logger LOGGER = Logger.getLogger(ProveedorService.class.getName());
     private static final int MAX_LONGITUD_NOMBRE = 100;
     private static final int MAX_LONGITUD_TELEFONO = 20;
     private static final int MAX_LONGITUD_EMAIL = 100;
     private static final int MAX_LONGITUD_DIRECCION = 150;
 
     private final ProveedorDAO proveedorDAO;
+    private final ProveedorRepuestoDAO proveedorRepuestoDAO;
+    private final boolean usarTransaccionJdbc;
 
     public ProveedorService() {
-        this(new ProveedorDAOImpl());
+        this(new ProveedorDAOImpl(), new ProveedorRepuestoDAOImpl(), true);
     }
 
     public ProveedorService(ProveedorDAO proveedorDAO) {
+        this(proveedorDAO,
+                proveedorDAO instanceof ProveedorDAOImpl ? new ProveedorRepuestoDAOImpl() : null,
+                proveedorDAO instanceof ProveedorDAOImpl);
+    }
+
+    public ProveedorService(
+            ProveedorDAO proveedorDAO,
+            ProveedorRepuestoDAO proveedorRepuestoDAO,
+            boolean usarTransaccionJdbc) {
         if (proveedorDAO == null) {
             throw new ValidacionException("El DAO de proveedores es obligatorio.");
         }
         this.proveedorDAO = proveedorDAO;
+        this.proveedorRepuestoDAO = proveedorRepuestoDAO;
+        this.usarTransaccionJdbc = usarTransaccionJdbc;
     }
 
     public List<Proveedor> listarTodos() {
@@ -96,6 +118,9 @@ public class ProveedorService {
             }
         }
 
+        // RN-17: La actualización de datos nunca debe alterar el estado activo/inactivo.
+        proveedor.setActivo(actual.isActivo());
+
         boolean actualizado = proveedorDAO.actualizar(proveedor);
         if (!actualizado) {
             throw new ValidacionException("No se pudo actualizar el proveedor indicado.");
@@ -109,12 +134,49 @@ public class ProveedorService {
             return proveedor;
         }
 
-        boolean actualizado = proveedorDAO.desactivar(id);
-        if (!actualizado) {
-            throw new ValidacionException("No se pudo desactivar el proveedor.");
+        if (!usarTransaccionJdbc) {
+            if (proveedorRepuestoDAO != null) {
+                proveedorRepuestoDAO.desmarcarHabitualesDeProveedor(id);
+            }
+            if (!proveedorDAO.desactivar(id)) {
+                throw new ValidacionException("No se pudo desactivar el proveedor.");
+            }
+            proveedor.setActivo(false);
+            return proveedor;
         }
-        proveedor.setActivo(false);
-        return proveedor;
+
+        // RF-28 / RN-18 / RNF-08: Desactivar y limpiar es_habitual en una sola transacción JDBC.
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                ProveedorRepuestoDAO catalogoTransaccional = new ProveedorRepuestoDAOImpl(connection);
+                ProveedorDAO proveedorTransaccional = new ProveedorDAOImpl(connection);
+
+                catalogoTransaccional.desmarcarHabitualesDeProveedor(id);
+                if (!proveedorTransaccional.desactivar(id)) {
+                    throw new ValidacionException("No se pudo desactivar el proveedor.");
+                }
+                connection.commit();
+                proveedor.setActivo(false);
+                return proveedor;
+            } catch (RuntimeException e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException errorRollback) {
+                    e.addSuppressed(errorRollback);
+                }
+                throw e;
+            } finally {
+                try {
+                    connection.setAutoCommit(true);
+                } catch (SQLException errorAutoCommit) {
+                    LOGGER.log(Level.WARNING, "No se pudo restaurar autoCommit al cerrar conexión.", errorAutoCommit);
+                }
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la desactivación transaccional del proveedor: "
+                    + e.getMessage(), e);
+        }
     }
 
     public Proveedor reactivarProveedor(int id) {

@@ -109,6 +109,9 @@ public class TecnicoService {
                     "Ya existe otro técnico registrado con el documento: " + tecnico.getDocumentoIdentidad());
         }
 
+        // RN-17: La actualización de datos nunca debe alterar el estado activo/inactivo.
+        tecnico.setActivo(actual.isActivo());
+
         boolean actualizado = tecnicoDAO.actualizar(tecnico);
         if (!actualizado) {
             throw new ValidacionException("No se pudo actualizar el técnico con ID: " + tecnico.getId());
