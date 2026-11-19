@@ -17,6 +17,8 @@ import com.carmotors.sgt.model.Lote;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.Repuesto;
+import com.carmotors.sgt.model.ReservaLiberada;
+import com.carmotors.sgt.model.ResultadoCancelarOrden;
 import com.carmotors.sgt.model.ResultadoCompletarOrden;
 import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Vehiculo;
@@ -1272,6 +1274,112 @@ public class OrdenServicioService {
                         + "evaluar la alerta de stock bajo del repuesto " + consumo.getRepuestoId() + ".", e);
             }
         }
+    }
+
+    /**
+     * Cancela una orden Pendiente o En Proceso liberando todas las reservas de repuestos de sus
+     * líneas y registrando la fecha de cancelación (RF-14, RN-04, RN-05, RN-06, HU-08).
+     *
+     * <p>En una única unidad de trabajo JDBC: bloquea la cabecera con {@code FOR UPDATE}, valida
+     * la transición mediante el patrón State (solo desde Pendiente o En Proceso), consolida y
+     * libera todas las reservas en {@code repuestos} sin modificar el stock físico de lotes,
+     * conserva líneas, horas y repuestos como historial y marca la orden como Cancelada con su
+     * fecha. Si ocurre cualquier fallo, revierte la transacción completa.</p>
+     *
+     * @param ordenId identificador de la orden a cancelar
+     * @return la orden cancelada y el detalle de las reservas liberadas por repuesto
+     */
+    public ResultadoCancelarOrden cancelarOrden(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+        if (detalleRepuestoDAO == null) {
+            throw new CarMotorsException("La cancelación de órdenes no está configurada en este servicio.");
+        }
+        LocalDateTime fechaCancelacion = LocalDateTime.now().withNano(0);
+
+        if (!usarTransaccionJdbc) {
+            return ejecutarCancelarOrden(ordenId, fechaCancelacion, ordenServicioDAO,
+                    ordenServicioDetalleDAO, detalleRepuestoDAO, repuestoDAO);
+        }
+        return cancelarOrdenEnTransaccion(ordenId, fechaCancelacion);
+    }
+
+    private ResultadoCancelarOrden cancelarOrdenEnTransaccion(int ordenId, LocalDateTime fechaCancelacion) {
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                OrdenServicioDAO ordenDaoTransaccional = new OrdenServicioDAOImpl(connection);
+                OrdenServicioDetalleDAO detalleDaoTransaccional = new OrdenServicioDetalleDAOImpl(connection);
+                DetalleRepuestoDAO detalleRepuestoDaoTransaccional = new DetalleRepuestoDAOImpl(connection);
+                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
+
+                ResultadoCancelarOrden resultado = ejecutarCancelarOrden(ordenId, fechaCancelacion,
+                        ordenDaoTransaccional, detalleDaoTransaccional,
+                        detalleRepuestoDaoTransaccional, repuestoDaoTransaccional);
+                connection.commit();
+                return resultado;
+            } catch (CarMotorsException e) {
+                connection.rollback();
+                throw e;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new CarMotorsException("No se pudo cancelar la orden: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new CarMotorsException("Error inesperado al cancelar la orden: " + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transacción de cancelación de la orden " + ordenId
+                    + ": " + e.getMessage(), e);
+        }
+    }
+
+    private ResultadoCancelarOrden ejecutarCancelarOrden(int ordenId, LocalDateTime fechaCancelacion,
+                                                         OrdenServicioDAO ordenDao,
+                                                         OrdenServicioDetalleDAO detalleDao,
+                                                         DetalleRepuestoDAO detalleRepuestoDao,
+                                                         RepuestoDAO repuestoDao) {
+        // 1. La orden existe y el patrón State permite pasar a Cancelada (solo Pendiente o En Proceso).
+        OrdenServicio orden = ordenDao.buscarPorIdParaActualizar(ordenId);
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró una orden de servicio con el ID: " + ordenId);
+        }
+        EstadoOrden nuevoEstado = EstadoOrdenFactory.desdeId(orden.getEstadoId()).cancelar();
+
+        // 2. Consolida reservas de todas las líneas conservando líneas, horas y repuestos como historial (RF-14).
+        List<OrdenServicioDetalle> lineas = detalleDao.listarPorOrdenParaActualizar(ordenId);
+        Map<Integer, Integer> reservadoPorRepuesto = new LinkedHashMap<>();
+        Map<Integer, String> nombrePorRepuesto = new HashMap<>();
+        for (OrdenServicioDetalle linea : lineas) {
+            for (DetalleRepuesto reserva : detalleRepuestoDao.listarPorDetalle(linea.getId())) {
+                int acumulado = reservadoPorRepuesto.getOrDefault(reserva.getRepuestoId(), 0);
+                reservadoPorRepuesto.put(reserva.getRepuestoId(), acumulado + reserva.getCantidadAsignada());
+                nombrePorRepuesto.put(reserva.getRepuestoId(), reserva.getNombreRepuestoSnapshot());
+            }
+        }
+
+        // 3. Libera exactamente las reservas asociadas sin tocar lotes físicos (RN-05).
+        List<ReservaLiberada> reservasLiberadas = new ArrayList<>();
+        for (Map.Entry<Integer, Integer> entrada : reservadoPorRepuesto.entrySet()) {
+            int repuestoId = entrada.getKey();
+            int cantidad = entrada.getValue();
+            if (!repuestoDao.descontarReserva(repuestoId, cantidad)) {
+                throw new CarMotorsException("La reserva del repuesto " + repuestoId
+                        + " es inconsistente: no se pudo liberar " + cantidad + " unidad(es).");
+            }
+            reservasLiberadas.add(new ReservaLiberada(repuestoId, nombrePorRepuesto.get(repuestoId), cantidad));
+        }
+
+        // 4. Estado Cancelada y fecha de cancelación (RN-06).
+        if (!ordenDao.marcarCancelada(ordenId, nuevoEstado.getEstadoId(), fechaCancelacion)) {
+            throw new CarMotorsException("No se pudo marcar como cancelada la orden " + ordenId + ".");
+        }
+        orden.setEstadoId(nuevoEstado.getEstadoId());
+        orden.setFechaCancelacion(fechaCancelacion);
+        return new ResultadoCancelarOrden(orden, reservasLiberadas);
     }
 
     /**
