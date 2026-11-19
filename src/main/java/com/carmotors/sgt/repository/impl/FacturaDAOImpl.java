@@ -2,6 +2,7 @@ package com.carmotors.sgt.repository.impl;
 
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Factura;
 import com.carmotors.sgt.repository.FacturaDAO;
@@ -90,6 +91,37 @@ public class FacturaDAOImpl implements FacturaDAO {
         } catch (SQLException e) {
             throw new CarMotorsException("Error al consultar el último número de factura del año " + anio + ": "
                     + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void marcarArchivoGenerado(int facturaId) {
+        try {
+            if (conexionCompartida != null) {
+                actualizarMarcaArchivo(conexionCompartida, facturaId);
+            } else {
+                try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+                    actualizarMarcaArchivo(connection, facturaId);
+                }
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo confirmar el archivo de la factura " + facturaId + ".", e);
+        }
+    }
+
+    private void actualizarMarcaArchivo(Connection connection, int facturaId) throws SQLException {
+        String sql = "UPDATE facturas SET archivo_generado = TRUE WHERE id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, facturaId);
+            if (statement.executeUpdate() == 0) {
+                Factura factura = consultarUna(connection, COLUMNAS + "WHERE id = ?", facturaId);
+                if (factura == null) {
+                    throw new EntidadNoEncontradaException("No se encontró una factura con el ID: " + facturaId);
+                }
+                if (!factura.isArchivoGenerado()) {
+                    throw new CarMotorsException("No se pudo confirmar el archivo de la factura " + facturaId + ".");
+                }
+            }
         }
     }
 
