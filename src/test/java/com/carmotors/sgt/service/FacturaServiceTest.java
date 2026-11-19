@@ -27,14 +27,20 @@ import com.carmotors.sgt.repository.VehiculoDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -125,6 +131,76 @@ class FacturaServiceTest {
     private FacturaService crearServicio() {
         return new FacturaService(facturaDAO, snapshotDAO, conceptoDAO, ordenDAO, lineaDAO, reservaDAO,
                 vehiculoDAO, clienteDAO, false);
+    }
+
+    @Test
+    void generaComprobanteUtf8YMarcaLaFactura(@TempDir Path carpeta) throws IOException {
+        FacturaService conArchivo = crearServicioConArchivo(carpeta.resolve("output"));
+        ConsultaFactura generada = conArchivo.generarFactura(10);
+        Factura factura = generada.getFactura();
+        Path archivo = carpeta.resolve("output").resolve("factura_" + factura.getNumeroFactura() + ".txt");
+
+        String texto = Files.readString(archivo, StandardCharsets.UTF_8);
+        assertTrue(texto.contains("Cliente: Luisa Marcela Díaz"));
+        assertTrue(texto.contains("Vehículo: GHI789 | Mazda 3"));
+        assertTrue(texto.contains("Línea 100 | Mano de obra | Cambio de aceite y filtro"));
+        assertTrue(texto.contains("Línea 100 | Repuesto | Aceite sintético 10W-40 (litro)"));
+        assertTrue(texto.contains("4 x $38000.00 = $152000.00"));
+        assertTrue(texto.contains("IVA (19%): $55480.00"));
+        assertTrue(texto.contains("Total (COP): $347480.00"));
+        assertTrue(facturaDAO.buscarPorId(factura.getId()).isArchivoGenerado());
+    }
+
+    @Test
+    void falloDeEscrituraConservaFacturaYPermiteReintentarDesdeSnapshots(@TempDir Path carpeta) throws IOException {
+        Path salida = carpeta.resolve("output");
+        Files.createFile(salida);
+        FacturaService conArchivo = crearServicioConArchivo(salida);
+        Factura factura = conArchivo.generarFactura(3).getFactura();
+
+        assertFalse(factura.isArchivoGenerado());
+        assertEquals(FACTURADO, ordenDAO.buscarPorId(3).getEstadoId());
+        assertEquals(factura.getId(), facturaDAO.buscarPorOrden(3).getId());
+        clienteDAO.buscarPorId(3).setNombre("Nombre actualizado");
+        Files.delete(salida);
+
+        Path archivo = conArchivo.reintentarArchivo(factura.getId());
+        String texto = Files.readString(archivo, StandardCharsets.UTF_8);
+        assertTrue(texto.contains("Luisa Marcela Díaz"));
+        assertFalse(texto.contains("Nombre actualizado"));
+        assertEquals(archivo, conArchivo.reintentarArchivo(factura.getId()));
+        assertEquals(texto, Files.readString(archivo, StandardCharsets.UTF_8));
+        assertTrue(facturaDAO.buscarPorId(factura.getId()).isArchivoGenerado());
+        assertEquals(1, facturaDAO.facturas.stream().filter(item -> item.getOrdenId() == 3).count());
+    }
+
+    @Test
+    void reintentaSiElTxtSeEscribioPeroFalloLaMarca(@TempDir Path carpeta) throws IOException {
+        FacturaService conArchivo = crearServicioConArchivo(carpeta);
+        facturaDAO.fallarMarca = true;
+        Factura factura = conArchivo.generarFactura(6).getFactura();
+        Path archivo = carpeta.resolve("factura_" + factura.getNumeroFactura() + ".txt");
+        String original = Files.readString(archivo, StandardCharsets.UTF_8);
+        assertFalse(factura.isArchivoGenerado());
+
+        facturaDAO.fallarMarca = false;
+        assertEquals(archivo, conArchivo.reintentarArchivo(factura.getId()));
+        assertEquals(original, Files.readString(archivo, StandardCharsets.UTF_8));
+        assertTrue(facturaDAO.buscarPorId(factura.getId()).isArchivoGenerado());
+    }
+
+    @Test
+    void noEscribeArchivosSiLaOrdenNoSePuedeFacturar(@TempDir Path carpeta) throws IOException {
+        FacturaService conArchivo = crearServicioConArchivo(carpeta);
+        assertThrows(TransicionEstadoInvalidaException.class, () -> conArchivo.generarFactura(1));
+        try (Stream<Path> archivos = Files.list(carpeta)) {
+            assertEquals(0, archivos.count());
+        }
+    }
+
+    private FacturaService crearServicioConArchivo(Path carpeta) {
+        return new FacturaService(facturaDAO, snapshotDAO, conceptoDAO, ordenDAO, lineaDAO, reservaDAO,
+                vehiculoDAO, clienteDAO, false, () -> carpeta);
     }
 
     private OrdenServicio orden(int id, int estadoId) {
@@ -332,6 +408,7 @@ class FacturaServiceTest {
     private static class FacturaDAOMock implements FacturaDAO {
         private final List<Factura> facturas = new ArrayList<>();
         private int secuencia = 100;
+        private boolean fallarMarca;
 
         void agregar(Factura factura) {
             facturas.add(factura);
@@ -362,6 +439,14 @@ class FacturaServiceTest {
                 }
             }
             return null;
+        }
+
+        @Override
+        public void marcarArchivoGenerado(int facturaId) {
+            if (fallarMarca) {
+                throw new CarMotorsException("Fallo de prueba al actualizar archivo_generado.");
+            }
+            buscarPorId(facturaId).setArchivoGenerado(true);
         }
 
         @Override

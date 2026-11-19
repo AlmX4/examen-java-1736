@@ -3,6 +3,7 @@ package com.carmotors.sgt.service;
 import com.carmotors.sgt.controller.ReportesController;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
@@ -278,6 +279,12 @@ class ReporteConsumoRepuestosTest {
         @Override
         public List<RegistroConsumoRepuesto> listarConsumoRepuestos(LocalDate fechaDesde, LocalDate fechaHasta) {
             return new ArrayList<>(registros);
+        }
+
+        @Override
+        public List<RegistroProductividadTecnico> listarProductividadTecnicos(LocalDate fechaDesde,
+                                                                              LocalDate fechaHasta) {
+            throw new UnsupportedOperationException();
         }
     }
 }
