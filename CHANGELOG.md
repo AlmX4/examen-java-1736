@@ -8,6 +8,15 @@
 
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
+### PR #112 — `feat(reportes): add maintenance reminders report (T7.5)` (`feature/reportes` → `develop`, cierra `#57`, RF-21 / RN-15 / §4.2 / RNF-11)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Nuevo `ReporteDAO.listarMantenimientosPreventivos()` en `ReporteDAOImpl` con `PreparedStatement`: un registro plano por cada línea de servicio preventivo con `intervalo_meses` definido de una orden Entregada, con vehículo (id, placa, marca, modelo), cliente actual (id, nombre, teléfono, email, activo), tipo de servicio (id, nombre, intervalo), `orden_id` y `fecha_entrega`. El estado Entregado y el tipo Preventivo se enlazan como parámetros con constantes con nombre (`ESTADO_ENTREGADO`, `MANTENIMIENTO_PREVENTIVO`).
+  - Creación de los DTO `RegistroMantenimientoPreventivo` (registro plano) y `RecordatorioMantenimiento` (cliente y contacto, vehículo, servicio, última entrega, fecha sugerida, días restantes o de atraso y si está vencido) en `com.carmotors.sgt.model`.
+  - Creación de `ReporteService.generarReporteRecordatorios(LocalDate fechaReferencia)` (`RF-21`, `RN-15`): agrupa con Streams por vehículo y tipo de servicio y toma solo la entrega más reciente (un servicio entregado más reciente reemplaza al anterior); fecha sugerida = fecha de esa entrega (sin hora) + `intervalo_meses`; incluye los vencidos y los que vencen dentro de los próximos 30 días (ambos límites incluidos); ordena primero los vencidos (del más atrasado al más reciente), luego los próximos (del más cercano al más lejano) y, en empate, por placa. Como el documento maestro no define el trato de clientes inactivos, solo se incluyen clientes activos. El servicio no envía notificaciones (gestión manual) y recibe la fecha de referencia como parámetro.
+  - `ReportesController` delega el reporte; `ReportesView` añade la opción "4. Recordatorios de mantenimiento preventivo (RF-21)" (rango 0–4), que usa `LocalDate.now()` y muestra una tabla alineada con cliente, teléfono, email, placa, servicio, última entrega, fecha sugerida y estado ("VENCIDO hace N días" / "En N días"), o un mensaje claro si no hay recordatorios, sin cerrar la aplicación ante errores. `Main.java` no requiere cambios.
+  - Creación de `ReporteRecordatoriosTest` (9 pruebas JUnit 5 en memoria con fecha de referencia fija): próximo, vencido, límites de hoy / 30 días / 31 días, reemplazo por la entrega más reciente, mismo tipo en dos vehículos, cliente inactivo, orden del resultado, sin recordatorios y registros sin intervalo. Se actualizan los `ReporteDAO` en memoria de `ReporteConsumoRepuestosTest`, `ReporteServiciosSolicitadosTest` y `ReporteProductividadTecnicosTest` (348 pruebas en total, 0 fallos).
+
 ### PR #111 — `feat(clientes): add customer service history (T7.4)` (`feature/gestion-clientes` → `develop`, cierra `#56`, RF-20 / RN-17 / RNF-11 / HU-10)
 - **Autor:** `@Sofi11017`
 - **Cambios incluidos:**

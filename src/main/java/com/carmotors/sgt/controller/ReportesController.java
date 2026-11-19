@@ -1,5 +1,6 @@
 package com.carmotors.sgt.controller;
 
+import com.carmotors.sgt.model.RecordatorioMantenimiento;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteProductividadTecnicos;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
@@ -32,5 +33,9 @@ public class ReportesController {
 
     public ReporteProductividadTecnicos generarReporteProductividadTecnicos(LocalDate fechaDesde, LocalDate fechaHasta) {
         return reporteService.generarReporteProductividadTecnicos(fechaDesde, fechaHasta);
+    }
+
+    public List<RecordatorioMantenimiento> generarReporteRecordatorios(LocalDate fechaReferencia) {
+        return reporteService.generarReporteRecordatorios(fechaReferencia);
     }
 }

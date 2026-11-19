@@ -3,6 +3,7 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.repository.ReporteDAO;
@@ -29,6 +30,9 @@ public class ReporteDAOImpl implements ReporteDAO {
     private static final int ESTADO_COMPLETADO = 3;
     private static final int ESTADO_FACTURADO = 4;
     private static final int ESTADO_ENTREGADO = 5;
+
+    /** ID de {@code mantenimiento_tipos} para los servicios preventivos. */
+    private static final int MANTENIMIENTO_PREVENTIVO = 1;
 
     private final Connection conexionCompartida;
 
@@ -133,6 +137,57 @@ public class ReporteDAOImpl implements ReporteDAO {
                     registros.add(new RegistroProductividadTecnico(filas.getInt("detalle_id"),
                             filas.getBigDecimal("costo_mano_obra"), tecnico, filas.getString("nombre_tecnico"),
                             filas.getBoolean("tecnico_activo"), filas.getBigDecimal("horas_trabajadas")));
+                }
+            }
+        }
+        return registros;
+    }
+
+    @Override
+    public List<RegistroMantenimientoPreventivo> listarMantenimientosPreventivos() {
+        try {
+            if (conexionCompartida != null) {
+                return ejecutarConsultaMantenimientos(conexionCompartida);
+            }
+            try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+                return ejecutarConsultaMantenimientos(connection);
+            }
+        } catch (SQLException e) {
+            LOGGER.warning("Falló la consulta de mantenimientos preventivos (código JDBC " + e.getErrorCode() + ").");
+            throw new CarMotorsException("No se pudieron consultar los mantenimientos preventivos.", e);
+        }
+    }
+
+    private List<RegistroMantenimientoPreventivo> ejecutarConsultaMantenimientos(Connection connection)
+            throws SQLException {
+        String sql = "SELECT v.id AS vehiculo_id, v.placa, v.marca, v.modelo, c.id AS cliente_id, "
+                + "c.nombre AS cliente_nombre, c.telefono AS cliente_telefono, c.email AS cliente_email, "
+                + "c.activo AS cliente_activo, st.id AS servicio_tipo_id, st.nombre AS nombre_servicio, "
+                + "st.intervalo_meses, o.id AS orden_id, o.fecha_entrega "
+                + "FROM ordenes_servicio o "
+                + "JOIN orden_servicio_detalle osd ON osd.orden_id = o.id "
+                + "JOIN servicio_tipos st ON st.id = osd.servicio_tipo_id "
+                + "JOIN vehiculos v ON v.id = o.vehiculo_id "
+                + "JOIN clientes c ON c.id = v.cliente_id "
+                + "WHERE o.estado_id = ? AND st.mantenimiento_tipo_id = ? "
+                + "AND st.intervalo_meses IS NOT NULL AND o.fecha_entrega IS NOT NULL "
+                + "ORDER BY v.id ASC, st.id ASC, o.fecha_entrega DESC, o.id DESC";
+
+        List<RegistroMantenimientoPreventivo> registros = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, ESTADO_ENTREGADO);
+            statement.setInt(2, MANTENIMIENTO_PREVENTIVO);
+            try (ResultSet filas = statement.executeQuery()) {
+                while (filas.next()) {
+                    int intervalo = filas.getInt("intervalo_meses");
+                    Integer intervaloMeses = filas.wasNull() ? null : intervalo;
+                    registros.add(new RegistroMantenimientoPreventivo(filas.getInt("vehiculo_id"),
+                            filas.getString("placa"), filas.getString("marca"), filas.getString("modelo"),
+                            filas.getInt("cliente_id"), filas.getString("cliente_nombre"),
+                            filas.getString("cliente_telefono"), filas.getString("cliente_email"),
+                            filas.getBoolean("cliente_activo"), filas.getInt("servicio_tipo_id"),
+                            filas.getString("nombre_servicio"), intervaloMeses, filas.getInt("orden_id"),
+                            filas.getTimestamp("fecha_entrega").toLocalDateTime()));
                 }
             }
         }
