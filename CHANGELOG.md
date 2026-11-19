@@ -24,6 +24,15 @@
 
 ## [En curso] — Sprint 6: Facturación y entrega (`develop`)
 
+### Pendiente de integración — `feat(facturacion): deliver invoiced service order (T6.4)` (`feature/t6.4-entrega` → `develop`, cierra `#52`, RF-12 / RN-06 / RN-10 / HU-08)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Nuevo `OrdenServicioDAO.marcarEntregada(int ordenId, int estadoId, LocalDateTime fechaEntrega)` e `OrdenServicioDAOImpl` con `PreparedStatement` (`UPDATE ordenes_servicio SET estado_id = ?, fecha_entrega = ? WHERE id = ?`), siguiendo el patrón de `marcarCompletada` / `marcarCancelada`, con `asignarFecha`, `executeUpdate() == 1` y soporte de `Connection` compartida.
+  - `OrdenServicioService.entregarOrden(int ordenId)`: valida el ID, bloquea la cabecera con `buscarPorIdParaActualizar` (`FOR UPDATE`) y aplica el patrón State con `EstadoOrdenFactory.desdeId(...).entregar()`, que solo permite pasar de `Facturado` (4) a `Entregado` (5) y lanza `TransicionEstadoInvalidaException` en cualquier otro estado (`RN-06`, `RN-10`). Persiste `estado_id` y `fecha_entrega = LocalDateTime.now().withNano(0)` en una única unidad de trabajo JDBC con `commit()` / `rollback()` y restauración de auto-commit.
+  - `OrdenServicioController` delega `entregarOrden` y `OrdenServicioView` añade la opción "13. Entregar orden" (rango 0–13), junto a Completar y Cancelar, con confirmación `(S/N)` vía `ConsoleReader.leerConfirmacion`, mostrando el estado final y la fecha de entrega sin cerrar la consola.
+  - Cuatro pruebas JUnit 5 nuevas en `OrdenServicioServiceTest`: entrega exitosa desde `Facturado` (estado 5 y `fechaEntrega` no nula), rechazo desde Pendiente, En Proceso, Completado, Entregado y Cancelada, orden inexistente o ID no positivo y fallo del DAO al registrar la entrega. Se actualizan los siete dobles de prueba de `OrdenServicioDAO` (`OrdenServicioServiceTest`, `OrdenServicioReservaTest`, `OrdenServicioCompletarTest`, `OrdenServicioCancelarTest`, `OrdenServicioControllerTest`, `FacturaServiceTest` y `TallerFacadeTest`) con el nuevo contrato (312 pruebas en total, 0 fallos).
+
 ### PR #106 — `feat(facturacion): generate invoice (T6.1)` (`feature/facturacion` → `develop`, cierra `#49`, RF-22 / RF-23 / RN-09 / RN-11 / RN-12 / RNF-15 / HU-12)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
