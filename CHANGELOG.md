@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
-### Pendiente de integración — `feat(reportes): add most requested services report (T7.1)` (cierra `#53`, RF-25 / RNF-11 / §4.2 / HU-13)
+### PR #105 — `feat(reportes): add most requested services report (T7.1)` (`feature/reportes` → `develop`, cierra `#53`, RF-25 / RNF-11 / §4.2 / HU-13)
 - **Autor:** `@AlmX4`
 - La opción «Servicios más solicitados» selecciona líneas de órdenes completadas, facturadas o entregadas por rango inclusivo de finalización.
 - Streams cuenta las líneas por tipo, agrega mano de obra y repuestos a precio histórico antes de impuestos, y ordena por volumen descendente.
