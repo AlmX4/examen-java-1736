@@ -45,6 +45,15 @@
 
 ## [En curso] — Sprint 6: Facturación y entrega (`develop`)
 
+### PR #110 — `feat(facturacion): consult and reprint historical invoices (T6.3)` (`feature/facturacion` → `develop`, cierra `#51`, RF-24 / RN-11 / §2.7 / HU-12)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación del DTO `ResultadoReimpresionFactura` (`com.carmotors.sgt.model`) con los datos históricos consultados (`ConsultaFactura`) y la ruta del comprobante TXT regenerado (`Path`).
+  - Nuevos métodos en `FacturaDAO` / `FacturaDAOImpl` (`PreparedStatement`, soporte de `Connection` compartida): `buscarPorNumero(String)` (búsqueda insensible a mayúsculas/espacios por `numero_factura`) y `listarTodas()` (ordenadas por `fecha_emision DESC, id DESC`).
+  - Nuevos métodos en `FacturaService`: `consultarFacturaPorOrden(int)`, `buscarFacturaPorOrden(int)`, `consultarFacturaPorNumero(String)`, `listarFacturas()`, `reimprimirFactura(int)`, `reimprimirFacturaPorOrden(int)` y `reimprimirFacturaPorNumero(String)`. Todas las consultas y reimpresiones leen exclusivamente las tablas históricas (`facturas`, `factura_snapshot`, `factura_detalles`) y reconstruyen el archivo `output/factura_<numero>.txt` en UTF-8 con `FacturaTXTBuilder` de forma idempotente, sin crear facturas nuevas ni modificar el estado de la orden; si el TXT no existía o había fallado (`archivo_generado = false`), lo regenera y actualiza la marca a `true`.
+  - Exposición por delegación pura en `FacturaController` y ampliación de `FacturacionView` (rango `0–5`): conserva `1. Generar factura` (ofreciendo consultar y reimprimir si la orden ya estaba facturada, `HU-12`) y `2. Reintentar generación del TXT`, y agrega `3. Consultar factura`, `4. Reimprimir factura (regenerar TXT)` (por ID, número u orden) y `5. Listar facturas emitidas`, con manejo de errores `CarMotorsException` sin cerrar la consola.
+  - Cuatro nuevas pruebas JUnit 5 en `FacturaServiceTest` (19 pruebas en total en la clase; 330 pruebas totales en el proyecto, 0 fallos): reimpresión idéntica byte a byte tras modificar cliente, vehículo, precios y estado de la orden y borrar el TXT; consultas por número/orden y listado; validaciones y casos de error sin crear registros; y delegación completa desde `FacturaController`.
+
 ### PR #109 — `feat(facturacion): deliver invoiced service order (T6.4)` (`feature/t6.4-entrega` → `develop`, cierra `#52`, RF-12 / RN-06 / RN-10 / HU-08)
 - **Autor:** `@Sofi11017`
 - **Cambios incluidos:**
