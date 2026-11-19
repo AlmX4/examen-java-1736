@@ -439,6 +439,16 @@ class HistorialClienteServiceTest {
         }
 
         @Override
+        public Factura buscarPorNumero(String numeroFactura) {
+            return null;
+        }
+
+        @Override
+        public List<Factura> listarTodas() {
+            return new ArrayList<>(porOrden.values());
+        }
+
+        @Override
         public String obtenerUltimoNumeroDelAnio(int anio) {
             return null;
         }

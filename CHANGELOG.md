@@ -8,9 +8,8 @@
 
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
-### Pendiente de integración — `feat(clientes): add customer service history (T7.4)` (`feature/gestion-clientes` → `develop`, cierra `#56`, RF-20 / RN-17 / RNF-11 / HU-10)
+### PR #111 — `feat(clientes): add customer service history (T7.4)` (`feature/gestion-clientes` → `develop`, cierra `#56`, RF-20 / RN-17 / RNF-11 / HU-10)
 - **Autor:** `@Sofi11017`
-- **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
   - Nuevo `ConsultaOrdenServicioDAO.listarPorCliente(int clienteId)` e impl con `PreparedStatement` (`JOIN vehiculos` + `AND v.cliente_id = ?`), extrayendo el armado y la ejecución de la consulta a un helper privado que conserva el `ORDER BY o.fecha_recepcion DESC, o.id DESC` y no altera el comportamiento de `listar(FiltroOrdenServicio)`.
   - Creación de los DTO `HistorialCliente` (cliente, vehículos y órdenes) y `ResumenOrdenHistorial` (orden, estado, fecha de recepción, placa, líneas, `totalFacturado` en `BigDecimal` y `numeroFactura`) en `com.carmotors.sgt.model`.
