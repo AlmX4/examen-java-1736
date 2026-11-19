@@ -6,6 +6,17 @@
 
 ---
 
+## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
+
+### Pendiente de integración — `feat(reportes): add spare parts consumption report with Stream API (T7.3)` (`feature/reportes` → `develop`, cierra `#55`, RF-27 / §4.2 / §4.3 / RNF-11 / HU-13)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - Creación de los modelos `RegistroConsumoRepuesto` y `ReporteConsumoRepuestos` (`ResumenConsumo` y `DetalleConsumo`) en `com.carmotors.sgt.model`.
+  - Creación de `ReporteDAO` y `ReporteDAOImpl` (`com.carmotors.sgt.repository` / `impl`) con consulta JDBC parametrizada (`PreparedStatement`) acotada por `fecha_completado` sobre órdenes `Completado (3)`, `Facturado (4)` y `Entregado (5)` leyendo los snapshots históricos (`nombre_repuesto_snapshot`, `nombre_servicio_snapshot`, `precio_unitario_venta`).
+  - Creación de `ReporteService` (`com.carmotors.sgt.service`) con `generarReporteConsumoRepuestos(LocalDate, LocalDate)`: valida rango de fechas, filtra defensivamente por estado completado o posterior y rango inclusivo de `fecha_completado`, valoriza con `BigDecimal` (escala 2, `HALF_UP`) usando el precio de venta histórico y agrupa/ordena con Lambdas y Stream API (`RNF-11`) por repuesto, por tipo de servicio y desglose combinado `(repuesto, tipo de servicio)` en orden descendente por valor comercial.
+  - Creación de `ReportesController` y `ReportesView` (`SubmenuVista`) y conexión en `Main.java` a la opción `7. Reportes Gerenciales`, dejando la base extensible para `T7.1`, `T7.2` y `T7.5`.
+  - Creación de `ReporteConsumoRepuestosTest` (7 pruebas unitarias: snapshots históricos con precios distintos, exclusión de `Pendiente`/`En Proceso`/`Cancelada`, filtro inclusivo por `fecha_completado`, desempate determinista, rango vacío, validaciones y delegación desde controlador; `mvn clean test`: 288 pruebas, 0 fallos).
+
 ## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
 
 ### PR #102 — `feat(servicios): cancel service order and release reservations (T5.3)` (`feature/gestion-servicios` → `develop`, cierra `#47`, RF-14 / RN-04 / RN-05 / RN-06 / HU-08)
