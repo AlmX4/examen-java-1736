@@ -2,6 +2,7 @@ package com.carmotors.sgt.service;
 
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
@@ -94,6 +95,11 @@ class ReporteServiciosSolicitadosTest {
 
             @Override
             public List<RegistroProductividadTecnico> listarProductividadTecnicos(LocalDate desde, LocalDate hasta) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public List<RegistroMantenimientoPreventivo> listarMantenimientosPreventivos() {
                 throw new UnsupportedOperationException();
             }
         });

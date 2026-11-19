@@ -1,6 +1,7 @@
 package com.carmotors.sgt.repository;
 
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 
@@ -37,4 +38,14 @@ public interface ReporteDAO {
      * @return registros planos de línea y técnico ordenados por línea y técnico
      */
     List<RegistroProductividadTecnico> listarProductividadTecnicos(LocalDate fechaDesde, LocalDate fechaHasta);
+
+    /**
+     * Recupera un registro por cada línea de servicio preventivo con {@code intervalo_meses} definido
+     * que pertenece a una orden Entregada, con los datos del vehículo, su cliente actual, el tipo de
+     * servicio y la {@code fecha_entrega} de la orden (RF-21, RN-15, §4.2). No filtra por fecha: el
+     * servicio elige la entrega más reciente de cada vehículo y tipo.
+     *
+     * @return registros planos ordenados por vehículo, tipo de servicio y fecha de entrega descendente
+     */
+    List<RegistroMantenimientoPreventivo> listarMantenimientosPreventivos();
 }
