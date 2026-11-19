@@ -34,7 +34,7 @@
 
 ## [En curso] — Sprint 6: Facturación y entrega (`develop`)
 
-### Pendiente de integración — `feat(facturacion): consult and reprint historical invoices (T6.3)` (`feature/facturacion` → `develop`, cierra `#51`, RF-24 / RN-11 / §2.7 / HU-12)
+### PR #110 — `feat(facturacion): consult and reprint historical invoices (T6.3)` (`feature/facturacion` → `develop`, cierra `#51`, RF-24 / RN-11 / §2.7 / HU-12)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
   - Creación del DTO `ResultadoReimpresionFactura` (`com.carmotors.sgt.model`) con los datos históricos consultados (`ConsultaFactura`) y la ruta del comprobante TXT regenerado (`Path`).
