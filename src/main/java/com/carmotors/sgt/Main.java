@@ -138,7 +138,7 @@ public class Main {
         menuPrincipal.setSubmenuServicios(new ServiciosMenuView(servicioTipoView, ordenServicioView));
 
         ReporteDAO reporteDAO = new ReporteDAOImpl();
-        ReporteService reporteService = new ReporteService(reporteDAO);
+        ReporteService reporteService = new ReporteService(reporteDAO, tecnicoDAO);
         ReportesController reportesController = new ReportesController(reporteService);
         menuPrincipal.setSubmenuReportes(new ReportesView(reportesController));
 

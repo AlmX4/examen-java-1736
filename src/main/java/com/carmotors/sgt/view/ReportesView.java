@@ -2,9 +2,11 @@ package com.carmotors.sgt.view;
 
 import com.carmotors.sgt.controller.ReportesController;
 import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.model.ProductividadTecnico;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
+import com.carmotors.sgt.model.ReporteProductividadTecnicos;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
 import com.carmotors.sgt.util.ConsoleReader;
 
@@ -43,16 +45,20 @@ public class ReportesView implements SubmenuVista {
             System.out.println("==================================================");
             System.out.println("  1. Consumo de repuestos (RF-27)");
             System.out.println("  2. Servicios más solicitados (RF-25)");
+            System.out.println("  3. Productividad por técnico (RF-26)");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 2);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 3);
             switch (opcion) {
                 case 1:
                     mostrarReporteConsumoRepuestos();
                     break;
                 case 2:
                     mostrarReporteServiciosSolicitados();
+                    break;
+                case 3:
+                    mostrarReporteProductividadTecnicos();
                     break;
                 case 0:
                     ejecutando = false;
@@ -83,6 +89,52 @@ public class ReportesView implements SubmenuVista {
         } finally {
             ConsoleReader.pausar();
         }
+    }
+
+    private void mostrarReporteProductividadTecnicos() {
+        try {
+            System.out.println("\n--- Productividad por técnico (RF-26) ---");
+            System.out.println("  Criterio de rango: fecha de completado de órdenes Completadas, Facturadas o Entregadas.");
+            LocalDate desde = ConsoleReader.leerFecha("Completado desde (yyyy-MM-dd)");
+            LocalDate hasta = ConsoleReader.leerFecha("Completado hasta (yyyy-MM-dd)");
+
+            ReporteProductividadTecnicos reporte = reportesController.generarReporteProductividadTecnicos(desde, hasta);
+            imprimirReporteProductividad(reporte);
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo generar el reporte: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void imprimirReporteProductividad(ReporteProductividadTecnicos reporte) {
+        String formatoFila = "  %-30s %8s %10s %16s";
+        String separador = "  ------------------------------------------------------------------";
+
+        System.out.println("\n==================================================================");
+        System.out.println("                    PRODUCTIVIDAD POR TÉCNICO");
+        System.out.println("==================================================================");
+        System.out.println("  Rango fecha_completado: " + formatearRango(reporte.getFechaDesde(), reporte.getFechaHasta()));
+        if (reporte.sinLineasEnPeriodo()) {
+            System.out.println("  [i] No hay órdenes completadas en el rango indicado; los técnicos activos aparecen en cero.");
+        }
+
+        System.out.println();
+        System.out.println(String.format(formatoFila, "Técnico", "Líneas", "Horas", "Mano de obra"));
+        System.out.println(separador);
+        for (ProductividadTecnico tecnico : reporte.getTecnicos()) {
+            String nombre = tecnico.isActivo() ? tecnico.getNombre() : tecnico.getNombre() + " (inactivo)";
+            System.out.println(String.format(formatoFila, nombre,
+                    String.valueOf(tecnico.getLineasCompletadas()),
+                    tecnico.getHorasTrabajadas().toPlainString(),
+                    "$" + tecnico.getManoObraAtribuida().toPlainString()));
+        }
+        System.out.println(separador);
+        System.out.println(String.format(formatoFila, "Sin distribuir", "", "",
+                "$" + reporte.getManoObraSinDistribuir().toPlainString()));
+        System.out.println(String.format(formatoFila, "TOTAL general", "", "",
+                "$" + reporte.getManoObraTotal().toPlainString()));
+        System.out.println("==================================================================");
     }
 
     private void mostrarReporteConsumoRepuestos() {
