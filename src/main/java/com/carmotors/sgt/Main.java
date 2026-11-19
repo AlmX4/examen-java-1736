@@ -2,6 +2,7 @@ package com.carmotors.sgt;
 
 import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.controller.EvaluacionProveedorController;
+import com.carmotors.sgt.controller.FacturaController;
 import com.carmotors.sgt.controller.InventarioController;
 import com.carmotors.sgt.controller.LoteController;
 import com.carmotors.sgt.controller.OrdenServicioController;
@@ -27,8 +28,13 @@ import com.carmotors.sgt.repository.impl.ClienteDAOImpl;
 import com.carmotors.sgt.repository.impl.DetalleRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.EspecialidadDAOImpl;
 import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
+import com.carmotors.sgt.repository.impl.FacturaDAOImpl;
+import com.carmotors.sgt.repository.impl.FacturaDetalleDAOImpl;
+import com.carmotors.sgt.repository.impl.FacturaSnapshotDAOImpl;
 import com.carmotors.sgt.repository.impl.LoteDAOImpl;
 import com.carmotors.sgt.repository.impl.MantenimientoTipoDAOImpl;
+import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
+import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.ReporteDAOImpl;
@@ -39,6 +45,7 @@ import com.carmotors.sgt.repository.impl.TecnicoDAOImpl;
 import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
 import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
+import com.carmotors.sgt.service.FacturaService;
 import com.carmotors.sgt.service.InventarioService;
 import com.carmotors.sgt.service.LoteService;
 import com.carmotors.sgt.service.OrdenServicioService;
@@ -55,6 +62,7 @@ import com.carmotors.sgt.view.CatalogoProveedorView;
 import com.carmotors.sgt.view.ClienteView;
 import com.carmotors.sgt.view.ConsolaMenuView;
 import com.carmotors.sgt.view.EvaluacionProveedorView;
+import com.carmotors.sgt.view.FacturacionView;
 import com.carmotors.sgt.view.LoteView;
 import com.carmotors.sgt.view.OrdenServicioView;
 import com.carmotors.sgt.view.ProveedorView;
@@ -142,8 +150,11 @@ public class Main {
         ReportesController reportesController = new ReportesController(reporteService);
         menuPrincipal.setSubmenuReportes(new ReportesView(reportesController));
 
-        // Conexión de submenús pendientes (implementar SubmenuVista en com.carmotors.sgt.view):
-        // menuPrincipal.setSubmenuFacturacion(new FacturacionView(facturacionController));
+        FacturaService facturaService = new FacturaService(new FacturaDAOImpl(), new FacturaSnapshotDAOImpl(),
+                new FacturaDetalleDAOImpl(), new OrdenServicioDAOImpl(), new OrdenServicioDetalleDAOImpl(),
+                new DetalleRepuestoDAOImpl(), vehiculoDAO, clienteDAO);
+        FacturaController facturaController = new FacturaController(facturaService);
+        menuPrincipal.setSubmenuFacturacion(new FacturacionView(facturaController));
 
         menuPrincipal.mostrarMenuPrincipal();
     }

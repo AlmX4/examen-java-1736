@@ -1,0 +1,27 @@
+package com.carmotors.sgt.controller;
+
+import com.carmotors.sgt.model.ConsultaFactura;
+import com.carmotors.sgt.service.FacturaService;
+
+/**
+ * Controlador de facturación (RNF-04): solo delega en {@link FacturaService}.
+ */
+public class FacturaController {
+
+    private final FacturaService facturaService;
+
+    public FacturaController(FacturaService facturaService) {
+        if (facturaService == null) {
+            throw new IllegalArgumentException("El servicio de facturación es obligatorio.");
+        }
+        this.facturaService = facturaService;
+    }
+
+    public ConsultaFactura generarFactura(int ordenId) {
+        return facturaService.generarFactura(ordenId);
+    }
+
+    public ConsultaFactura consultarFactura(int facturaId) {
+        return facturaService.consultarFactura(facturaId);
+    }
+}
