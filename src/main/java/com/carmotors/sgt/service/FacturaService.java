@@ -31,29 +31,40 @@ import com.carmotors.sgt.repository.impl.FacturaSnapshotDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
 import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
 import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
+import com.carmotors.sgt.service.builder.FacturaTXTBuilder;
 import com.carmotors.sgt.service.state.EstadoOrden;
 import com.carmotors.sgt.service.state.EstadoOrdenFactory;
 import com.carmotors.sgt.util.InputValidator;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 /**
  * Reglas de negocio para generar y consultar facturas internas (RF-22, RF-23, RN-09, RN-11, RN-12).
  *
  * <p>La cabecera, el snapshot de cliente y vehículo, los conceptos y el cambio de la orden a
- * Facturado se guardan en una única transacción JDBC (sección 2.7). El archivo TXT y la marca
- * {@code archivo_generado} pertenecen a T6.2.</p>
+ * Facturado se guardan en una única transacción JDBC. El TXT y su marca se gestionan
+ * después del commit (sección 2.7).</p>
  */
 public class FacturaService {
 
     /** Tasa de IVA académica fija del proyecto (RN-12); se guarda en {@code facturas.tasa_iva}. */
     public static final BigDecimal TASA_IVA = new BigDecimal("0.19");
 
+    private static final Logger LOGGER = Logger.getLogger(FacturaService.class.getName());
     private static final String PREFIJO_NUMERO = "F-";
     private static final int DIGITOS_CONSECUTIVO = 4;
     private static final int MAX_CONSECUTIVO = 9999;
@@ -67,6 +78,7 @@ public class FacturaService {
     private final VehiculoDAO vehiculoDAO;
     private final ClienteDAO clienteDAO;
     private final boolean usarTransaccionJdbc;
+    private final Supplier<Path> carpetaFacturas;
 
     /**
      * Constructor de producción con DAOs JDBC por defecto y transacción con una única {@link Connection}.
@@ -95,6 +107,16 @@ public class FacturaService {
                           FacturaDetalleDAO facturaDetalleDAO, OrdenServicioDAO ordenServicioDAO,
                           OrdenServicioDetalleDAO ordenServicioDetalleDAO, DetalleRepuestoDAO detalleRepuestoDAO,
                           VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, boolean usarTransaccionJdbc) {
+        this(facturaDAO, facturaSnapshotDAO, facturaDetalleDAO, ordenServicioDAO, ordenServicioDetalleDAO,
+                detalleRepuestoDAO, vehiculoDAO, clienteDAO, usarTransaccionJdbc,
+                usarTransaccionJdbc ? () -> Path.of(ConnectionFactory.getInstance().getCarpetaFacturas()) : null);
+    }
+
+    public FacturaService(FacturaDAO facturaDAO, FacturaSnapshotDAO facturaSnapshotDAO,
+                          FacturaDetalleDAO facturaDetalleDAO, OrdenServicioDAO ordenServicioDAO,
+                          OrdenServicioDetalleDAO ordenServicioDetalleDAO, DetalleRepuestoDAO detalleRepuestoDAO,
+                          VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, boolean usarTransaccionJdbc,
+                          Supplier<Path> carpetaFacturas) {
         if (facturaDAO == null) {
             throw new ValidacionException("El DAO de facturas es obligatorio.");
         }
@@ -128,6 +150,7 @@ public class FacturaService {
         this.vehiculoDAO = vehiculoDAO;
         this.clienteDAO = clienteDAO;
         this.usarTransaccionJdbc = usarTransaccionJdbc;
+        this.carpetaFacturas = carpetaFacturas;
     }
 
     /**
@@ -137,12 +160,25 @@ public class FacturaService {
      * patrón State y que no exista factura previa, arma los conceptos con los valores históricos de
      * la orden, calcula los totales, asigna el número consecutivo del año, guarda la cabecera, el
      * snapshot y los conceptos, comprueba que haya un snapshot y al menos un concepto, y cambia la
-     * orden a Facturado. Si algo falla, nada cambia.</p>
+     * orden a Facturado. Tras confirmar, intenta escribir el TXT. Si falla el archivo,
+     * devuelve la factura persistida con su marca pendiente.</p>
      *
      * @param ordenId identificador de la orden
      * @return la factura generada con su snapshot y sus conceptos
      */
     public ConsultaFactura generarFactura(int ordenId) {
+        ConsultaFactura generada = persistirFactura(ordenId);
+        if (carpetaFacturas != null) {
+            try {
+                generarArchivo(generada);
+            } catch (CarMotorsException e) {
+                registrarFalloArchivo(generada.getFactura().getId(), e);
+            }
+        }
+        return generada;
+    }
+
+    private ConsultaFactura persistirFactura(int ordenId) {
         if (ordenId <= 0) {
             throw new ValidacionException("El ID de la orden debe ser un número positivo.");
         }
@@ -201,6 +237,69 @@ public class FacturaService {
                     + "y vehículo.");
         }
         return new ConsultaFactura(factura, snapshot, facturaDetalleDAO.listarPorFactura(facturaId));
+    }
+
+    /** Regenera el mismo comprobante a partir de sus datos históricos persistidos. */
+    public Path reintentarArchivo(int facturaId) {
+        ConsultaFactura consulta = consultarFactura(facturaId);
+        try {
+            return generarArchivo(consulta);
+        } catch (CarMotorsException e) {
+            registrarFalloArchivo(facturaId, e);
+            throw e;
+        }
+    }
+
+    private Path generarArchivo(ConsultaFactura consulta) {
+        Factura factura = consulta.getFactura();
+        if (carpetaFacturas == null) {
+            throw new CarMotorsException("La carpeta de facturas no está configurada.");
+        }
+        if (!factura.getNumeroFactura().matches("[A-Za-z0-9_-]+") || consulta.getDetalles().isEmpty()) {
+            throw new CarMotorsException("La factura no tiene datos válidos para generar el TXT.");
+        }
+
+        String contenido = new FacturaTXTBuilder()
+                .conEncabezado(factura)
+                .conClienteYVehiculo(consulta.getSnapshot())
+                .conConceptos(consulta.getDetalles())
+                .conTotales(factura)
+                .construir();
+        Path destino;
+        try {
+            Path carpeta = Files.createDirectories(carpetaFacturas.get());
+            destino = carpeta.resolve("factura_" + factura.getNumeroFactura() + ".txt");
+            escribirArchivoCompleto(destino, contenido);
+        } catch (IOException | InvalidPathException | SecurityException e) {
+            throw new CarMotorsException("No se pudo escribir el comprobante TXT. Revise la carpeta configurada.", e);
+        }
+
+        facturaDAO.marcarArchivoGenerado(factura.getId());
+        factura.setArchivoGenerado(true);
+        return destino;
+    }
+
+    private void escribirArchivoCompleto(Path destino, String contenido) throws IOException {
+        Path temporal = Files.createTempFile(destino.getParent(), "factura_", ".tmp");
+        try {
+            try (BufferedWriter escritor = Files.newBufferedWriter(temporal, StandardCharsets.UTF_8)) {
+                escritor.write(contenido);
+            }
+            Files.move(temporal, destino, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException | SecurityException e) {
+            try {
+                Files.deleteIfExists(temporal);
+            } catch (IOException | SecurityException errorLimpieza) {
+                e.addSuppressed(errorLimpieza);
+            }
+            throw e;
+        }
+    }
+
+    private void registrarFalloArchivo(int facturaId, CarMotorsException e) {
+        Throwable causa = e.getCause() == null ? e : e.getCause();
+        LOGGER.warning("No se pudo finalizar el TXT de la factura " + facturaId + " ("
+                + causa.getClass().getSimpleName() + ").");
     }
 
     private ConsultaFactura ejecutarGenerarFactura(int ordenId, LocalDateTime fechaEmision,

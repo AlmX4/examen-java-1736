@@ -3,6 +3,8 @@ package com.carmotors.sgt.controller;
 import com.carmotors.sgt.model.ConsultaFactura;
 import com.carmotors.sgt.service.FacturaService;
 
+import java.nio.file.Path;
+
 /**
  * Controlador de facturación (RNF-04): solo delega en {@link FacturaService}.
  */
@@ -23,5 +25,9 @@ public class FacturaController {
 
     public ConsultaFactura consultarFactura(int facturaId) {
         return facturaService.consultarFactura(facturaId);
+    }
+
+    public Path reintentarArchivo(int facturaId) {
+        return facturaService.reintentarArchivo(facturaId);
     }
 }

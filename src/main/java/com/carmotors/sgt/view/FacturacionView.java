@@ -41,13 +41,17 @@ public class FacturacionView implements SubmenuVista {
             System.out.println("                  FACTURACIÓN                     ");
             System.out.println("==================================================");
             System.out.println("  1. Generar factura de una orden");
+            System.out.println("  2. Reintentar generación del TXT");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 1);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 2);
             switch (opcion) {
                 case 1:
                     generarFactura();
+                    break;
+                case 2:
+                    reintentarArchivo();
                     break;
                 case 0:
                     ejecutando = false;
@@ -69,10 +73,27 @@ public class FacturacionView implements SubmenuVista {
             }
 
             ConsultaFactura generada = facturaController.generarFactura(ordenId);
-            System.out.println("\n  [✓] Factura generada exitosamente.");
+            Factura factura = generada.getFactura();
+            System.out.println("\n  [✓] Factura registrada en BD (ID " + factura.getId() + ").");
+            if (factura.isArchivoGenerado()) {
+                System.out.println("  TXT generado: factura_" + factura.getNumeroFactura() + ".txt");
+            } else {
+                System.out.println("  [!] El TXT quedó pendiente. Use la opción 2 con este ID para reintentar.");
+            }
             imprimirFactura(generada);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] No se pudo generar la factura: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void reintentarArchivo() {
+        try {
+            int facturaId = ConsoleReader.leerEnteroPositivo("ID de la factura");
+            System.out.println("\n  [✓] TXT generado: " + facturaController.reintentarArchivo(facturaId));
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo generar el TXT: " + e.getMessage());
         } finally {
             ConsoleReader.pausar();
         }

@@ -29,6 +29,9 @@ public interface FacturaDAO {
      */
     Factura buscarPorOrden(int ordenId);
 
+    /** Marca una factura existente como generada, incluso si ya estaba marcada. */
+    void marcarArchivoGenerado(int facturaId);
+
     /**
      * Obtiene el número de factura más alto emitido en un año (formato {@code F-<año>-<consecutivo>}).
      *

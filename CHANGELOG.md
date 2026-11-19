@@ -34,6 +34,12 @@
 
 ## [En curso] — Sprint 6: Facturación y entrega (`develop`)
 
+### PR #108 — `feat(facturacion): generate invoice text files after commit (T6.2)` (`feature/facturacion` → `develop`, cierra `#50`, RF-22 / §2.7 / HU-12)
+- **Autor:** `@AlmX4`
+- `FacturaTXTBuilder` arma el comprobante con los datos históricos de cliente, vehículo, conceptos y totales.
+- El TXT UTF-8 se publica en la carpeta configurada después del commit y la marca `archivo_generado` se actualiza después de confirmar la escritura.
+- Un fallo conserva la factura en BD y permite reintentar desde el submenú de facturación con el mismo ID y nombre de archivo.
+
 ### PR #106 — `feat(facturacion): generate invoice (T6.1)` (`feature/facturacion` → `develop`, cierra `#49`, RF-22 / RF-23 / RN-09 / RN-11 / RN-12 / RNF-15 / HU-12)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
