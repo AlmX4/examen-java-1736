@@ -46,6 +46,7 @@ import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
 import com.carmotors.sgt.service.ClienteService;
 import com.carmotors.sgt.service.EvaluacionProveedorService;
 import com.carmotors.sgt.service.FacturaService;
+import com.carmotors.sgt.service.HistorialClienteService;
 import com.carmotors.sgt.service.InventarioService;
 import com.carmotors.sgt.service.LoteService;
 import com.carmotors.sgt.service.OrdenServicioService;
@@ -86,7 +87,8 @@ public class Main {
         ClienteService clienteService = new ClienteService(clienteDAO);
         VehiculoDAO vehiculoDAO = new VehiculoDAOImpl();
         VehiculoService vehiculoService = new VehiculoService(vehiculoDAO, clienteDAO);
-        ClienteController clienteController = new ClienteController(clienteService, vehiculoService);
+        ClienteController clienteController = new ClienteController(clienteService, vehiculoService,
+                new HistorialClienteService());
         menuPrincipal.setSubmenuClientes(new ClienteView(clienteController));
 
         ProveedorDAO proveedorDAO = new ProveedorDAOImpl();

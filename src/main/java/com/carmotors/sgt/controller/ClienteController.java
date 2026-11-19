@@ -2,8 +2,10 @@ package com.carmotors.sgt.controller;
 
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.HistorialCliente;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.service.ClienteService;
+import com.carmotors.sgt.service.HistorialClienteService;
 import com.carmotors.sgt.service.VehiculoService;
 
 import java.util.List;
@@ -17,17 +19,24 @@ public class ClienteController {
 
     private final ClienteService clienteService;
     private final VehiculoService vehiculoService;
+    private final HistorialClienteService historialClienteService;
 
     public ClienteController(ClienteService clienteService) {
-        this(clienteService, null);
+        this(clienteService, null, null);
     }
 
     public ClienteController(ClienteService clienteService, VehiculoService vehiculoService) {
+        this(clienteService, vehiculoService, null);
+    }
+
+    public ClienteController(ClienteService clienteService, VehiculoService vehiculoService,
+                             HistorialClienteService historialClienteService) {
         if (clienteService == null) {
             throw new IllegalArgumentException("El servicio de clientes es obligatorio.");
         }
         this.clienteService = clienteService;
         this.vehiculoService = vehiculoService;
+        this.historialClienteService = historialClienteService;
     }
 
     public List<Cliente> listarTodos() {
@@ -92,6 +101,24 @@ public class ClienteController {
     private void verificarServicioVehiculos() {
         if (vehiculoService == null) {
             throw new ValidacionException("El servicio de vehículos no ha sido configurado.");
+        }
+    }
+
+    // --- Historial del cliente (RF-20, RN-17, HU-10) ---
+
+    public HistorialCliente consultarHistorialCliente(int clienteId) {
+        verificarServicioHistorial();
+        return historialClienteService.consultarPorId(clienteId);
+    }
+
+    public HistorialCliente consultarHistorialCliente(String documento) {
+        verificarServicioHistorial();
+        return historialClienteService.consultarPorDocumento(documento);
+    }
+
+    private void verificarServicioHistorial() {
+        if (historialClienteService == null) {
+            throw new ValidacionException("El servicio de historial del cliente no ha sido configurado.");
         }
     }
 }

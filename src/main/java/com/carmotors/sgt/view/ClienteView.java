@@ -4,15 +4,22 @@ import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.HistorialCliente;
+import com.carmotors.sgt.model.OrdenServicioDetalle;
+import com.carmotors.sgt.model.ResumenOrdenHistorial;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.util.ConsoleReader;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * Submenú de consola para la gestión de clientes y vehículos (RF-17, RF-18, RF-19, RN-13, RN-17, RNF-03, RNF-24).
+ * Submenú de consola para la gestión de clientes y vehículos (RF-17, RF-18, RF-19, RF-20, RN-13, RN-17,
+ * RNF-03, RNF-24).
  */
 public class ClienteView implements SubmenuVista {
+
+    private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final ClienteController clienteController;
 
@@ -46,10 +53,11 @@ public class ClienteView implements SubmenuVista {
             System.out.println("  9. Registrar vehículo a un cliente");
             System.out.println(" 10. Listar vehículos de un cliente");
             System.out.println(" 11. Buscar vehículo por placa");
+            System.out.println(" 12. Consultar historial del cliente");
             System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 11);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 12);
             switch (opcion) {
                 case 1:
                     listarClientes(true);
@@ -83,6 +91,9 @@ public class ClienteView implements SubmenuVista {
                     break;
                 case 11:
                     buscarVehiculoPorPlaca();
+                    break;
+                case 12:
+                    consultarHistorialCliente();
                     break;
                 case 0:
                     ejecutando = false;
@@ -307,6 +318,69 @@ public class ClienteView implements SubmenuVista {
                 + " | Tel: " + tel
                 + " | Email: " + cliente.getEmail()
                 + " | Estado: " + estado);
+    }
+
+    private void consultarHistorialCliente() {
+        try {
+            int modo = ConsoleReader.leerEnteroEnRango("Buscar cliente por: 1) ID  2) Documento", 1, 2);
+            HistorialCliente historial;
+            if (modo == 1) {
+                int clienteId = ConsoleReader.leerEnteroPositivo("ID del cliente");
+                historial = clienteController.consultarHistorialCliente(clienteId);
+            } else {
+                String documento = ConsoleReader.leerTextoObligatorio("Documento del cliente");
+                historial = clienteController.consultarHistorialCliente(documento);
+            }
+            imprimirHistorial(historial);
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void imprimirHistorial(HistorialCliente historial) {
+        Cliente cliente = historial.getCliente();
+        System.out.println("\n--- Historial del Cliente ---");
+        System.out.println("  Cliente:    " + cliente.getNombre());
+        System.out.println("  Documento:  " + cliente.getDocumentoIdentidad());
+        System.out.println("  Estado:     " + (cliente.isActivo() ? "Activo" : "Inactivo"));
+
+        List<Vehiculo> vehiculos = historial.getVehiculos();
+        if (vehiculos.isEmpty()) {
+            System.out.println("\n  [i] El cliente no tiene vehículos registrados.");
+        } else {
+            System.out.println("\n  Vehículos:");
+            for (Vehiculo vehiculo : vehiculos) {
+                System.out.println("    - " + vehiculo.getPlaca() + " | " + vehiculo.getMarca()
+                        + " " + vehiculo.getModelo());
+            }
+        }
+
+        List<ResumenOrdenHistorial> ordenes = historial.getOrdenes();
+        if (ordenes.isEmpty()) {
+            System.out.println("\n  [i] El cliente no tiene órdenes de servicio registradas.");
+            return;
+        }
+
+        System.out.println("\n  Órdenes de servicio (más reciente primero):");
+        for (ResumenOrdenHistorial orden : ordenes) {
+            String fecha = orden.getFechaRecepcion() == null
+                    ? "Sin fecha"
+                    : orden.getFechaRecepcion().format(FORMATO_FECHA_HORA);
+            System.out.println("    - Orden " + orden.getOrdenId() + " | " + orden.getPlaca()
+                    + " | Estado: " + orden.getEstado() + " | Recepción: " + fecha);
+            for (OrdenServicioDetalle linea : orden.getLineas()) {
+                System.out.println("        · Línea " + linea.getId() + ": " + linea.getNombreServicioSnapshot()
+                        + " | Mano de obra: $" + linea.getCostoManoObra());
+            }
+            if (orden.isFacturada()) {
+                System.out.println("        Total facturado: $" + orden.getTotalFacturado().toPlainString()
+                        + " | Factura: " + orden.getNumeroFactura());
+            } else {
+                System.out.println("        Total facturado: Sin facturar");
+            }
+        }
     }
 
     private void imprimirDetalleVehiculo(Vehiculo vehiculo) {
