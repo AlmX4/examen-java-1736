@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 8: Cierre y entrega (`develop`)
 
-### Pendiente de integración — `feat(view): polish console menus, confirmations, and navigation flows (T8.1)` (`feature/documentacion` → `develop`, cierra `#58`, RNF-03 / RNF-24)
+### PR #113 — `feat(view): polish console menus, confirmations, and navigation flows (T8.1)` (`feature/documentacion` → `develop`, cierra `#58`, RNF-03 / RNF-24)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
   - `Main.java`: captura de excepciones de alto nivel alrededor de la inicialización y arranque del menú principal con mensaje amigable (`[!] Error crítico...`) sin `System.exit()` ni trazas crudas.
