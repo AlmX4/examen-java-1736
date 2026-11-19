@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 public class ConsultaOrdenServicioDAOImpl implements ConsultaOrdenServicioDAO {
+    private static final String ORDEN_POR_FECHA = " ORDER BY o.fecha_recepcion DESC, o.id DESC, d.id, t.id";
+
     private final Connection connection;
 
     public ConsultaOrdenServicioDAOImpl(Connection connection) {
@@ -26,14 +28,7 @@ public class ConsultaOrdenServicioDAOImpl implements ConsultaOrdenServicioDAO {
 
     @Override
     public List<ResumenOrdenServicio> listar(FiltroOrdenServicio filtro) {
-        StringBuilder sql = new StringBuilder(
-                "SELECT o.id, o.estado_id, o.fecha_recepcion, v.placa, d.servicio_tipo_id, "
-                + "t.id AS tecnico_id, t.nombre AS tecnico_nombre "
-                + "FROM ordenes_servicio o "
-                + "JOIN vehiculos v ON v.id = o.vehiculo_id "
-                + "LEFT JOIN orden_servicio_detalle d ON d.orden_id = o.id "
-                + "LEFT JOIN detalle_tecnicos dt ON dt.detalle_id = d.id "
-                + "LEFT JOIN tecnicos t ON t.id = dt.tecnico_id WHERE 1 = 1");
+        StringBuilder sql = sqlBase();
         List<Object> parametros = new ArrayList<>();
         if (filtro.getEstadoId() != null) {
             sql.append(" AND o.estado_id = ?");
@@ -51,8 +46,34 @@ public class ConsultaOrdenServicioDAOImpl implements ConsultaOrdenServicioDAO {
             sql.append(" AND o.fecha_recepcion < ?");
             parametros.add(Timestamp.valueOf(filtro.getHasta().plusDays(1).atStartOfDay()));
         }
-        sql.append(" ORDER BY o.fecha_recepcion DESC, o.id DESC, d.id, t.id");
+        sql.append(ORDEN_POR_FECHA);
+        return ejecutarConsulta(sql, parametros, "No se pudieron listar las órdenes de servicio.");
+    }
 
+    @Override
+    public List<ResumenOrdenServicio> listarPorCliente(int clienteId) {
+        StringBuilder sql = sqlBase();
+        List<Object> parametros = new ArrayList<>();
+        sql.append(" AND v.cliente_id = ?");
+        parametros.add(clienteId);
+        sql.append(ORDEN_POR_FECHA);
+        return ejecutarConsulta(sql, parametros,
+                "No se pudieron listar las órdenes del cliente " + clienteId + ".");
+    }
+
+    private StringBuilder sqlBase() {
+        return new StringBuilder(
+                "SELECT o.id, o.estado_id, o.fecha_recepcion, v.placa, d.servicio_tipo_id, "
+                + "t.id AS tecnico_id, t.nombre AS tecnico_nombre "
+                + "FROM ordenes_servicio o "
+                + "JOIN vehiculos v ON v.id = o.vehiculo_id "
+                + "LEFT JOIN orden_servicio_detalle d ON d.orden_id = o.id "
+                + "LEFT JOIN detalle_tecnicos dt ON dt.detalle_id = d.id "
+                + "LEFT JOIN tecnicos t ON t.id = dt.tecnico_id WHERE 1 = 1");
+    }
+
+    private List<ResumenOrdenServicio> ejecutarConsulta(StringBuilder sql, List<Object> parametros,
+                                                        String mensajeError) {
         Map<Integer, ResumenOrdenServicio> ordenes = new LinkedHashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(sql.toString())) {
             for (int i = 0; i < parametros.size(); i++) {
@@ -83,7 +104,7 @@ public class ConsultaOrdenServicioDAOImpl implements ConsultaOrdenServicioDAO {
                 }
             }
         } catch (SQLException e) {
-            throw new CarMotorsException("No se pudieron listar las órdenes de servicio.", e);
+            throw new CarMotorsException(mensajeError, e);
         }
         return new ArrayList<>(ordenes.values());
     }
