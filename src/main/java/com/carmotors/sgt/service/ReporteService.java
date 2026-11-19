@@ -2,7 +2,9 @@ package com.carmotors.sgt.service;
 
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.ProductividadTecnico;
+import com.carmotors.sgt.model.RecordatorioMantenimiento;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
@@ -22,6 +24,7 @@ import com.carmotors.sgt.util.InputValidator;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -41,6 +44,9 @@ public class ReporteService {
     private static final int ESTADO_COMPLETADO = new EstadoCompletado().getEstadoId();
     private static final int ESTADO_FACTURADO = new EstadoFacturado().getEstadoId();
     private static final int ESTADO_ENTREGADO = new EstadoEntregado().getEstadoId();
+
+    /** Días hacia adelante en los que un recordatorio se considera próximo (RF-21). */
+    private static final int DIAS_RECORDATORIO_PROXIMO = 30;
 
     private final ReporteDAO reporteDAO;
     private final TecnicoDAO tecnicoDAO;
@@ -189,6 +195,87 @@ public class ReporteService {
 
         return new ReporteProductividadTecnicos(fechaDesde, fechaHasta, ordenado, porLinea.size(),
                 sinDistribuir, manoObraTotal);
+    }
+
+    /**
+     * Genera el reporte de recordatorios de mantenimiento preventivo (RF-21, RN-15, §4.2).
+     *
+     * <p>Agrupa por vehículo y tipo de servicio y toma solo la entrega más reciente de cada grupo
+     * (un servicio entregado más reciente reemplaza al anterior). La fecha sugerida es la fecha de
+     * esa entrega más {@code intervalo_meses}. Incluye los vencidos y los que vencen dentro de los
+     * próximos 30 días (ambos límites incluidos), solo de clientes activos. Ordena primero los
+     * vencidos, del más atrasado al más reciente, y luego los próximos, del más cercano al más
+     * lejano; en empate, por placa. No envía notificaciones: la gestión es manual.</p>
+     *
+     * @param fechaReferencia fecha desde la que se calculan vencidos y próximos (normalmente hoy)
+     * @return recordatorios ordenados; lista vacía si no hay ninguno
+     */
+    public List<RecordatorioMantenimiento> generarReporteRecordatorios(LocalDate fechaReferencia) {
+        if (fechaReferencia == null) {
+            throw new ValidacionException("La fecha de referencia del reporte de recordatorios es obligatoria.");
+        }
+        LocalDate fechaLimite = fechaReferencia.plusDays(DIAS_RECORDATORIO_PROXIMO);
+
+        Map<String, List<RegistroMantenimientoPreventivo>> porVehiculoYServicio = reporteDAO
+                .listarMantenimientosPreventivos().stream()
+                .filter(registro -> registro != null)
+                .filter(registro -> registro.getFechaEntrega() != null)
+                .filter(registro -> registro.getIntervaloMeses() != null && registro.getIntervaloMeses() > 0)
+                .collect(Collectors.groupingBy(
+                        registro -> registro.getVehiculoId() + ":" + registro.getServicioTipoId()));
+
+        return porVehiculoYServicio.values().stream()
+                .map(grupo -> ultimaEntrega(grupo))
+                .filter(ultima -> ultima.isClienteActivo())
+                .map(ultima -> crearRecordatorio(ultima, fechaReferencia))
+                .filter(recordatorio -> !recordatorio.getFechaSugerida().isAfter(fechaLimite))
+                .sorted(comparadorRecordatorios())
+                .collect(Collectors.toList());
+    }
+
+    private RegistroMantenimientoPreventivo ultimaEntrega(List<RegistroMantenimientoPreventivo> grupo) {
+        List<RegistroMantenimientoPreventivo> masRecientePrimero = grupo.stream()
+                .sorted((a, b) -> {
+                    int porFecha = b.getFechaEntrega().compareTo(a.getFechaEntrega());
+                    if (porFecha != 0) {
+                        return porFecha;
+                    }
+                    return Integer.compare(b.getOrdenId(), a.getOrdenId());
+                })
+                .collect(Collectors.toList());
+        return masRecientePrimero.get(0);
+    }
+
+    private RecordatorioMantenimiento crearRecordatorio(RegistroMantenimientoPreventivo ultima,
+                                                        LocalDate fechaReferencia) {
+        LocalDate fechaEntrega = ultima.getFechaEntrega().toLocalDate();
+        LocalDate fechaSugerida = fechaEntrega.plusMonths(ultima.getIntervaloMeses());
+        int diasRestantes = (int) ChronoUnit.DAYS.between(fechaReferencia, fechaSugerida);
+        return new RecordatorioMantenimiento(ultima.getClienteId(), ultima.getClienteNombre(),
+                ultima.getClienteTelefono(), ultima.getClienteEmail(), ultima.getVehiculoId(), ultima.getPlaca(),
+                ultima.getMarca(), ultima.getModelo(), ultima.getServicioTipoId(), ultima.getNombreServicio(),
+                ultima.getIntervaloMeses(), ultima.getOrdenId(), fechaEntrega, fechaSugerida, diasRestantes);
+    }
+
+    /**
+     * Vencidos antes que próximos; los vencidos del más atrasado al más reciente y los próximos del
+     * más cercano al más lejano (en ambos casos, fecha sugerida ascendente); luego placa y servicio.
+     */
+    private Comparator<RecordatorioMantenimiento> comparadorRecordatorios() {
+        return (a, b) -> {
+            if (a.isVencido() != b.isVencido()) {
+                return a.isVencido() ? -1 : 1;
+            }
+            int porFecha = a.getFechaSugerida().compareTo(b.getFechaSugerida());
+            if (porFecha != 0) {
+                return porFecha;
+            }
+            int porPlaca = a.getPlaca().compareToIgnoreCase(b.getPlaca());
+            if (porPlaca != 0) {
+                return porPlaca;
+            }
+            return a.getNombreServicio().compareToIgnoreCase(b.getNombreServicio());
+        };
     }
 
     private Map<Integer, BigDecimal> repartirManoObra(List<RegistroProductividadTecnico> linea) {
