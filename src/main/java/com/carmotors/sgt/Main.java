@@ -48,6 +48,7 @@ import com.carmotors.sgt.service.ReporteService;
 import com.carmotors.sgt.service.RepuestoService;
 import com.carmotors.sgt.service.ServicioTipoService;
 import com.carmotors.sgt.service.TecnicoService;
+import com.carmotors.sgt.service.facade.TallerFacade;
 import com.carmotors.sgt.service.observer.AlertaStockBajoObserver;
 import com.carmotors.sgt.service.VehiculoService;
 import com.carmotors.sgt.view.CatalogoProveedorView;
@@ -130,9 +131,10 @@ public class Main {
 
         OrdenServicioService ordenServicioService = new OrdenServicioService(vehiculoDAO, clienteDAO, servicioTipoDAO,
                 repuestoDAO, new DetalleRepuestoDAOImpl(), inventarioService);
-        OrdenServicioController ordenServicioController = new OrdenServicioController(ordenServicioService);
+        TallerFacade tallerFacade = new TallerFacade(ordenServicioService, inventarioService, tecnicoService);
+        OrdenServicioController ordenServicioController = new OrdenServicioController(ordenServicioService, tallerFacade);
         OrdenServicioView ordenServicioView =
-                new OrdenServicioView(ordenServicioController, clienteController, servicioTipoController, tecnicoController);
+                new OrdenServicioView(ordenServicioController, clienteController, servicioTipoController);
         menuPrincipal.setSubmenuServicios(new ServiciosMenuView(servicioTipoView, ordenServicioView));
 
         ReporteDAO reporteDAO = new ReporteDAOImpl();
