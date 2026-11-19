@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
 
-### Pendiente de integración — `feat(servicios): cancel service order and release reservations (T5.3)` (`feature/gestion-servicios` → `develop`, cierra `#47`, RF-14 / RN-04 / RN-05 / RN-06 / HU-08)
+### PR #102 — `feat(servicios): cancel service order and release reservations (T5.3)` (`feature/gestion-servicios` → `develop`, cierra `#47`, RF-14 / RN-04 / RN-05 / RN-06 / HU-08)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
   - Nuevo método `OrdenServicioDAO.marcarCancelada(int, int, LocalDateTime)` e implementación en `OrdenServicioDAOImpl` (`UPDATE ordenes_servicio SET estado_id = ?, fecha_cancelacion = ? WHERE id = ?`, respetando `conexionCompartida` dentro de transacciones JDBC).
