@@ -776,6 +776,11 @@ class OrdenServicioServiceTest {
         public boolean marcarCompletada(int ordenId, int estadoId, LocalDateTime fechaCompletado) {
             return false;
         }
+
+        @Override
+        public boolean marcarCancelada(int ordenId, int estadoId, LocalDateTime fechaCancelacion) {
+            return false;
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {
