@@ -1,14 +1,20 @@
 package com.carmotors.sgt.service;
 
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.ProductividadTecnico;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
+import com.carmotors.sgt.model.ReporteProductividadTecnicos;
+import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.repository.ReporteDAO;
+import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.impl.ReporteDAOImpl;
+import com.carmotors.sgt.repository.impl.TecnicoDAOImpl;
 import com.carmotors.sgt.service.state.EstadoCompletado;
 import com.carmotors.sgt.service.state.EstadoEntregado;
 import com.carmotors.sgt.service.state.EstadoFacturado;
@@ -16,7 +22,9 @@ import com.carmotors.sgt.util.InputValidator;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,16 +43,29 @@ public class ReporteService {
     private static final int ESTADO_ENTREGADO = new EstadoEntregado().getEstadoId();
 
     private final ReporteDAO reporteDAO;
+    private final TecnicoDAO tecnicoDAO;
 
     public ReporteService() {
-        this(new ReporteDAOImpl());
+        this(new ReporteDAOImpl(), new TecnicoDAOImpl());
     }
 
     public ReporteService(ReporteDAO reporteDAO) {
+        this(reporteDAO, new TecnicoDAOImpl());
+    }
+
+    /**
+     * Constructor con el DAO de técnicos inyectado, necesario para incluir en el reporte de
+     * productividad (RF-26) a los técnicos activos sin trabajo en el periodo.
+     */
+    public ReporteService(ReporteDAO reporteDAO, TecnicoDAO tecnicoDAO) {
         if (reporteDAO == null) {
             throw new ValidacionException("El DAO de reportes es obligatorio.");
         }
+        if (tecnicoDAO == null) {
+            throw new ValidacionException("El DAO de técnicos es obligatorio.");
+        }
         this.reporteDAO = reporteDAO;
+        this.tecnicoDAO = tecnicoDAO;
     }
 
     /**
@@ -104,6 +125,177 @@ public class ReporteService {
                 .sorted(Comparator.comparingInt(ResumenServicioSolicitado::getCantidadLineas).reversed()
                         .thenComparingInt(ResumenServicioSolicitado::getServicioTipoId))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Genera el reporte de productividad por técnico en un rango de {@code fecha_completado}
+     * (RF-26, §4.2, §4.3).
+     *
+     * <p>La mano de obra de cada línea se reparte entre sus técnicos en proporción a sus horas
+     * ({@code costo × horas_del_técnico / total_horas_de_la_línea}) con {@link BigDecimal}, escala 2 y
+     * {@code HALF_UP}. La diferencia de centavos se asigna al técnico con más horas de la línea (en
+     * empate, al de menor ID), de modo que la suma por línea es exactamente su costo. Si una línea no
+     * tiene horas (o no tiene técnicos), su mano de obra va al total "sin distribuir". Incluye a los
+     * técnicos con trabajo en el periodo (aunque hoy estén inactivos) y a los activos sin trabajo con
+     * cero; se ordena por mano de obra descendente, horas descendente y nombre ascendente.</p>
+     *
+     * @param fechaDesde límite inferior inclusivo de {@code fecha_completado} (obligatorio)
+     * @param fechaHasta límite superior inclusivo de {@code fecha_completado} (obligatorio)
+     * @return reporte con el resultado por técnico, el total sin distribuir y el total del periodo
+     */
+    public ReporteProductividadTecnicos generarReporteProductividadTecnicos(LocalDate fechaDesde, LocalDate fechaHasta) {
+        if (fechaDesde == null || fechaHasta == null) {
+            throw new ValidacionException("Indique ambas fechas del rango de finalización.");
+        }
+        validarRangoFechas(fechaDesde, fechaHasta);
+
+        List<RegistroProductividadTecnico> registros = reporteDAO.listarProductividadTecnicos(fechaDesde, fechaHasta)
+                .stream()
+                .filter(registro -> registro != null)
+                .collect(Collectors.toList());
+
+        Map<Integer, List<RegistroProductividadTecnico>> porLinea = registros.stream()
+                .collect(Collectors.groupingBy(RegistroProductividadTecnico::getDetalleId));
+
+        BigDecimal manoObraTotal = porLinea.values().stream()
+                .map(linea -> costoDeLinea(linea))
+                .reduce(CERO_MONETARIO, BigDecimal::add);
+        BigDecimal sinDistribuir = porLinea.values().stream()
+                .filter(linea -> sumarHoras(participantesDeLinea(linea)).signum() == 0)
+                .map(linea -> costoDeLinea(linea))
+                .reduce(CERO_MONETARIO, BigDecimal::add);
+        Map<Integer, Map<Integer, BigDecimal>> repartoPorLinea = porLinea.entrySet().stream()
+                .filter(entrada -> sumarHoras(participantesDeLinea(entrada.getValue())).signum() > 0)
+                .collect(Collectors.toMap(entrada -> entrada.getKey(),
+                        entrada -> repartirManoObra(entrada.getValue())));
+
+        Map<Integer, List<RegistroProductividadTecnico>> porTecnico = registros.stream()
+                .filter(registro -> registro.tieneTecnico())
+                .collect(Collectors.groupingBy(RegistroProductividadTecnico::getTecnicoId));
+
+        List<ProductividadTecnico> conTrabajo = porTecnico.values().stream()
+                .map(trabajo -> resumirTecnico(trabajo, repartoPorLinea))
+                .collect(Collectors.toList());
+        List<ProductividadTecnico> activosSinTrabajo = tecnicoDAO.listarActivos().stream()
+                .filter(tecnico -> !porTecnico.containsKey(tecnico.getId()))
+                .map(tecnico -> tecnicoSinTrabajo(tecnico))
+                .collect(Collectors.toList());
+
+        List<ProductividadTecnico> resultado = new ArrayList<>(conTrabajo);
+        resultado.addAll(activosSinTrabajo);
+        List<ProductividadTecnico> ordenado = resultado.stream()
+                .sorted(comparadorProductividad())
+                .collect(Collectors.toList());
+
+        return new ReporteProductividadTecnicos(fechaDesde, fechaHasta, ordenado, porLinea.size(),
+                sinDistribuir, manoObraTotal);
+    }
+
+    private Map<Integer, BigDecimal> repartirManoObra(List<RegistroProductividadTecnico> linea) {
+        BigDecimal costo = costoDeLinea(linea);
+        List<RegistroProductividadTecnico> participantes = participantesDeLinea(linea);
+        BigDecimal totalHoras = sumarHoras(participantes);
+
+        Map<Integer, BigDecimal> reparto = new HashMap<>();
+        for (RegistroProductividadTecnico participante : participantes) {
+            BigDecimal parte = costo.multiply(horasDe(participante))
+                    .divide(totalHoras, InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+            reparto.put(participante.getTecnicoId(), parte);
+        }
+
+        BigDecimal repartido = reparto.values().stream().reduce(CERO_MONETARIO, BigDecimal::add);
+        BigDecimal diferencia = costo.subtract(repartido);
+        if (diferencia.signum() != 0) {
+            List<RegistroProductividadTecnico> prioridad = participantes.stream()
+                    .sorted(comparadorCentavos())
+                    .collect(Collectors.toList());
+            int receptor = prioridad.get(0).getTecnicoId();
+            reparto.put(receptor, reparto.get(receptor).add(diferencia));
+        }
+        return reparto;
+    }
+
+    private ProductividadTecnico resumirTecnico(List<RegistroProductividadTecnico> trabajo,
+                                                Map<Integer, Map<Integer, BigDecimal>> repartoPorLinea) {
+        RegistroProductividadTecnico primero = trabajo.get(0);
+        int tecnicoId = primero.getTecnicoId();
+        int lineas = (int) trabajo.stream()
+                .map(registro -> registro.getDetalleId())
+                .distinct()
+                .count();
+        BigDecimal manoObra = trabajo.stream()
+                .map(registro -> montoAtribuido(repartoPorLinea, registro.getDetalleId(), tecnicoId))
+                .reduce(CERO_MONETARIO, BigDecimal::add);
+        String nombre = primero.getNombreTecnico() == null || primero.getNombreTecnico().isBlank()
+                ? "Técnico " + tecnicoId : primero.getNombreTecnico().trim();
+        return new ProductividadTecnico(tecnicoId, nombre, primero.isTecnicoActivo(), lineas,
+                sumarHoras(trabajo), manoObra);
+    }
+
+    private ProductividadTecnico tecnicoSinTrabajo(Tecnico tecnico) {
+        return new ProductividadTecnico(tecnico.getId(), tecnico.getNombre(), tecnico.isActivo(), 0,
+                CERO_MONETARIO, CERO_MONETARIO);
+    }
+
+    private BigDecimal montoAtribuido(Map<Integer, Map<Integer, BigDecimal>> repartoPorLinea, int detalleId,
+                                      int tecnicoId) {
+        Map<Integer, BigDecimal> reparto = repartoPorLinea.get(detalleId);
+        if (reparto == null || reparto.get(tecnicoId) == null) {
+            return CERO_MONETARIO;
+        }
+        return reparto.get(tecnicoId);
+    }
+
+    private List<RegistroProductividadTecnico> participantesDeLinea(List<RegistroProductividadTecnico> linea) {
+        return linea.stream()
+                .filter(registro -> registro.tieneTecnico())
+                .collect(Collectors.toList());
+    }
+
+    private BigDecimal costoDeLinea(List<RegistroProductividadTecnico> linea) {
+        BigDecimal costo = linea.get(0).getCostoManoObra();
+        return (costo == null ? CERO_MONETARIO : costo)
+                .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+    }
+
+    private BigDecimal sumarHoras(List<RegistroProductividadTecnico> registros) {
+        return registros.stream()
+                .map(registro -> horasDe(registro))
+                .reduce(CERO_MONETARIO, BigDecimal::add)
+                .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+    }
+
+    private BigDecimal horasDe(RegistroProductividadTecnico registro) {
+        return registro.getHorasTrabajadas() == null ? CERO_MONETARIO : registro.getHorasTrabajadas();
+    }
+
+    /** Recibe los centavos de redondeo el técnico con más horas; en empate, el de menor ID (§4.3). */
+    private Comparator<RegistroProductividadTecnico> comparadorCentavos() {
+        return (a, b) -> {
+            int porHoras = horasDe(b).compareTo(horasDe(a));
+            if (porHoras != 0) {
+                return porHoras;
+            }
+            return Integer.compare(a.getTecnicoId(), b.getTecnicoId());
+        };
+    }
+
+    private Comparator<ProductividadTecnico> comparadorProductividad() {
+        return (a, b) -> {
+            int porManoObra = b.getManoObraAtribuida().compareTo(a.getManoObraAtribuida());
+            if (porManoObra != 0) {
+                return porManoObra;
+            }
+            int porHoras = b.getHorasTrabajadas().compareTo(a.getHorasTrabajadas());
+            if (porHoras != 0) {
+                return porHoras;
+            }
+            int porNombre = a.getNombre().compareToIgnoreCase(b.getNombre());
+            if (porNombre != 0) {
+                return porNombre;
+            }
+            return Integer.compare(a.getTecnicoId(), b.getTecnicoId());
+        };
     }
 
     private ResumenServicioSolicitado resumirTipoServicio(List<RegistroServicioSolicitado> registros) {
