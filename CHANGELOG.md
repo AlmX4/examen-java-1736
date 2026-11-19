@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
 
-### Pendiente de integración — `feat(servicios): add workshop facade for order workflows (T5.4)` (cierra `#48`)
+### PR #103 — `feat(servicios): add workshop facade for order workflows (T5.4)` (`feature/gestion-servicios` → `develop`, cierra `#48`)
 - **Autor:** `@AlmX4`
 - `TallerFacade` coordina órdenes, inventario y consultas de técnicos desde el controlador de órdenes.
 - El alta en consola admite reservas opcionales por línea y confirma cabecera, líneas y reservas en una sola transacción.

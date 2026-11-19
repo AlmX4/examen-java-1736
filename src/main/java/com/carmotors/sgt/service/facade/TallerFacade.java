@@ -1,5 +1,6 @@
 package com.carmotors.sgt.service.facade;
 
+import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.LineaOrdenSolicitada;
 import com.carmotors.sgt.model.OrdenServicio;
@@ -18,6 +19,15 @@ public class TallerFacade {
     private final TecnicoService tecnicos;
 
     public TallerFacade(OrdenServicioService ordenes, InventarioService inventario, TecnicoService tecnicos) {
+        if (ordenes == null) {
+            throw new ValidacionException("El servicio de órdenes de servicio es obligatorio.");
+        }
+        if (inventario == null) {
+            throw new ValidacionException("El servicio de inventario es obligatorio.");
+        }
+        if (tecnicos == null) {
+            throw new ValidacionException("El servicio de técnicos es obligatorio.");
+        }
         this.ordenes = ordenes;
         this.inventario = inventario;
         this.tecnicos = tecnicos;

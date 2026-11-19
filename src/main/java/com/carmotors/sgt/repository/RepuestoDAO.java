@@ -12,6 +12,16 @@ public interface RepuestoDAO {
 
     Repuesto buscarPorId(int id);
 
+    /**
+     * Busca y bloquea un repuesto dentro de una transacción JDBC activa ({@code FOR UPDATE}).
+     *
+     * @param id identificador del repuesto
+     * @return el repuesto encontrado o {@code null} si no existe
+     */
+    default Repuesto buscarPorIdParaActualizar(int id) {
+        return buscarPorId(id);
+    }
+
     Repuesto buscarPorNombre(String nombre);
 
     int guardar(Repuesto repuesto);

@@ -84,7 +84,14 @@ public class RepuestoDAOImpl implements RepuestoDAO {
         return buscarPorId(id, false);
     }
 
+    @Override
     public Repuesto buscarPorIdParaActualizar(int id) {
+        if (id <= 0) {
+            throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
+        }
+        if (conexionCompartida == null) {
+            throw new CarMotorsException("La consulta con bloqueo requiere una conexión transaccional compartida.");
+        }
         return buscarPorId(id, true);
     }
 

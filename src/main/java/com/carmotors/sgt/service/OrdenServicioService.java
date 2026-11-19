@@ -316,7 +316,7 @@ public class OrdenServicioService {
 
     private void guardarReservasIniciales(List<OrdenServicioDetalle> lineas, List<List<DetalleRepuesto>> reservas,
                                          Connection connection) {
-        RepuestoDAOImpl repuestos = new RepuestoDAOImpl(connection);
+        RepuestoDAO repuestos = new RepuestoDAOImpl(connection);
         DetalleRepuestoDAO detalles = new DetalleRepuestoDAOImpl(connection);
         InventarioService inventario = new InventarioService(repuestos, new LoteDAOImpl(connection));
         for (int indice = 0; indice < lineas.size(); indice++) {
@@ -943,7 +943,7 @@ public class OrdenServicioService {
             try {
                 validarLineaEditableParaReserva(detalleId, new OrdenServicioDAOImpl(connection),
                         new OrdenServicioDetalleDAOImpl(connection), true);
-                RepuestoDAOImpl repuestos = new RepuestoDAOImpl(connection);
+                RepuestoDAO repuestos = new RepuestoDAOImpl(connection);
                 DetalleRepuestoDAO detalles = new DetalleRepuestoDAOImpl(connection);
                 InventarioService inventario = new InventarioService(repuestos, new LoteDAOImpl(connection));
                 DetalleRepuesto reserva = prepararReserva(detalleId, repuestoId, cantidad,
