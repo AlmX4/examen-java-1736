@@ -2,6 +2,8 @@ package com.carmotors.sgt.service;
 
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroServicioSolicitado;
+import com.carmotors.sgt.model.ResumenServicioSolicitado;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
@@ -85,6 +87,44 @@ public class ReporteService {
 
         return new ReporteConsumoRepuestos(
                 fechaDesde, fechaHasta, porRepuesto, porTipoServicio, detalleCombinado, totalUnidades, valorTotal);
+    }
+
+    public List<ResumenServicioSolicitado> generarReporteServiciosSolicitados(LocalDate fechaDesde, LocalDate fechaHasta) {
+        if (fechaDesde == null || fechaHasta == null) {
+            throw new ValidacionException("Indique ambas fechas del rango de finalización.");
+        }
+        validarRangoFechas(fechaDesde, fechaHasta);
+
+        return reporteDAO.listarServiciosSolicitados(fechaDesde, fechaHasta).stream()
+                .filter(registro -> esEstadoCompletadoOPosterior(registro.getEstadoId()))
+                .filter(registro -> registro.getFechaCompletado() != null)
+                .filter(registro -> estaEnRango(registro.getFechaCompletado().toLocalDate(), fechaDesde, fechaHasta))
+                .collect(Collectors.groupingBy(RegistroServicioSolicitado::getServicioTipoId)).values().stream()
+                .map(this::resumirTipoServicio)
+                .sorted(Comparator.comparingInt(ResumenServicioSolicitado::getCantidadLineas).reversed()
+                        .thenComparingInt(ResumenServicioSolicitado::getServicioTipoId))
+                .collect(Collectors.toList());
+    }
+
+    private ResumenServicioSolicitado resumirTipoServicio(List<RegistroServicioSolicitado> registros) {
+        RegistroServicioSolicitado servicio = registros.get(0);
+        Map<Integer, List<RegistroServicioSolicitado>> porLinea = registros.stream()
+                .collect(Collectors.groupingBy(RegistroServicioSolicitado::getDetalleId));
+        BigDecimal ingresos = porLinea.values().stream()
+                .map(this::calcularIngresoLinea)
+                .reduce(CERO_MONETARIO, BigDecimal::add)
+                .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+
+        return new ResumenServicioSolicitado(servicio.getServicioTipoId(), servicio.getNombreServicio(),
+                porLinea.size(), ingresos);
+    }
+
+    private BigDecimal calcularIngresoLinea(List<RegistroServicioSolicitado> registros) {
+        return registros.stream()
+                .filter(registro -> registro.getPrecioUnitarioVenta() != null)
+                .map(registro -> registro.getPrecioUnitarioVenta()
+                        .multiply(BigDecimal.valueOf(registro.getCantidadRepuesto())))
+                .reduce(registros.get(0).getManoDeObra(), BigDecimal::add);
     }
 
     private void validarRangoFechas(LocalDate fechaDesde, LocalDate fechaHasta) {

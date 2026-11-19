@@ -3,6 +3,7 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.repository.ReporteDAO;
 
 import java.sql.Connection;
@@ -13,12 +14,15 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * Implementación JDBC de las consultas de reportes gerenciales (RNF-05, RNF-06).
  * Todas las consultas parametrizables utilizan {@link PreparedStatement}.
  */
 public class ReporteDAOImpl implements ReporteDAO {
+
+    private static final Logger LOGGER = Logger.getLogger(ReporteDAOImpl.class.getName());
 
     private final Connection conexionCompartida;
 
@@ -65,6 +69,49 @@ public class ReporteDAOImpl implements ReporteDAO {
         } catch (SQLException e) {
             throw new CarMotorsException("Error al consultar el consumo de repuestos: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public List<RegistroServicioSolicitado> listarServiciosSolicitados(LocalDate fechaDesde, LocalDate fechaHasta) {
+        try {
+            if (conexionCompartida != null) {
+                return ejecutarConsultaServicios(conexionCompartida, fechaDesde, fechaHasta);
+            }
+            try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+                return ejecutarConsultaServicios(connection, fechaDesde, fechaHasta);
+            }
+        } catch (SQLException e) {
+            LOGGER.warning("Falló la consulta de servicios solicitados (código JDBC " + e.getErrorCode() + ").");
+            throw new CarMotorsException("No se pudieron consultar los servicios solicitados.", e);
+        }
+    }
+
+    private List<RegistroServicioSolicitado> ejecutarConsultaServicios(Connection connection, LocalDate fechaDesde,
+                                                                        LocalDate fechaHasta) throws SQLException {
+        String sql = "SELECT osd.id AS detalle_id, osd.servicio_tipo_id, st.nombre AS nombre_servicio, "
+                + "o.estado_id, o.fecha_completado, osd.costo_mano_obra, dr.cantidad_asignada, "
+                + "dr.precio_unitario_venta "
+                + "FROM ordenes_servicio o "
+                + "JOIN orden_servicio_detalle osd ON osd.orden_id = o.id "
+                + "JOIN servicio_tipos st ON st.id = osd.servicio_tipo_id "
+                + "LEFT JOIN detalle_repuestos dr ON dr.detalle_id = osd.id "
+                + "WHERE o.estado_id IN (3, 4, 5) AND o.fecha_completado >= ? AND o.fecha_completado < ?";
+
+        List<RegistroServicioSolicitado> registros = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setTimestamp(1, Timestamp.valueOf(fechaDesde.atStartOfDay()));
+            statement.setTimestamp(2, Timestamp.valueOf(fechaHasta.plusDays(1).atStartOfDay()));
+            try (ResultSet filas = statement.executeQuery()) {
+                while (filas.next()) {
+                    registros.add(new RegistroServicioSolicitado(filas.getInt("detalle_id"),
+                            filas.getInt("servicio_tipo_id"), filas.getString("nombre_servicio"),
+                            filas.getInt("estado_id"), filas.getTimestamp("fecha_completado").toLocalDateTime(),
+                            filas.getBigDecimal("costo_mano_obra"), filas.getInt("cantidad_asignada"),
+                            filas.getBigDecimal("precio_unitario_venta")));
+                }
+            }
+        }
+        return registros;
     }
 
     private List<RegistroConsumoRepuesto> ejecutarConsultaConsumo(Connection connection, String sql,

@@ -5,10 +5,12 @@ import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
+import com.carmotors.sgt.model.ResumenServicioSolicitado;
 import com.carmotors.sgt.util.ConsoleReader;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * Submenú de consola para los reportes gerenciales de CarMotors SGT (RF-21, RF-25, RF-26, RF-27).
@@ -40,13 +42,17 @@ public class ReportesView implements SubmenuVista {
             System.out.println("               REPORTES GERENCIALES               ");
             System.out.println("==================================================");
             System.out.println("  1. Consumo de repuestos (RF-27)");
+            System.out.println("  2. Servicios más solicitados (RF-25)");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 1);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 2);
             switch (opcion) {
                 case 1:
                     mostrarReporteConsumoRepuestos();
+                    break;
+                case 2:
+                    mostrarReporteServiciosSolicitados();
                     break;
                 case 0:
                     ejecutando = false;
@@ -54,6 +60,28 @@ public class ReportesView implements SubmenuVista {
                 default:
                     break;
             }
+        }
+    }
+
+    private void mostrarReporteServiciosSolicitados() {
+        try {
+            System.out.println("\n--- Servicios más solicitados (RF-25) ---");
+            LocalDate desde = ConsoleReader.leerFecha("Completado desde (yyyy-MM-dd)");
+            LocalDate hasta = ConsoleReader.leerFecha("Completado hasta (yyyy-MM-dd)");
+            List<ResumenServicioSolicitado> servicios = reportesController.generarReporteServiciosSolicitados(desde, hasta);
+            System.out.println("  Rango de finalización: " + formatearRango(desde, hasta));
+            if (servicios.isEmpty()) {
+                System.out.println("  [i] No se encontraron servicios finalizados en el rango indicado.");
+            }
+            for (ResumenServicioSolicitado servicio : servicios) {
+                System.out.println("  Servicio " + servicio.getServicioTipoId() + " | " + servicio.getNombreServicio()
+                        + " | Líneas: " + servicio.getCantidadLineas()
+                        + " | Ingresos antes de impuestos: $" + servicio.getIngresos().toPlainString());
+            }
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo generar el reporte: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
         }
     }
 

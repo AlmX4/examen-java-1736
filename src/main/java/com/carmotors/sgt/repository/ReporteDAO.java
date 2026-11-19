@@ -1,6 +1,7 @@
 package com.carmotors.sgt.repository;
 
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroServicioSolicitado;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -21,4 +22,7 @@ public interface ReporteDAO {
      * @return lista de registros históricos con snapshots de nombre y precio unitario de venta
      */
     List<RegistroConsumoRepuesto> listarConsumoRepuestos(LocalDate fechaDesde, LocalDate fechaHasta);
+
+    /** Recupera las líneas finalizadas y sus repuestos en un rango inclusivo de fechas. */
+    List<RegistroServicioSolicitado> listarServiciosSolicitados(LocalDate fechaDesde, LocalDate fechaHasta);
 }
