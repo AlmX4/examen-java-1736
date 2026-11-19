@@ -32,7 +32,7 @@ public class ClienteView implements SubmenuVista {
 
     @Override
     public String obtenerTitulo() {
-        return "Clientes";
+        return "Clientes y Vehículos";
     }
 
     @Override
@@ -40,8 +40,9 @@ public class ClienteView implements SubmenuVista {
         boolean ejecutando = true;
         while (ejecutando) {
             System.out.println("\n==================================================");
-            System.out.println("              GESTIÓN DE CLIENTES                 ");
+            System.out.println("         GESTIÓN DE CLIENTES Y VEHÍCULOS          ");
             System.out.println("==================================================");
+            System.out.println("  -- Clientes --");
             System.out.println("  1. Listar clientes activos");
             System.out.println("  2. Listar todos los clientes (incluye inactivos)");
             System.out.println("  3. Buscar cliente por ID");
@@ -50,6 +51,7 @@ public class ClienteView implements SubmenuVista {
             System.out.println("  6. Actualizar cliente");
             System.out.println("  7. Desactivar cliente");
             System.out.println("  8. Reactivar cliente");
+            System.out.println("  -- Vehículos e Historial --");
             System.out.println("  9. Registrar vehículo a un cliente");
             System.out.println(" 10. Listar vehículos de un cliente");
             System.out.println(" 11. Buscar vehículo por placa");
@@ -222,8 +224,16 @@ public class ClienteView implements SubmenuVista {
         try {
             int id = ConsoleReader.leerEnteroPositivo("ID del cliente a reactivar");
             Cliente actual = clienteController.buscarPorId(id);
+            imprimirDetalleCliente(actual);
+
             if (actual.isActivo()) {
                 System.out.println("\n  [i] El cliente ya se encuentra activo.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            if (!ConsoleReader.leerConfirmacion("¿Confirma reactivar al cliente '" + actual.getNombre() + "'?")) {
+                System.out.println("\n  [i] Operación cancelada.");
                 ConsoleReader.pausar();
                 return;
             }

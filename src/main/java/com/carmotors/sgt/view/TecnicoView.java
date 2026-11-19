@@ -213,8 +213,16 @@ public class TecnicoView implements SubmenuVista {
         try {
             int id = ConsoleReader.leerEnteroPositivo("ID del técnico a reactivar");
             Tecnico actual = tecnicoController.buscarPorId(id);
+            imprimirDetalleTecnico(actual);
+
             if (actual.isActivo()) {
                 System.out.println("\n  [i] El técnico ya se encuentra activo.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            if (!ConsoleReader.leerConfirmacion("¿Confirma reactivar al técnico '" + actual.getNombre() + "'?")) {
+                System.out.println("\n  [i] Operación cancelada.");
                 ConsoleReader.pausar();
                 return;
             }

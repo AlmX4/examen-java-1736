@@ -41,18 +41,20 @@ public class ProveedorView implements SubmenuVista {
         boolean ejecutando = true;
         while (ejecutando) {
             System.out.println("\n==================================================");
-            System.out.println("             GESTIÓN DE PROVEEDORES");
+            System.out.println("             GESTIÓN DE PROVEEDORES               ");
             System.out.println("==================================================");
+            System.out.println("  -- Proveedores --");
             System.out.println("  1. Listar proveedores");
-            System.out.println("  2. Buscar proveedor por id");
+            System.out.println("  2. Buscar proveedor por ID");
             System.out.println("  3. Crear proveedor");
             System.out.println("  4. Actualizar proveedor");
             System.out.println("  5. Desactivar proveedor");
             System.out.println("  6. Reactivar proveedor");
+            System.out.println("  -- Evaluaciones y Catálogo --");
             System.out.println("  7. Evaluaciones de proveedores");
             System.out.println("  8. Catálogo de repuestos del proveedor");
             System.out.println("  9. Comparar proveedores de un repuesto");
-            System.out.println("  0. Volver");
+            System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 9);
@@ -205,10 +207,18 @@ public class ProveedorView implements SubmenuVista {
 
     private void reactivarProveedor() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor a reactivar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor a reactivar");
             Proveedor actual = proveedorController.buscarPorId(id);
+            imprimirDetalleProveedor(actual);
+
             if (actual.isActivo()) {
                 System.out.println("\n  [i] El proveedor ya se encuentra activo.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            if (!ConsoleReader.leerConfirmacion("¿Confirma reactivar al proveedor '" + actual.getNombre() + "'?")) {
+                System.out.println("\n  [i] Operación cancelada.");
                 ConsoleReader.pausar();
                 return;
             }
