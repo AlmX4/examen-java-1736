@@ -3,6 +3,7 @@ package com.carmotors.sgt.view;
 import com.carmotors.sgt.controller.ReportesController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.ProductividadTecnico;
+import com.carmotors.sgt.model.RecordatorioMantenimiento;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
@@ -46,10 +47,11 @@ public class ReportesView implements SubmenuVista {
             System.out.println("  1. Consumo de repuestos (RF-27)");
             System.out.println("  2. Servicios más solicitados (RF-25)");
             System.out.println("  3. Productividad por técnico (RF-26)");
+            System.out.println("  4. Recordatorios de mantenimiento preventivo (RF-21)");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 3);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 4);
             switch (opcion) {
                 case 1:
                     mostrarReporteConsumoRepuestos();
@@ -59,6 +61,9 @@ public class ReportesView implements SubmenuVista {
                     break;
                 case 3:
                     mostrarReporteProductividadTecnicos();
+                    break;
+                case 4:
+                    mostrarReporteRecordatorios();
                     break;
                 case 0:
                     ejecutando = false;
@@ -89,6 +94,68 @@ public class ReportesView implements SubmenuVista {
         } finally {
             ConsoleReader.pausar();
         }
+    }
+
+    private void mostrarReporteRecordatorios() {
+        try {
+            LocalDate hoy = LocalDate.now();
+            List<RecordatorioMantenimiento> recordatorios = reportesController.generarReporteRecordatorios(hoy);
+            imprimirRecordatorios(recordatorios, hoy);
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo generar el reporte: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void imprimirRecordatorios(List<RecordatorioMantenimiento> recordatorios, LocalDate hoy) {
+        String formatoFila = "  %-26s %-11s %-30s %-7s %-33s %-12s %-12s %s";
+
+        System.out.println("\n==================================================================");
+        System.out.println("          RECORDATORIOS DE MANTENIMIENTO PREVENTIVO (RF-21)");
+        System.out.println("==================================================================");
+        System.out.println("  Fecha de referencia: " + hoy.format(FORMATO_FECHA)
+                + " | Incluye vencidos y los que vencen en los próximos 30 días.");
+        System.out.println("  Solo clientes activos. La notificación al cliente se gestiona manualmente.");
+
+        if (recordatorios.isEmpty()) {
+            System.out.println("\n  [i] No hay mantenimientos preventivos vencidos ni próximos a vencer.");
+            return;
+        }
+
+        System.out.println();
+        System.out.println(String.format(formatoFila, "Cliente", "Teléfono", "Email", "Placa", "Servicio",
+                "Últ. entrega", "Sugerida", "Estado"));
+        for (RecordatorioMantenimiento recordatorio : recordatorios) {
+            System.out.println(String.format(formatoFila,
+                    ajustar(recordatorio.getClienteNombre(), 26),
+                    ajustar(recordatorio.getClienteTelefono(), 11),
+                    ajustar(recordatorio.getClienteEmail(), 30),
+                    ajustar(recordatorio.getPlaca(), 7),
+                    ajustar(recordatorio.getNombreServicio(), 33),
+                    recordatorio.getFechaUltimaEntrega().format(FORMATO_FECHA),
+                    recordatorio.getFechaSugerida().format(FORMATO_FECHA),
+                    textoEstado(recordatorio)));
+        }
+        System.out.println("\n  Total de recordatorios: " + recordatorios.size());
+    }
+
+    private String textoEstado(RecordatorioMantenimiento recordatorio) {
+        if (recordatorio.isVencido()) {
+            return "VENCIDO hace " + textoDias(recordatorio.getDiasAtraso());
+        }
+        return "En " + textoDias(recordatorio.getDiasRestantes());
+    }
+
+    private String textoDias(int dias) {
+        return dias + (dias == 1 ? " día" : " días");
+    }
+
+    private String ajustar(String texto, int ancho) {
+        if (texto == null || texto.isBlank()) {
+            return "N/A";
+        }
+        return texto.length() <= ancho ? texto : texto.substring(0, ancho - 1) + "…";
     }
 
     private void mostrarReporteProductividadTecnicos() {
