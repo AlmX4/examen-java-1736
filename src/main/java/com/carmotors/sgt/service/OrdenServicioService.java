@@ -14,6 +14,7 @@ import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.Lote;
+import com.carmotors.sgt.model.LineaOrdenSolicitada;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.Repuesto;
@@ -64,7 +65,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -244,6 +244,28 @@ public class OrdenServicioService {
      * @return la orden creada con su ID generado
      */
     public OrdenServicio crearOrden(int vehiculoId, String descripcionProblema, List<OrdenServicioDetalle> lineas) {
+        return crearOrden(vehiculoId, descripcionProblema, lineas, List.of());
+    }
+
+    public OrdenServicio crearOrdenIntegral(int vehiculoId, String descripcionProblema,
+                                            List<LineaOrdenSolicitada> solicitudes) {
+        if (solicitudes == null || solicitudes.isEmpty()) {
+            throw new ValidacionException("La orden debe tener al menos una línea de servicio.");
+        }
+        List<OrdenServicioDetalle> lineas = new ArrayList<>();
+        List<List<DetalleRepuesto>> reservas = new ArrayList<>();
+        for (LineaOrdenSolicitada solicitud : solicitudes) {
+            if (solicitud == null || solicitud.getReservas() == null) {
+                throw new ValidacionException("Cada línea debe indicar sus reservas, aunque la lista esté vacía.");
+            }
+            lineas.add(solicitud.getLinea());
+            reservas.add(solicitud.getReservas());
+        }
+        return crearOrden(vehiculoId, descripcionProblema, lineas, reservas);
+    }
+
+    private OrdenServicio crearOrden(int vehiculoId, String descripcionProblema, List<OrdenServicioDetalle> lineas,
+                                     List<List<DetalleRepuesto>> reservas) {
         validarVehiculoYCliente(vehiculoId);
         String descripcion = validarDescripcion(descripcionProblema);
         List<OrdenServicioDetalle> lineasPreparadas = prepararLineas(lineas);
@@ -254,35 +276,62 @@ public class OrdenServicioService {
         orden.setFechaRecepcion(LocalDateTime.now().withNano(0));
         orden.setDescripcionProblema(descripcion);
 
+        boolean tieneReservas = reservas.stream().anyMatch(lista -> !lista.isEmpty());
         if (!usarTransaccionJdbc) {
+            if (tieneReservas) {
+                throw new CarMotorsException("El alta con reservas requiere una transacción JDBC.");
+            }
             guardarOrdenYLineas(orden, lineasPreparadas, ordenServicioDAO, ordenServicioDetalleDAO);
             return orden;
         }
 
         try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            // Tras bloquear un repuesto, consultar el stock con los últimos datos confirmados.
+            if (tieneReservas) {
+                connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            }
             connection.setAutoCommit(false);
             try {
-                OrdenServicioDAO ordenDaoTransaccional = new OrdenServicioDAOImpl(connection);
-                OrdenServicioDetalleDAO detalleDaoTransaccional = new OrdenServicioDetalleDAOImpl(connection);
-
-                guardarOrdenYLineas(orden, lineasPreparadas, ordenDaoTransaccional, detalleDaoTransaccional);
+                guardarOrdenYLineas(orden, lineasPreparadas, new OrdenServicioDAOImpl(connection),
+                        new OrdenServicioDetalleDAOImpl(connection));
+                if (tieneReservas) {
+                    guardarReservasIniciales(lineasPreparadas, reservas, connection);
+                }
                 connection.commit();
                 return orden;
-            } catch (CarMotorsException e) {
-                connection.rollback();
+            } catch (SQLException | RuntimeException e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException errorRollback) {
+                    e.addSuppressed(errorRollback);
+                }
                 throw e;
-            } catch (SQLException e) {
-                connection.rollback();
-                throw new CarMotorsException("No se pudo registrar la orden de servicio: " + e.getMessage(), e);
-            } catch (RuntimeException e) {
-                connection.rollback();
-                throw new CarMotorsException("Error inesperado al registrar la orden de servicio: " + e.getMessage(), e);
-            } finally {
-                connection.setAutoCommit(true);
             }
-        } catch (SQLException e) {
-            throw new CarMotorsException("No se pudo completar la transacción de la orden de servicio: "
-                    + e.getMessage(), e);
+        } catch (CarMotorsException e) {
+            throw e;
+        } catch (SQLException | RuntimeException e) {
+            throw new CarMotorsException("No se pudo registrar la orden de servicio.", e);
+        }
+    }
+
+    private void guardarReservasIniciales(List<OrdenServicioDetalle> lineas, List<List<DetalleRepuesto>> reservas,
+                                         Connection connection) {
+        RepuestoDAOImpl repuestos = new RepuestoDAOImpl(connection);
+        DetalleRepuestoDAO detalles = new DetalleRepuestoDAOImpl(connection);
+        InventarioService inventario = new InventarioService(repuestos, new LoteDAOImpl(connection));
+        for (int indice = 0; indice < lineas.size(); indice++) {
+            int detalleId = lineas.get(indice).getId();
+            for (DetalleRepuesto solicitud : reservas.get(indice)) {
+                if (solicitud == null) {
+                    throw new ValidacionException("La reserva solicitada no puede ser nula.");
+                }
+                int repuestoId = solicitud.getRepuestoId();
+                int cantidad = solicitud.getCantidadAsignada();
+                validarDatosReserva(detalleId, repuestoId, cantidad);
+                Repuesto repuesto = repuestos.buscarPorIdParaActualizar(repuestoId);
+                guardarReserva(prepararReserva(detalleId, repuestoId, cantidad, repuesto, detalles, inventario),
+                        repuestos, detalles);
+            }
         }
     }
 
@@ -879,6 +928,45 @@ public class OrdenServicioService {
      */
     public DetalleRepuesto reservarRepuesto(int detalleId, int repuestoId, int cantidad) {
         verificarDependenciasReserva();
+        validarDatosReserva(detalleId, repuestoId, cantidad);
+        if (!usarTransaccionJdbc) {
+            validarLineaEditableParaReserva(detalleId, ordenServicioDAO, ordenServicioDetalleDAO, false);
+            DetalleRepuesto reserva = prepararReserva(detalleId, repuestoId, cantidad,
+                    repuestoDAO.buscarPorId(repuestoId), detalleRepuestoDAO, inventarioService);
+            guardarReserva(reserva, repuestoDAO, detalleRepuestoDAO);
+            return reserva;
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            connection.setAutoCommit(false);
+            try {
+                validarLineaEditableParaReserva(detalleId, new OrdenServicioDAOImpl(connection),
+                        new OrdenServicioDetalleDAOImpl(connection), true);
+                RepuestoDAOImpl repuestos = new RepuestoDAOImpl(connection);
+                DetalleRepuestoDAO detalles = new DetalleRepuestoDAOImpl(connection);
+                InventarioService inventario = new InventarioService(repuestos, new LoteDAOImpl(connection));
+                DetalleRepuesto reserva = prepararReserva(detalleId, repuestoId, cantidad,
+                        repuestos.buscarPorIdParaActualizar(repuestoId), detalles, inventario);
+                guardarReserva(reserva, repuestos, detalles);
+                connection.commit();
+                return reserva;
+            } catch (SQLException | RuntimeException e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException errorRollback) {
+                    e.addSuppressed(errorRollback);
+                }
+                throw e;
+            }
+        } catch (CarMotorsException e) {
+            throw e;
+        } catch (SQLException | RuntimeException e) {
+            throw new CarMotorsException("No se pudo reservar el repuesto.", e);
+        }
+    }
+
+    private void validarDatosReserva(int detalleId, int repuestoId, int cantidad) {
         if (cantidad <= 0) {
             throw new ValidacionException("La cantidad a reservar debe ser mayor que cero.");
         }
@@ -889,11 +977,16 @@ public class OrdenServicioService {
             throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
         }
 
-        OrdenServicioDetalle linea = ordenServicioDetalleDAO.buscarPorId(detalleId);
+    }
+
+    private void validarLineaEditableParaReserva(int detalleId, OrdenServicioDAO ordenes,
+                                                 OrdenServicioDetalleDAO detalles, boolean bloquear) {
+        OrdenServicioDetalle linea = detalles.buscarPorId(detalleId);
         if (linea == null) {
             throw new EntidadNoEncontradaException("No se encontró una línea de servicio con el ID: " + detalleId);
         }
-        OrdenServicio orden = ordenServicioDAO.buscarPorId(linea.getOrdenId());
+        OrdenServicio orden = bloquear
+                ? ordenes.buscarPorIdParaActualizar(linea.getOrdenId()) : ordenes.buscarPorId(linea.getOrdenId());
         if (orden == null) {
             throw new EntidadNoEncontradaException("No se encontró la orden de servicio con el ID: "
                     + linea.getOrdenId());
@@ -904,7 +997,13 @@ public class OrdenServicioService {
                     + "' y no permite cambios; no se pueden reservar repuestos.");
         }
 
-        Repuesto repuesto = repuestoDAO.buscarPorId(repuestoId);
+        if (bloquear && detalles.buscarPorId(detalleId) == null) {
+            throw new EntidadNoEncontradaException("No se encontró una línea de servicio con el ID: " + detalleId);
+        }
+    }
+
+    private DetalleRepuesto prepararReserva(int detalleId, int repuestoId, int cantidad, Repuesto repuesto,
+                                           DetalleRepuestoDAO detalles, InventarioService inventario) {
         if (repuesto == null) {
             throw new EntidadNoEncontradaException("No se encontró un repuesto con el ID: " + repuestoId);
         }
@@ -912,12 +1011,12 @@ public class OrdenServicioService {
             throw new ValidacionException("El repuesto '" + repuesto.getNombre()
                     + "' está inactivo; no se puede reservar.");
         }
-        if (detalleRepuestoDAO.buscar(detalleId, repuestoId) != null) {
+        if (detalles.buscar(detalleId, repuestoId) != null) {
             throw new ValidacionException("El repuesto '" + repuesto.getNombre()
                     + "' ya está asignado a la línea " + detalleId + ".");
         }
 
-        int disponible = inventarioService.calcularStock(repuestoId).getDisponible();
+        int disponible = inventario.calcularStock(repuestoId).getDisponible();
         if (cantidad > disponible) {
             throw new StockInsuficienteException("Stock insuficiente para '" + repuesto.getNombre()
                     + "': solicitado " + cantidad + ", disponible " + disponible + ".");
@@ -931,36 +1030,7 @@ public class OrdenServicioService {
         reserva.setPrecioUnitarioVenta(repuesto.getPrecioVenta()
                 .setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO));
 
-        if (!usarTransaccionJdbc) {
-            guardarReserva(reserva, repuestoDAO, detalleRepuestoDAO);
-            return reserva;
-        }
-
-        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
-            connection.setAutoCommit(false);
-            try {
-                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
-                DetalleRepuestoDAO detalleRepuestoDaoTransaccional = new DetalleRepuestoDAOImpl(connection);
-
-                guardarReserva(reserva, repuestoDaoTransaccional, detalleRepuestoDaoTransaccional);
-                connection.commit();
-                return reserva;
-            } catch (CarMotorsException e) {
-                connection.rollback();
-                throw e;
-            } catch (SQLException e) {
-                connection.rollback();
-                throw new CarMotorsException("No se pudo reservar el repuesto: " + e.getMessage(), e);
-            } catch (RuntimeException e) {
-                connection.rollback();
-                throw new CarMotorsException("Error inesperado al reservar el repuesto: " + e.getMessage(), e);
-            } finally {
-                connection.setAutoCommit(true);
-            }
-        } catch (SQLException e) {
-            throw new CarMotorsException("No se pudo completar la transacción de la reserva del repuesto: "
-                    + e.getMessage(), e);
-        }
+        return reserva;
     }
 
     /**
@@ -1133,6 +1203,13 @@ public class OrdenServicioService {
      * @return la orden completada y las unidades descontadas por repuesto
      */
     public ResultadoCompletarOrden completarOrden(int ordenId) {
+        ResultadoCompletarOrden resultado = completarOrdenSinNotificar(ordenId);
+        inventarioService.notificarStockBajoTrasCompletar(resultado);
+        return resultado;
+    }
+
+    /** Confirma la orden y devuelve los consumos para que la fachada coordine las alertas. */
+    public ResultadoCompletarOrden completarOrdenSinNotificar(int ordenId) {
         if (ordenId <= 0) {
             throw new ValidacionException("El ID de la orden debe ser un número positivo.");
         }
@@ -1149,7 +1226,6 @@ public class OrdenServicioService {
             resultado = completarOrdenEnTransaccion(ordenId, fechaCompletado);
         }
 
-        notificarStockBajoTrasCompletar(resultado);
         return resultado;
     }
 
@@ -1263,17 +1339,6 @@ public class OrdenServicioService {
         orden.setEstadoId(nuevoEstado.getEstadoId());
         orden.setFechaCompletado(fechaCompletado);
         return new ResultadoCompletarOrden(orden, consumos);
-    }
-
-    private void notificarStockBajoTrasCompletar(ResultadoCompletarOrden resultado) {
-        for (ConsumoRepuesto consumo : resultado.getConsumos()) {
-            try {
-                inventarioService.evaluarYNotificarStockBajo(consumo.getRepuestoId());
-            } catch (RuntimeException e) {
-                LOGGER.log(Level.WARNING, "La orden " + resultado.getOrden().getId() + " se completó, pero no se pudo "
-                        + "evaluar la alerta de stock bajo del repuesto " + consumo.getRepuestoId() + ".", e);
-            }
-        }
     }
 
     /**

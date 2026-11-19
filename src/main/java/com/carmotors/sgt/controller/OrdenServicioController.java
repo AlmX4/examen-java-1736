@@ -5,6 +5,8 @@ import com.carmotors.sgt.model.ConsultaOrdenServicio;
 import com.carmotors.sgt.model.FiltroOrdenServicio;
 import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
+import com.carmotors.sgt.model.LineaOrdenSolicitada;
+import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.ResultadoCancelarOrden;
@@ -13,6 +15,7 @@ import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.service.OrdenServicioService;
+import com.carmotors.sgt.service.facade.TallerFacade;
 import com.carmotors.sgt.service.chain.SugerenciaTecnico;
 
 import java.math.BigDecimal;
@@ -24,12 +27,18 @@ import java.util.List;
 public class OrdenServicioController {
 
     private final OrdenServicioService ordenServicioService;
+    private final TallerFacade tallerFacade;
 
     public OrdenServicioController(OrdenServicioService ordenServicioService) {
+        this(ordenServicioService, null);
+    }
+
+    public OrdenServicioController(OrdenServicioService ordenServicioService, TallerFacade tallerFacade) {
         if (ordenServicioService == null) {
             throw new IllegalArgumentException("El servicio de órdenes de servicio es obligatorio.");
         }
         this.ordenServicioService = ordenServicioService;
+        this.tallerFacade = tallerFacade;
     }
 
     public List<ResumenOrdenServicio> consultarOrdenes(FiltroOrdenServicio filtro) {
@@ -42,6 +51,30 @@ public class OrdenServicioController {
 
     public OrdenServicio crearOrden(int vehiculoId, String descripcionProblema, List<OrdenServicioDetalle> lineas) {
         return ordenServicioService.crearOrden(vehiculoId, descripcionProblema, lineas);
+    }
+
+    public OrdenServicio crearOrdenIntegral(int vehiculoId, String descripcion, List<LineaOrdenSolicitada> lineas) {
+        return obtenerFachada().crearOrdenIntegral(vehiculoId, descripcion, lineas);
+    }
+
+    public List<Tecnico> listarTecnicosActivos() {
+        return obtenerFachada().listarTecnicosActivos();
+    }
+
+    public Tecnico buscarTecnico(int tecnicoId) {
+        return obtenerFachada().buscarTecnico(tecnicoId);
+    }
+
+    public String obtenerNombreEspecialidad(int especialidadId) {
+        Especialidad especialidad = obtenerFachada().buscarEspecialidad(especialidadId);
+        return especialidad == null ? "Desconocida" : especialidad.getNombre();
+    }
+
+    private TallerFacade obtenerFachada() {
+        if (tallerFacade == null) {
+            throw new CarMotorsException("La fachada del taller no está configurada.");
+        }
+        return tallerFacade;
     }
 
     public List<OrdenServicioDetalle> listarLineas(int ordenId) {
@@ -152,7 +185,8 @@ public class OrdenServicioController {
     }
 
     public ResultadoCompletarOrden completarOrden(int ordenId) {
-        return ordenServicioService.completarOrden(ordenId);
+        return tallerFacade == null ? ordenServicioService.completarOrden(ordenId)
+                : tallerFacade.completarOrden(ordenId);
     }
 
     public ResultadoCancelarOrden cancelarOrden(int ordenId) {

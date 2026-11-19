@@ -1,5 +1,6 @@
 package com.carmotors.sgt.service;
 
+import com.carmotors.sgt.controller.OrdenServicioController;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.StockInsuficienteException;
 import com.carmotors.sgt.exception.TransicionEstadoInvalidaException;
@@ -31,6 +32,8 @@ import com.carmotors.sgt.repository.RepuestoDAO;
 import com.carmotors.sgt.repository.ServicioTipoDAO;
 import com.carmotors.sgt.repository.TecnicoDAO;
 import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.repository.impl.EspecialidadDAOImpl;
+import com.carmotors.sgt.service.facade.TallerFacade;
 import com.carmotors.sgt.service.observer.StockObserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,6 +72,7 @@ class OrdenServicioCompletarTest {
     private final LocalDate hoy = LocalDate.now();
 
     private OrdenServicioService service;
+    private InventarioService inventarioService;
     private OrdenServicioDAOMock ordenDAO;
     private RepuestoDAOMock repuestoDAO;
     private LoteDAOMock loteDAO;
@@ -136,7 +140,7 @@ class OrdenServicioCompletarTest {
         detalleRepuestoDAO.agregar(new DetalleRepuesto(70, FILTRO, 2, "Filtro de cabina",
                 new BigDecimal("35000.00")));
 
-        InventarioService inventarioService = new InventarioService(repuestoDAO, loteDAO,
+        inventarioService = new InventarioService(repuestoDAO, loteDAO,
                 new ProveedorRepuestoDAOVacio(), new ProveedorDAOVacio());
         observer = new ObserverEspia();
         inventarioService.agregarObserver(observer);
@@ -144,6 +148,21 @@ class OrdenServicioCompletarTest {
         service = new OrdenServicioService(ordenDAO, detalleDAO, new VehiculoDAOVacio(), new ClienteDAOVacio(),
                 new ServicioTipoDAOVacio(), new TecnicoDAOVacio(), repuestoDAO, detalleRepuestoDAO, loteDAO,
                 inventarioService, false);
+    }
+
+    @Test
+    void fachadaNotificaUnaSolaVezYUnicamenteSiLaOrdenSeCompleta() {
+        TecnicoService tecnicos = new TecnicoService(new TecnicoDAOVacio(), new EspecialidadDAOImpl());
+        TallerFacade fachada = new TallerFacade(service, inventarioService, tecnicos);
+        OrdenServicioController controlador = new OrdenServicioController(service, fachada);
+
+        assertThrows(StockInsuficienteException.class, () -> controlador.completarOrden(5));
+        assertTrue(observer.notificados.isEmpty());
+
+        ResultadoCompletarOrden resultado = controlador.completarOrden(7);
+        assertEquals(COMPLETADO, resultado.getOrden().getEstadoId());
+        assertEquals(1, observer.notificados.size());
+        assertEquals(FILTRO, observer.notificados.get(0).getRepuesto().getId());
     }
 
     private OrdenServicioDetalle linea(int id, int ordenId, String costoManoObra) {

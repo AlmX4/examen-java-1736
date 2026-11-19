@@ -8,6 +8,12 @@
 
 ## [En curso] — Sprint 5: Ciclo de vida: completar, cancelar y alertas (`develop`)
 
+### Pendiente de integración — `feat(servicios): add workshop facade for order workflows (T5.4)` (cierra `#48`)
+- **Autor:** `@AlmX4`
+- `TallerFacade` coordina órdenes, inventario y consultas de técnicos desde el controlador de órdenes.
+- El alta en consola admite reservas opcionales por línea y confirma cabecera, líneas y reservas en una sola transacción.
+- La finalización reutiliza el consumo FEFO y evalúa las alertas de inventario después de confirmar la orden.
+
 ### PR #102 — `feat(servicios): cancel service order and release reservations (T5.3)` (`feature/gestion-servicios` → `develop`, cierra `#47`, RF-14 / RN-04 / RN-05 / RN-06 / HU-08)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**

@@ -3,12 +3,12 @@ package com.carmotors.sgt.view;
 import com.carmotors.sgt.controller.ClienteController;
 import com.carmotors.sgt.controller.OrdenServicioController;
 import com.carmotors.sgt.controller.ServicioTipoController;
-import com.carmotors.sgt.controller.TecnicoController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.ConsumoRepuesto;
 import com.carmotors.sgt.model.ConsultaOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
+import com.carmotors.sgt.model.LineaOrdenSolicitada;
 import com.carmotors.sgt.model.FiltroOrdenServicio;
 import com.carmotors.sgt.model.ReservaLiberada;
 import com.carmotors.sgt.model.ResultadoCancelarOrden;
@@ -43,12 +43,9 @@ public class OrdenServicioView implements SubmenuVista {
     private final ClienteController clienteController;
     private final ServicioTipoController servicioTipoController;
 
-    private final TecnicoController tecnicoController;
-
     public OrdenServicioView(OrdenServicioController ordenServicioController,
                              ClienteController clienteController,
-                             ServicioTipoController servicioTipoController,
-                             TecnicoController tecnicoController) {
+                             ServicioTipoController servicioTipoController) {
         if (ordenServicioController == null) {
             throw new IllegalArgumentException("El controlador de órdenes de servicio es obligatorio.");
         }
@@ -58,13 +55,9 @@ public class OrdenServicioView implements SubmenuVista {
         if (servicioTipoController == null) {
             throw new IllegalArgumentException("El controlador de tipos de servicio es obligatorio.");
         }
-        if (tecnicoController == null) {
-            throw new IllegalArgumentException("El controlador de técnicos es obligatorio.");
-        }
         this.ordenServicioController = ordenServicioController;
         this.clienteController = clienteController;
         this.servicioTipoController = servicioTipoController;
-        this.tecnicoController = tecnicoController;
     }
 
     @Override
@@ -254,23 +247,35 @@ public class OrdenServicioView implements SubmenuVista {
                 return;
             }
 
-            List<OrdenServicioDetalle> lineas = new ArrayList<>();
+            List<LineaOrdenSolicitada> lineas = new ArrayList<>();
             boolean agregarOtra = true;
             while (agregarOtra) {
                 System.out.println("\n  --- Línea de servicio #" + (lineas.size() + 1) + " ---");
                 ServicioTipo tipo = seleccionarTipoServicio(tipos);
                 String observaciones = ConsoleReader.leerTextoOpcional("Observaciones (Enter para omitir)");
-                lineas.add(new OrdenServicioDetalle(tipo.getId(), observaciones));
+                OrdenServicioDetalle linea = new OrdenServicioDetalle(tipo.getId(), observaciones);
+                lineas.add(new LineaOrdenSolicitada(linea, leerReservasIniciales()));
                 agregarOtra = ConsoleReader.leerConfirmacion("¿Desea agregar otra línea de servicio?");
             }
 
-            OrdenServicio creada = ordenServicioController.crearOrden(vehiculo.getId(), descripcion, lineas);
+            OrdenServicio creada = ordenServicioController.crearOrdenIntegral(vehiculo.getId(), descripcion, lineas);
             System.out.println("\n  [✓] Orden de servicio creada exitosamente.");
             imprimirResumen(creada, vehiculo);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error al crear la orden de servicio: " + e.getMessage());
         }
         ConsoleReader.pausar();
+    }
+
+    private List<DetalleRepuesto> leerReservasIniciales() {
+        List<DetalleRepuesto> reservas = new ArrayList<>();
+        while (ConsoleReader.leerConfirmacion("¿Desea reservar un repuesto para esta línea?")) {
+            DetalleRepuesto reserva = new DetalleRepuesto();
+            reserva.setRepuestoId(ConsoleReader.leerEnteroPositivo("ID del repuesto"));
+            reserva.setCantidadAsignada(ConsoleReader.leerEnteroPositivo("Cantidad a reservar"));
+            reservas.add(reserva);
+        }
+        return reservas;
     }
 
     private void agregarLinea() {
@@ -288,7 +293,7 @@ public class OrdenServicioView implements SubmenuVista {
             Integer tecnicoId = null;
             boolean confirmarOtraEspecialidad = false;
             if (requiereTecnico) {
-                List<Tecnico> tecnicos = tecnicoController.listarActivos();
+                List<Tecnico> tecnicos = ordenServicioController.listarTecnicosActivos();
                 if (tecnicos.isEmpty()) {
                     System.out.println("  [!] No hay técnicos activos para asignar.");
                     return;
@@ -301,7 +306,7 @@ public class OrdenServicioView implements SubmenuVista {
                 if (seleccion == 0) {
                     return;
                 }
-                Tecnico tecnico = tecnicoController.buscarPorId(seleccion);
+                Tecnico tecnico = ordenServicioController.buscarTecnico(seleccion);
                 if (!ordenServicioController.especialidadCoincide(tipo, tecnico)) {
                     confirmarOtraEspecialidad = ConsoleReader.leerConfirmacion(
                             "La especialidad del técnico difiere de la requerida. ¿Desea asignarlo?");
@@ -354,7 +359,7 @@ public class OrdenServicioView implements SubmenuVista {
                     mostrarTecnicosAsignados(asignados);
                 }
 
-                List<Tecnico> activos = tecnicoController.listarActivos();
+                List<Tecnico> activos = ordenServicioController.listarTecnicosActivos();
                 if (activos.isEmpty()) {
                     System.out.println("  [!] No hay técnicos activos disponibles para asignar.");
                     return;
@@ -439,7 +444,7 @@ public class OrdenServicioView implements SubmenuVista {
         }
 
         Tecnico recomendado = sugerencia.getTecnico();
-        String especialidad = tecnicoController.obtenerNombreEspecialidad(recomendado.getEspecialidadId());
+        String especialidad = ordenServicioController.obtenerNombreEspecialidad(recomendado.getEspecialidadId());
         System.out.println("\n  --- Técnico Sugerido ---");
         System.out.println("    ID:           " + recomendado.getId());
         System.out.println("    Nombre:       " + recomendado.getNombre());
@@ -470,7 +475,7 @@ public class OrdenServicioView implements SubmenuVista {
     private void mostrarTecnicosActivos(List<Tecnico> activos) {
         System.out.println("\n  Técnicos activos disponibles:");
         for (Tecnico tecnico : activos) {
-            String nombreEsp = tecnicoController.obtenerNombreEspecialidad(tecnico.getEspecialidadId());
+            String nombreEsp = ordenServicioController.obtenerNombreEspecialidad(tecnico.getEspecialidadId());
             System.out.println("    " + tecnico.getId() + ". " + tecnico.getNombre()
                     + " | Especialidad: " + nombreEsp);
         }
@@ -478,7 +483,7 @@ public class OrdenServicioView implements SubmenuVista {
 
     private void mostrarTecnicosAsignados(List<DetalleTecnico> asignados) {
         for (DetalleTecnico asignacion : asignados) {
-            Tecnico tecnico = tecnicoController.buscarPorId(asignacion.getTecnicoId());
+            Tecnico tecnico = ordenServicioController.buscarTecnico(asignacion.getTecnicoId());
             String nombre = tecnico != null ? tecnico.getNombre() : "ID " + asignacion.getTecnicoId();
             System.out.println("    - Técnico #" + asignacion.getTecnicoId()
                     + " (" + nombre + ") | Horas: " + asignacion.getHorasTrabajadas() + " h");

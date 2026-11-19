@@ -1,18 +1,12 @@
 package com.carmotors.sgt.service;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.ConsumoRepuesto;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
+import com.carmotors.sgt.model.ResultadoCompletarOrden;
 import com.carmotors.sgt.model.StockRepuesto;
 import com.carmotors.sgt.repository.LoteDAO;
 import com.carmotors.sgt.repository.ProveedorDAO;
@@ -23,6 +17,14 @@ import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
 import com.carmotors.sgt.service.observer.StockObserver;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Cálculo de stock por repuesto según la sección 2.5 del documento maestro (RF-07, RF-05).
@@ -150,6 +152,17 @@ public class InventarioService {
         }
 
         return stock;
+    }
+
+    public void notificarStockBajoTrasCompletar(ResultadoCompletarOrden resultado) {
+        for (ConsumoRepuesto consumo : resultado.getConsumos()) {
+            try {
+                evaluarYNotificarStockBajo(consumo.getRepuestoId());
+            } catch (RuntimeException e) {
+                LOGGER.log(Level.WARNING, "La orden " + resultado.getOrden().getId() + " se completó, pero no se pudo "
+                        + "evaluar la alerta de stock bajo del repuesto " + consumo.getRepuestoId() + ".", e);
+            }
+        }
     }
 
     private void notificarStockBajo(StockRepuesto stock) {
