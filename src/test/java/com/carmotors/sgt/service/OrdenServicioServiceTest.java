@@ -733,6 +733,59 @@ class OrdenServicioServiceTest {
     // DAOs en memoria
     // ------------------------------------------------------------------
 
+    // ------------------------------------------------------------------
+    // T6.4: entrega de la orden (RF-12, RN-10)
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Entrega una orden Facturada registrando el estado Entregado y la fecha (RN-10)")
+    void entregarOrdenFacturada() {
+        OrdenServicio orden = service.crearOrden(1, "Servicio listo para entrega", lineas(1));
+        orden.setEstadoId(4);
+
+        OrdenServicio entregada = service.entregarOrden(orden.getId());
+
+        assertEquals(5, entregada.getEstadoId());
+        assertNotNull(entregada.getFechaEntrega());
+        assertEquals(5, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+        assertNotNull(ordenDAO.buscarPorId(orden.getId()).getFechaEntrega());
+    }
+
+    @Test
+    @DisplayName("Rechaza la entrega desde cualquier estado distinto de Facturado (RN-10)")
+    void rechazarEntregaDesdeEstadosInvalidos() {
+        int[] estadosInvalidos = {1, 2, 3, 5, 6};
+        for (int estado : estadosInvalidos) {
+            OrdenServicio orden = service.crearOrden(1, "Orden en estado " + estado, lineas(1));
+            orden.setEstadoId(estado);
+
+            assertThrows(TransicionEstadoInvalidaException.class,
+                    () -> service.entregarOrden(orden.getId()), "Estado inválido: " + estado);
+            assertEquals(estado, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+            assertNull(ordenDAO.buscarPorId(orden.getId()).getFechaEntrega());
+        }
+    }
+
+    @Test
+    @DisplayName("Rechaza entregar una orden inexistente o con ID no positivo")
+    void rechazarEntregaDeOrdenInexistenteOIdInvalido() {
+        assertThrows(EntidadNoEncontradaException.class, () -> service.entregarOrden(999));
+        assertThrows(ValidacionException.class, () -> service.entregarOrden(0));
+        assertThrows(ValidacionException.class, () -> service.entregarOrden(-5));
+    }
+
+    @Test
+    @DisplayName("Si el DAO no registra la entrega se lanza CarMotorsException y la orden sigue Facturada")
+    void fallarRegistroDeEntrega() {
+        OrdenServicio orden = service.crearOrden(1, "Servicio facturado", lineas(1));
+        orden.setEstadoId(4);
+        ordenDAO.deshabilitarActualizarEstado();
+
+        assertThrows(CarMotorsException.class, () -> service.entregarOrden(orden.getId()));
+        assertEquals(4, ordenDAO.buscarPorId(orden.getId()).getEstadoId());
+        assertNull(ordenDAO.buscarPorId(orden.getId()).getFechaEntrega());
+    }
+
     private static class OrdenServicioDAOMock implements OrdenServicioDAO {
         private final Map<Integer, OrdenServicio> ordenes = new HashMap<>();
         private int secuencia = 0;
@@ -780,6 +833,20 @@ class OrdenServicioServiceTest {
         @Override
         public boolean marcarCancelada(int ordenId, int estadoId, LocalDateTime fechaCancelacion) {
             return false;
+        }
+
+        @Override
+        public boolean marcarEntregada(int ordenId, int estadoId, LocalDateTime fechaEntrega) {
+            if (!permitirActualizarEstado) {
+                return false;
+            }
+            OrdenServicio orden = ordenes.get(ordenId);
+            if (orden == null) {
+                return false;
+            }
+            orden.setEstadoId(estadoId);
+            orden.setFechaEntrega(fechaEntrega);
+            return true;
         }
     }
 

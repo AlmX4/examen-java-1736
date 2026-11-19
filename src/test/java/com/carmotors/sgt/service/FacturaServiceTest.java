@@ -461,6 +461,11 @@ class FacturaServiceTest {
         public boolean marcarCancelada(int ordenId, int estadoId, LocalDateTime fechaCancelacion) {
             throw new UnsupportedOperationException("No se usa en estas pruebas.");
         }
+
+        @Override
+        public boolean marcarEntregada(int ordenId, int estadoId, LocalDateTime fechaEntrega) {
+            throw new UnsupportedOperationException("No se usa en estas pruebas.");
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {
