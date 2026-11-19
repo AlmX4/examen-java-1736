@@ -1,6 +1,7 @@
 package com.carmotors.sgt.repository;
 
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 
 import java.time.LocalDate;
@@ -25,4 +26,15 @@ public interface ReporteDAO {
 
     /** Recupera las líneas finalizadas y sus repuestos en un rango inclusivo de fechas. */
     List<RegistroServicioSolicitado> listarServiciosSolicitados(LocalDate fechaDesde, LocalDate fechaHasta);
+
+    /**
+     * Recupera un registro por cada técnico asignado a una línea de órdenes Completadas, Facturadas o
+     * Entregadas cuya {@code fecha_completado} esté entre el inicio del día {@code fechaDesde} y el final
+     * del día {@code fechaHasta} (RF-26, §4.2). Las líneas sin técnicos llegan con {@code tecnicoId} nulo.
+     *
+     * @param fechaDesde límite inferior inclusivo (obligatorio)
+     * @param fechaHasta límite superior inclusivo (obligatorio)
+     * @return registros planos de línea y técnico ordenados por línea y técnico
+     */
+    List<RegistroProductividadTecnico> listarProductividadTecnicos(LocalDate fechaDesde, LocalDate fechaHasta);
 }

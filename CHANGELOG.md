@@ -8,6 +8,16 @@
 
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
+### PR #107 — `feat(reportes): add technician productivity report (T7.2)` (`feature/reportes` → `develop`, cierra `#54`, RF-26 / §4.2 / §4.3 / RNF-11 / RNF-15)
+- **Autor:** `@JopsWtD`
+- **Cambios incluidos:**
+  - Nuevo `ReporteDAO.listarProductividadTecnicos(LocalDate, LocalDate)` en `ReporteDAOImpl` con `PreparedStatement`: un registro plano por técnico asignado a cada línea de órdenes Completadas, Facturadas o Entregadas (estados como constantes con nombre enlazadas como parámetros), filtrando `fecha_completado` desde el inicio del día "desde" hasta el final del día "hasta" (§4.2). Usa `LEFT JOIN` hacia `detalle_tecnicos` y `tecnicos` para que las líneas sin técnicos lleguen con `tecnico_id` nulo.
+  - Creación de los DTO `RegistroProductividadTecnico` (registro plano), `ProductividadTecnico` (líneas completadas, horas y mano de obra atribuida) y `ReporteProductividadTecnicos` (resultado por técnico, total "sin distribuir", total del periodo y líneas del periodo) en `com.carmotors.sgt.model`.
+  - Creación de `ReporteService.generarReporteProductividadTecnicos(LocalDate, LocalDate)` (§4.3): valida fechas obligatorias y no invertidas (`ValidacionException`); agrupa por línea con Streams y reparte `costo_mano_obra × horas_del_técnico / total_horas_de_la_línea` en `BigDecimal` con escala 2 y `HALF_UP`; la diferencia de centavos (positiva o negativa) se asigna al técnico con más horas de la línea y, en empate, al de menor ID, de modo que la suma por línea es exactamente su costo. Las líneas con 0 horas o sin técnicos suman al total "sin distribuir". Incluye técnicos con trabajo en el periodo (aunque hoy estén inactivos) y técnicos activos sin trabajo con cero; ordena por mano de obra descendente, horas descendente y nombre ascendente (RNF-11, RNF-15).
+  - `ReporteService` recibe `TecnicoDAO` en un constructor nuevo; se conservan los constructores existentes (`ReporteService()` y `ReporteService(ReporteDAO)`) y `Main.java` inyecta el `TecnicoDAO` ya creado.
+  - `ReportesController` delega el reporte; `ReportesView` añade la opción "3. Productividad por técnico (RF-26)" (rango 0–3): pide las fechas `yyyy-MM-dd`, muestra una tabla alineada con técnico, líneas, horas y mano de obra, el total "Sin distribuir" (aunque sea 0) y el total general, y avisa cuando no hay órdenes completadas en el rango, sin cerrar la aplicación ante errores.
+  - Creación de `ReporteProductividadTecnicosTest` (10 pruebas JUnit 5 en memoria): un técnico por línea, horas proporcionales, centavos al de menor ID en empate y al de más horas, línea con 0 horas o sin técnicos, técnicos activos / inactivos con y sin trabajo, orden del resultado, validación de fechas, escenario de `data.sql` con atribuido + sin distribuir = total y periodo sin líneas. Se actualizan los `ReporteDAO` en memoria de `ReporteConsumoRepuestosTest` y `ReporteServiciosSolicitadosTest` (307 pruebas en total, 0 fallos).
+
 ### PR #105 — `feat(reportes): add most requested services report (T7.1)` (`feature/reportes` → `develop`, cierra `#53`, RF-25 / RNF-11 / §4.2 / HU-13)
 - **Autor:** `@AlmX4`
 - La opción «Servicios más solicitados» selecciona líneas de órdenes completadas, facturadas o entregadas por rango inclusivo de finalización.

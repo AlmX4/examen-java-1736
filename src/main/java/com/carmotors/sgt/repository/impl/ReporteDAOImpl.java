@@ -3,6 +3,7 @@ package com.carmotors.sgt.repository.impl;
 import com.carmotors.sgt.config.ConnectionFactory;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
+import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.repository.ReporteDAO;
 
@@ -23,6 +24,11 @@ import java.util.logging.Logger;
 public class ReporteDAOImpl implements ReporteDAO {
 
     private static final Logger LOGGER = Logger.getLogger(ReporteDAOImpl.class.getName());
+
+    /** IDs de {@code servicio_estados} para órdenes completadas o posteriores (§4.1). */
+    private static final int ESTADO_COMPLETADO = 3;
+    private static final int ESTADO_FACTURADO = 4;
+    private static final int ESTADO_ENTREGADO = 5;
 
     private final Connection conexionCompartida;
 
@@ -84,6 +90,53 @@ public class ReporteDAOImpl implements ReporteDAO {
             LOGGER.warning("Falló la consulta de servicios solicitados (código JDBC " + e.getErrorCode() + ").");
             throw new CarMotorsException("No se pudieron consultar los servicios solicitados.", e);
         }
+    }
+
+    @Override
+    public List<RegistroProductividadTecnico> listarProductividadTecnicos(LocalDate fechaDesde, LocalDate fechaHasta) {
+        try {
+            if (conexionCompartida != null) {
+                return ejecutarConsultaProductividad(conexionCompartida, fechaDesde, fechaHasta);
+            }
+            try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+                return ejecutarConsultaProductividad(connection, fechaDesde, fechaHasta);
+            }
+        } catch (SQLException e) {
+            LOGGER.warning("Falló la consulta de productividad por técnico (código JDBC " + e.getErrorCode() + ").");
+            throw new CarMotorsException("No se pudo consultar la productividad por técnico.", e);
+        }
+    }
+
+    private List<RegistroProductividadTecnico> ejecutarConsultaProductividad(Connection connection,
+                                                                             LocalDate fechaDesde,
+                                                                             LocalDate fechaHasta) throws SQLException {
+        String sql = "SELECT osd.id AS detalle_id, osd.costo_mano_obra, dt.tecnico_id, t.nombre AS nombre_tecnico, "
+                + "t.activo AS tecnico_activo, dt.horas_trabajadas "
+                + "FROM ordenes_servicio o "
+                + "JOIN orden_servicio_detalle osd ON osd.orden_id = o.id "
+                + "LEFT JOIN detalle_tecnicos dt ON dt.detalle_id = osd.id "
+                + "LEFT JOIN tecnicos t ON t.id = dt.tecnico_id "
+                + "WHERE o.estado_id IN (?, ?, ?) AND o.fecha_completado >= ? AND o.fecha_completado < ? "
+                + "ORDER BY osd.id ASC, dt.tecnico_id ASC";
+
+        List<RegistroProductividadTecnico> registros = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, ESTADO_COMPLETADO);
+            statement.setInt(2, ESTADO_FACTURADO);
+            statement.setInt(3, ESTADO_ENTREGADO);
+            statement.setTimestamp(4, Timestamp.valueOf(fechaDesde.atStartOfDay()));
+            statement.setTimestamp(5, Timestamp.valueOf(fechaHasta.plusDays(1).atStartOfDay()));
+            try (ResultSet filas = statement.executeQuery()) {
+                while (filas.next()) {
+                    int tecnicoId = filas.getInt("tecnico_id");
+                    Integer tecnico = filas.wasNull() ? null : tecnicoId;
+                    registros.add(new RegistroProductividadTecnico(filas.getInt("detalle_id"),
+                            filas.getBigDecimal("costo_mano_obra"), tecnico, filas.getString("nombre_tecnico"),
+                            filas.getBoolean("tecnico_activo"), filas.getBigDecimal("horas_trabajadas")));
+                }
+            }
+        }
+        return registros;
     }
 
     private List<RegistroServicioSolicitado> ejecutarConsultaServicios(Connection connection, LocalDate fechaDesde,
