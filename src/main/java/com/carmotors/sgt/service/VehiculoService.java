@@ -68,7 +68,7 @@ public class VehiculoService {
         vehiculo.setPlaca(placaNormalizada);
 
         // Validación de marca y modelo
-        String marcaNormalizada = InputValidator.normalizarTexto(vehiculo.getMarca());
+        String marcaNormalizada = InputValidator.normalizarEspacios(vehiculo.getMarca());
         if (!InputValidator.esTextoNoVacio(marcaNormalizada)) {
             throw new ValidacionException("La marca del vehículo es obligatoria.");
         }
@@ -76,15 +76,23 @@ public class VehiculoService {
             throw new ValidacionException(
                     "La marca no puede superar los " + MAX_LONGITUD_MARCA + " caracteres.");
         }
+        if (marcaNormalizada.length() < 2
+                || !InputValidator.contieneLetra(marcaNormalizada)
+                || InputValidator.contieneDigito(marcaNormalizada)) {
+            throw new ValidacionException("La marca del vehículo debe contener al menos 2 letras y no incluir números.");
+        }
         vehiculo.setMarca(marcaNormalizada);
 
-        String modeloNormalizado = InputValidator.normalizarTexto(vehiculo.getModelo());
+        String modeloNormalizado = InputValidator.normalizarEspacios(vehiculo.getModelo());
         if (!InputValidator.esTextoNoVacio(modeloNormalizado)) {
             throw new ValidacionException("El modelo del vehículo es obligatorio.");
         }
         if (modeloNormalizado.length() > MAX_LONGITUD_MODELO) {
             throw new ValidacionException(
                     "El modelo no puede superar los " + MAX_LONGITUD_MODELO + " caracteres.");
+        }
+        if (!InputValidator.contieneAlfanumerico(modeloNormalizado)) {
+            throw new ValidacionException("El modelo del vehículo debe contener caracteres alfanuméricos válidos.");
         }
         vehiculo.setModelo(modeloNormalizado);
 

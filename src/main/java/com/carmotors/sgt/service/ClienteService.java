@@ -145,13 +145,17 @@ public class ClienteService {
             throw new ValidacionException("Los datos del cliente no pueden ser nulos.");
         }
 
-        String nombre = InputValidator.normalizarTexto(cliente.getNombre());
+        String nombre = InputValidator.normalizarEspacios(cliente.getNombre());
         if (nombre.isEmpty()) {
             throw new ValidacionException("El nombre del cliente es obligatorio.");
         }
         if (nombre.length() > MAX_LONGITUD_NOMBRE) {
             throw new ValidacionException(
                     "El nombre del cliente no puede superar los " + MAX_LONGITUD_NOMBRE + " caracteres.");
+        }
+        if (!InputValidator.esNombreClienteValido(nombre)) {
+            throw new ValidacionException(
+                    "El nombre del cliente debe contener al menos 2 palabras con letras (sin números).");
         }
         cliente.setNombre(nombre);
 
@@ -162,6 +166,10 @@ public class ClienteService {
         if (documento.length() > MAX_LONGITUD_DOCUMENTO) {
             throw new ValidacionException(
                     "El documento no puede superar los " + MAX_LONGITUD_DOCUMENTO + " caracteres.");
+        }
+        if (!InputValidator.esDocumentoClienteValido(documento)) {
+            throw new ValidacionException(
+                    "El documento del cliente debe tener entre 6 y 12 dígitos o formato NIT válido (ej. 900123456-7).");
         }
         cliente.setDocumentoIdentidad(documento);
 
@@ -182,6 +190,9 @@ public class ClienteService {
         if (telefono.length() > MAX_LONGITUD_TELEFONO) {
             throw new ValidacionException(
                     "El teléfono no puede superar los " + MAX_LONGITUD_TELEFONO + " caracteres.");
+        }
+        if (!telefono.isEmpty() && !InputValidator.esTelefonoValido(telefono)) {
+            throw new ValidacionException("El teléfono del cliente debe contener entre 7 y 15 dígitos numéricos.");
         }
         cliente.setTelefono(telefono.isEmpty() ? null : telefono);
     }

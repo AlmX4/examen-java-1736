@@ -63,6 +63,8 @@ public class EvaluacionProveedorService {
 
         if (evaluacion.getFecha() == null) {
             evaluacion.setFecha(LocalDate.now());
+        } else if (evaluacion.getFecha().isAfter(LocalDate.now())) {
+            throw new ValidacionException("La fecha de evaluación no puede ser futura.");
         }
 
         int idGenerado = evaluacionDAO.guardar(evaluacion);

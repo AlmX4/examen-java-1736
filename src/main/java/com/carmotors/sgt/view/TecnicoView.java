@@ -138,10 +138,10 @@ public class TecnicoView implements SubmenuVista {
             }
 
             Tecnico tecnico = new Tecnico();
-            tecnico.setNombre(ConsoleReader.leerTextoObligatorio("Nombre completo del técnico"));
-            tecnico.setDocumentoIdentidad(ConsoleReader.leerTextoObligatorio("Documento de identidad"));
+            tecnico.setNombre(ConsoleReader.leerNombrePersona("Nombre completo del técnico"));
+            tecnico.setDocumentoIdentidad(ConsoleReader.leerDocumentoNumerico("Documento de identidad"));
             tecnico.setEspecialidadId(seleccionarEspecialidad(especialidades));
-            String telefono = ConsoleReader.leerTextoOpcional("Teléfono (opcional)");
+            String telefono = ConsoleReader.leerTelefonoOpcional("Teléfono (opcional)");
             tecnico.setTelefono(telefono.isEmpty() ? null : telefono);
 
             Tecnico creado = tecnicoController.registrar(tecnico);
@@ -168,10 +168,10 @@ public class TecnicoView implements SubmenuVista {
 
             Tecnico actualizado = new Tecnico();
             actualizado.setId(actual.getId());
-            actualizado.setNombre(ConsoleReader.leerTextoObligatorio("Nuevo nombre completo"));
-            actualizado.setDocumentoIdentidad(ConsoleReader.leerTextoObligatorio("Nuevo documento de identidad"));
+            actualizado.setNombre(ConsoleReader.leerNombrePersona("Nuevo nombre completo"));
+            actualizado.setDocumentoIdentidad(ConsoleReader.leerDocumentoNumerico("Nuevo documento de identidad"));
             actualizado.setEspecialidadId(seleccionarEspecialidad(especialidades));
-            String telefono = ConsoleReader.leerTextoOpcional("Nuevo teléfono (opcional)");
+            String telefono = ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (opcional)");
             actualizado.setTelefono(telefono.isEmpty() ? null : telefono);
             actualizado.setActivo(actual.isActivo());
 

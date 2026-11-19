@@ -143,7 +143,7 @@ public class ProveedorView implements SubmenuVista {
         try {
             Proveedor proveedor = new Proveedor();
             proveedor.setNombre(ConsoleReader.leerTextoObligatorio("Nombre del proveedor"));
-            proveedor.setTelefono(ConsoleReader.leerTextoOpcional("Teléfono (opcional)"));
+            proveedor.setTelefono(ConsoleReader.leerTelefonoOpcional("Teléfono (opcional)"));
             proveedor.setEmail(ConsoleReader.leerEmailOpcional("Email del proveedor (opcional)"));
             proveedor.setDireccion(ConsoleReader.leerTextoOpcional("Dirección (opcional)"));
             proveedor.setActivo(true);
@@ -166,7 +166,7 @@ public class ProveedorView implements SubmenuVista {
             Proveedor actualizado = new Proveedor();
             actualizado.setId(actual.getId());
             actualizado.setNombre(ConsoleReader.leerTextoObligatorio("Nuevo nombre"));
-            actualizado.setTelefono(ConsoleReader.leerTextoOpcional("Nuevo teléfono (opcional)"));
+            actualizado.setTelefono(ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (opcional)"));
             actualizado.setEmail(ConsoleReader.leerEmailOpcional("Nuevo email (opcional)"));
             actualizado.setDireccion(ConsoleReader.leerTextoOpcional("Nueva dirección (opcional)"));
             actualizado.setActivo(actual.isActivo());

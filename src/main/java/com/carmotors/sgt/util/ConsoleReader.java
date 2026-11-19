@@ -53,6 +53,74 @@ public final class ConsoleReader {
     }
 
     /**
+     * Solicita el nombre completo de una persona natural (2 a 4 palabras alfabéticas, sin números).
+     */
+    public static String leerNombrePersona(String mensaje) {
+        while (true) {
+            String entrada = leerLineaSegura(mensaje);
+            if (InputValidator.esNombrePersonaValido(entrada)) {
+                return InputValidator.normalizarEspacios(entrada);
+            }
+            System.out.println("  [!] Error: Ingrese nombre y apellido válidos (2 a 4 palabras, solo letras, sin números).");
+        }
+    }
+
+    /**
+     * Solicita el nombre de un cliente (persona natural o razón social sin dígitos, mínimo 2 palabras).
+     */
+    public static String leerNombreCliente(String mensaje) {
+        while (true) {
+            String entrada = leerLineaSegura(mensaje);
+            if (InputValidator.esNombreClienteValido(entrada)) {
+                return InputValidator.normalizarEspacios(entrada);
+            }
+            System.out.println("  [!] Error: Ingrese un nombre completo o razón social válidos (mínimo 2 palabras, solo letras, sin números).");
+        }
+    }
+
+    /**
+     * Solicita un documento numérico de persona natural (6 a 12 dígitos).
+     */
+    public static String leerDocumentoNumerico(String mensaje) {
+        while (true) {
+            String entrada = leerLineaSegura(mensaje);
+            if (InputValidator.esDocumentoNumericoValido(entrada)) {
+                return InputValidator.normalizarTexto(entrada);
+            }
+            System.out.println("  [!] Error: El documento debe tener entre 6 y 12 dígitos numéricos.");
+        }
+    }
+
+    /**
+     * Solicita un documento de cliente (cédula de 6 a 12 dígitos o NIT ej. 900123456-7).
+     */
+    public static String leerDocumentoCliente(String mensaje) {
+        while (true) {
+            String entrada = leerLineaSegura(mensaje);
+            if (InputValidator.esDocumentoClienteValido(entrada)) {
+                return InputValidator.normalizarTexto(entrada);
+            }
+            System.out.println("  [!] Error: Ingrese un documento válido (6 a 12 dígitos o NIT ej. 900123456-7).");
+        }
+    }
+
+    /**
+     * Solicita un teléfono opcional; si se ingresa texto, exige entre 7 y 15 dígitos numéricos.
+     */
+    public static String leerTelefonoOpcional(String mensaje) {
+        while (true) {
+            String entrada = InputValidator.normalizarTexto(leerLineaSegura(mensaje));
+            if (entrada.isEmpty()) {
+                return "";
+            }
+            if (InputValidator.esTelefonoValido(entrada)) {
+                return entrada;
+            }
+            System.out.println("  [!] Error: El teléfono debe tener entre 7 y 15 dígitos numéricos (o deje vacío para omitir).");
+        }
+    }
+
+    /**
      * Solicita un número entero válido (acepta positivos, cero y negativos).
      */
     public static int leerEntero(String mensaje) {

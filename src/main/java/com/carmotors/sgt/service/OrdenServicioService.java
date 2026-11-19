@@ -1620,9 +1620,13 @@ public class OrdenServicioService {
     }
 
     private String validarDescripcion(String descripcionProblema) {
-        String descripcion = InputValidator.normalizarTexto(descripcionProblema);
+        String descripcion = InputValidator.normalizarEspacios(descripcionProblema);
         if (descripcion.isEmpty()) {
             throw new ValidacionException("La descripción del problema es obligatoria.");
+        }
+        if (descripcion.length() < 3 || !InputValidator.contieneLetra(descripcion)) {
+            throw new ValidacionException(
+                    "La descripción del problema debe tener al menos 3 caracteres e incluir texto descriptivo.");
         }
         if (descripcion.length() > MAX_LONGITUD_DESCRIPCION) {
             throw new ValidacionException("La descripción del problema no puede superar los "

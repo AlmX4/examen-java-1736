@@ -22,6 +22,9 @@ import java.util.List;
  */
 public class ServicioTipoService {
 
+    private static final int MAX_LONGITUD_NOMBRE = 100;
+    private static final int MAX_INTERVALO_MESES = 120;
+
     private final ServicioTipoDAO servicioTipoDAO;
     private final MantenimientoTipoDAO mantenimientoTipoDAO;
     private final EspecialidadDAO especialidadDAO;
@@ -126,9 +129,17 @@ public class ServicioTipoService {
             throw new ValidacionException("Los datos del tipo de servicio no pueden ser nulos.");
         }
 
-        String nombre = InputValidator.normalizarTexto(servicioTipo.getNombre());
+        String nombre = InputValidator.normalizarEspacios(servicioTipo.getNombre());
         if (nombre.isEmpty()) {
             throw new ValidacionException("El nombre del tipo de servicio es obligatorio.");
+        }
+        if (nombre.length() > MAX_LONGITUD_NOMBRE) {
+            throw new ValidacionException(
+                    "El nombre del tipo de servicio no puede superar los " + MAX_LONGITUD_NOMBRE + " caracteres.");
+        }
+        if (nombre.length() < 3 || !InputValidator.contieneLetra(nombre)) {
+            throw new ValidacionException(
+                    "El nombre del tipo de servicio debe tener al menos 3 caracteres e incluir letras.");
         }
         servicioTipo.setNombre(nombre);
 
@@ -155,7 +166,12 @@ public class ServicioTipoService {
         if (!InputValidator.esBigDecimalNoNegativo(precio)) {
             throw new ValidacionException("El precio base de mano de obra debe ser mayor o igual a 0.00.");
         }
-        servicioTipo.setPrecioManoObraBase(precio.setScale(2, RoundingMode.HALF_UP));
+        BigDecimal precioNormalizado = precio.setScale(2, RoundingMode.HALF_UP);
+        if (precioNormalizado.compareTo(InputValidator.MAX_MONTO_DECIMAL_12_2) > 0) {
+            throw new ValidacionException("El precio base de mano de obra supera el máximo permitido ("
+                    + InputValidator.MAX_MONTO_DECIMAL_12_2 + ").");
+        }
+        servicioTipo.setPrecioManoObraBase(precioNormalizado);
 
         validarIntervaloSegunMantenimiento(mantenimientoTipo, servicioTipo.getIntervaloMeses());
     }
@@ -166,6 +182,11 @@ public class ServicioTipoService {
             if (intervaloMeses == null || intervaloMeses <= 0) {
                 throw new ValidacionException(
                         "Un servicio de mantenimiento Preventivo exige un intervalo en meses mayor que cero.");
+            }
+            if (intervaloMeses > MAX_INTERVALO_MESES) {
+                throw new ValidacionException(
+                        "El intervalo en meses para mantenimiento Preventivo no puede superar "
+                                + MAX_INTERVALO_MESES + " meses.");
             }
             return;
         }
