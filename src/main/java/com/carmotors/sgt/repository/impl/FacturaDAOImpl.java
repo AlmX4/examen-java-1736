@@ -13,6 +13,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Implementación JDBC de la cabecera de facturas ({@code facturas}).
@@ -76,6 +78,37 @@ public class FacturaDAOImpl implements FacturaDAO {
         } catch (SQLException e) {
             throw new CarMotorsException("Error al buscar la factura de la orden " + ordenId + ": "
                     + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Factura buscarPorNumero(String numeroFactura) {
+        if (numeroFactura == null || numeroFactura.trim().isEmpty()) {
+            return null;
+        }
+        String numeroNormalizado = numeroFactura.trim().toUpperCase();
+        String sql = COLUMNAS + "WHERE UPPER(numero_factura) = UPPER(?)";
+        if (conexionCompartida != null) {
+            return consultarUnaPorTexto(conexionCompartida, sql, numeroNormalizado);
+        }
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarUnaPorTexto(connection, sql, numeroNormalizado);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al buscar la factura " + numeroNormalizado + ": "
+                    + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<Factura> listarTodas() {
+        String sql = COLUMNAS + "ORDER BY fecha_emision DESC, id DESC";
+        if (conexionCompartida != null) {
+            return consultarLista(conexionCompartida, sql);
+        }
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return consultarLista(connection, sql);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al listar las facturas: " + e.getMessage(), e);
         }
     }
 
@@ -166,6 +199,33 @@ public class FacturaDAOImpl implements FacturaDAO {
             }
         } catch (SQLException e) {
             throw new CarMotorsException("Error al consultar la factura: " + e.getMessage(), e);
+        }
+    }
+
+    private Factura consultarUnaPorTexto(Connection connection, String sql, String valor) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setString(1, valor);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    return mapear(resultSet);
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar la factura: " + e.getMessage(), e);
+        }
+    }
+
+    private List<Factura> consultarLista(Connection connection, String sql) {
+        List<Factura> facturas = new ArrayList<>();
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql);
+             ResultSet resultSet = preparedStatement.executeQuery()) {
+            while (resultSet.next()) {
+                facturas.add(mapear(resultSet));
+            }
+            return facturas;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al consultar el listado de facturas: " + e.getMessage(), e);
         }
     }
 
