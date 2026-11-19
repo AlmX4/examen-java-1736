@@ -8,6 +8,16 @@
 
 ## [En curso] — Sprint 8: Cierre y entrega (`develop`)
 
+### Pendiente de integración — `docs(documentacion): export architecture diagrams as PNG (T8.3)` (`feature/documentacion` → `develop`, cierra `#60`, RNF-11 / §2.9 / Sprint 8)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - `docs/diagrama-er.png` (2133 × 2807 px) exportado desde `docs/vault/02-Arquitectura/diagramas/CarMotors_Modelo_Logico_v1.3.mmd`, con las 20 tablas del modelo v1.3 y sus claves y cardinalidades.
+  - `docs/diagrama-clases.png` (3185 × 1565 px) exportado desde `docs/vault/02-Arquitectura/diagramas/CarMotors_Diagrama_Clases_UML_v1.3.mmd`.
+  - `docs/arquitectura.png` (1806 × 862 px) generado desde la nueva fuente `docs/vault/02-Arquitectura/diagramas/CarMotors_Arquitectura_Capas_v1.3.mmd`, que representa el flujo `view` → `controller` → `service` (con `state`, `chain`, `observer`, `builder` y `facade`) → `repository` / `repository.impl` → MySQL 8, además de `config`, `model`, `util` y `exception`.
+  - Sin cambios en `README.md` ni edición manual de documentos derivados del maestro.
+  - `check-traceability.ps1`: OK (35/35 RF, 22/22 RN, 16/16 HU, 25/25 RNF y wikilinks resolubles) y `mvn clean test`: BUILD SUCCESS con 349 pruebas, 0 fallos.
+
 ### PR #113 — `feat(view): polish console menus, confirmations, and navigation flows (T8.1)` (`feature/documentacion` → `develop`, cierra `#58`, RNF-03 / RNF-24)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
