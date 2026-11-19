@@ -8,7 +8,7 @@
 
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
-### Pendiente de integración — `feat(reportes): add spare parts consumption report with Stream API (T7.3)` (`feature/reportes` → `develop`, cierra `#55`, RF-27 / §4.2 / §4.3 / RNF-11 / HU-13)
+### PR #104 — `feat(reportes): add spare parts consumption report with Stream API (T7.3)` (`feature/reportes` → `develop`, cierra `#55`, RF-27 / §4.2 / §4.3 / RNF-11 / HU-13)
 - **Autor:** `@julio7879`
 - **Cambios incluidos:**
   - Creación de los modelos `RegistroConsumoRepuesto` y `ReporteConsumoRepuestos` (`ResumenConsumo` y `DetalleConsumo`) en `com.carmotors.sgt.model`.
