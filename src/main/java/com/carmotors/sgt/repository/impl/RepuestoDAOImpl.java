@@ -81,8 +81,26 @@ public class RepuestoDAOImpl implements RepuestoDAO {
             throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
         }
 
-        String sql = "SELECT id, repuesto_tipo_id, nombre, marca, precio_venta, cantidad_reservada, stock_minimo, activo " +
-                "FROM repuestos WHERE id = ?";
+        return buscarPorId(id, false);
+    }
+
+    @Override
+    public Repuesto buscarPorIdParaActualizar(int id) {
+        if (id <= 0) {
+            throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
+        }
+        if (conexionCompartida == null) {
+            throw new CarMotorsException("La consulta con bloqueo requiere una conexión transaccional compartida.");
+        }
+        return buscarPorId(id, true);
+    }
+
+    private Repuesto buscarPorId(int id, boolean bloquear) {
+        String sql = "SELECT id, repuesto_tipo_id, nombre, marca, precio_venta, cantidad_reservada, stock_minimo, activo "
+                + "FROM repuestos WHERE id = ?";
+        if (bloquear) {
+            sql += " FOR UPDATE";
+        }
         if (conexionCompartida != null) {
             return consultarPorId(conexionCompartida, sql, id);
         }
