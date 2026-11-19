@@ -84,10 +84,11 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  10. Pasar orden a En Proceso");
             System.out.println("  11. Completar orden");
             System.out.println("  12. Cancelar orden");
+            System.out.println("  13. Entregar orden");
             System.out.println("  0. Volver");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 12);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 13);
             switch (opcion) {
                 case 1:
                     crearOrden();
@@ -124,6 +125,9 @@ public class OrdenServicioView implements SubmenuVista {
                     break;
                 case 12:
                     cancelarOrden();
+                    break;
+                case 13:
+                    entregarOrden();
                     break;
                 case 0:
                     ejecutando = false;
@@ -586,6 +590,27 @@ public class OrdenServicioView implements SubmenuVista {
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] No se pudo cancelar la orden: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void entregarOrden() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden de servicio");
+            boolean confirmar = ConsoleReader.leerConfirmacion("Entregar la orden " + ordenId
+                    + " solo es posible si está facturada. ¿Desea continuar?");
+            if (!confirmar) {
+                System.out.println("\n  [i] Operación cancelada; la orden no cambió.");
+                return;
+            }
+
+            OrdenServicio orden = ordenServicioController.entregarOrden(ordenId);
+            System.out.println("\n  [✓] Orden " + orden.getId() + " entregada.");
+            System.out.println("  Estado:         " + ordenServicioController.obtenerNombreEstado(orden.getEstadoId()));
+            System.out.println("  Fecha entrega:  " + orden.getFechaEntrega().format(FORMATO_FECHA_HORA));
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo entregar la orden: " + e.getMessage());
         } finally {
             ConsoleReader.pausar();
         }

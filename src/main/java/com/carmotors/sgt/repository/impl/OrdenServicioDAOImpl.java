@@ -147,6 +147,33 @@ public class OrdenServicioDAOImpl implements OrdenServicioDAO {
         }
     }
 
+    @Override
+    public boolean marcarEntregada(int ordenId, int estadoId, LocalDateTime fechaEntrega) {
+        String sql = "UPDATE ordenes_servicio SET estado_id = ?, fecha_entrega = ? WHERE id = ?";
+
+        if (conexionCompartida != null) {
+            return ejecutarMarcarEntregada(conexionCompartida, sql, ordenId, estadoId, fechaEntrega);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return ejecutarMarcarEntregada(connection, sql, ordenId, estadoId, fechaEntrega);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al entregar la orden " + ordenId + ": " + e.getMessage(), e);
+        }
+    }
+
+    private boolean ejecutarMarcarEntregada(Connection connection, String sql, int ordenId, int estadoId,
+                                            LocalDateTime fechaEntrega) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, estadoId);
+            asignarFecha(preparedStatement, 2, fechaEntrega);
+            preparedStatement.setInt(3, ordenId);
+            return preparedStatement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al entregar la orden " + ordenId + ": " + e.getMessage(), e);
+        }
+    }
+
     private int insertarOrden(Connection connection, String sql, OrdenServicio orden) {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setInt(1, orden.getVehiculoId());

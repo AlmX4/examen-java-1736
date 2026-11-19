@@ -192,4 +192,8 @@ public class OrdenServicioController {
     public ResultadoCancelarOrden cancelarOrden(int ordenId) {
         return ordenServicioService.cancelarOrden(ordenId);
     }
+
+    public OrdenServicio entregarOrden(int ordenId) {
+        return ordenServicioService.entregarOrden(ordenId);
+    }
 }
