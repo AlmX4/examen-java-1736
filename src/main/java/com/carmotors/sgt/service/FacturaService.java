@@ -13,6 +13,7 @@ import com.carmotors.sgt.model.FacturaDetalle;
 import com.carmotors.sgt.model.FacturaSnapshot;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
+import com.carmotors.sgt.model.ResultadoReimpresionFactura;
 import com.carmotors.sgt.model.TipoConcepto;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.repository.ClienteDAO;
@@ -53,7 +54,8 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 /**
- * Reglas de negocio para generar y consultar facturas internas (RF-22, RF-23, RN-09, RN-11, RN-12).
+ * Reglas de negocio para generar, consultar y reimprimir facturas internas
+ * (RF-22, RF-23, RF-24, RN-09, RN-11, RN-12).
  *
  * <p>La cabecera, el snapshot de cliente y vehículo, los conceptos y el cambio de la orden a
  * Facturado se guardan en una única transacción JDBC. El TXT y su marca se gestionan
@@ -218,7 +220,8 @@ public class FacturaService {
     }
 
     /**
-     * Consulta una factura con su snapshot y sus conceptos.
+     * Consulta una factura con su snapshot y sus conceptos (RF-24, RN-11).
+     * Lee exclusivamente las tablas históricas de factura sin consultar el catálogo operativo.
      *
      * @param facturaId identificador de la factura
      * @return la factura con su snapshot y sus conceptos
@@ -231,19 +234,119 @@ public class FacturaService {
         if (factura == null) {
             throw new EntidadNoEncontradaException("No se encontró una factura con el ID: " + facturaId);
         }
-        FacturaSnapshot snapshot = facturaSnapshotDAO.buscarPorFactura(facturaId);
-        if (snapshot == null) {
-            throw new CarMotorsException("La factura " + factura.getNumeroFactura() + " no tiene snapshot de cliente "
-                    + "y vehículo.");
+        return construirConsulta(factura);
+    }
+
+    /**
+     * Consulta la factura histórica asociada a una orden de servicio (RF-24, RN-11).
+     *
+     * @param ordenId identificador de la orden de servicio
+     * @return la factura con su snapshot y sus conceptos
+     */
+    public ConsultaFactura consultarFacturaPorOrden(int ordenId) {
+        ConsultaFactura consulta = buscarFacturaPorOrden(ordenId);
+        if (consulta == null) {
+            throw new EntidadNoEncontradaException("No se encontró una factura registrada para la orden: " + ordenId);
         }
-        return new ConsultaFactura(factura, snapshot, facturaDetalleDAO.listarPorFactura(facturaId));
+        return consulta;
+    }
+
+    /**
+     * Busca la factura histórica asociada a una orden de servicio; retorna {@code null} si aún no tiene factura.
+     *
+     * @param ordenId identificador de la orden de servicio
+     * @return la factura histórica o {@code null} si la orden no ha sido facturada
+     */
+    public ConsultaFactura buscarFacturaPorOrden(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+        Factura factura = facturaDAO.buscarPorOrden(ordenId);
+        if (factura == null) {
+            return null;
+        }
+        return construirConsulta(factura);
+    }
+
+    /**
+     * Consulta una factura histórica por su número único (ej. {@code F-2026-0001}) (RF-24, RN-11).
+     *
+     * @param numeroFactura número de factura
+     * @return la factura con su snapshot y sus conceptos
+     */
+    public ConsultaFactura consultarFacturaPorNumero(String numeroFactura) {
+        if (numeroFactura == null || numeroFactura.trim().isEmpty()) {
+            throw new ValidacionException("El número de factura es obligatorio.");
+        }
+        String numeroNormalizado = numeroFactura.trim().toUpperCase();
+        Factura factura = facturaDAO.buscarPorNumero(numeroNormalizado);
+        if (factura == null) {
+            throw new EntidadNoEncontradaException("No se encontró una factura con el número: " + numeroNormalizado);
+        }
+        return construirConsulta(factura);
+    }
+
+    /**
+     * Lista las cabeceras de todas las facturas emitidas (más recientes primero).
+     *
+     * @return lista de facturas persistidas
+     */
+    public List<Factura> listarFacturas() {
+        return facturaDAO.listarTodas();
     }
 
     /** Regenera el mismo comprobante a partir de sus datos históricos persistidos. */
     public Path reintentarArchivo(int facturaId) {
-        ConsultaFactura consulta = consultarFactura(facturaId);
+        return reimprimirFactura(facturaId).getArchivoTxt();
+    }
+
+    /**
+     * Reimprime una factura existente por su ID (RF-24, RN-11).
+     * Reconstruye el archivo TXT UTF-8 exclusivamente desde {@code facturas},
+     * {@code factura_snapshot} y {@code factura_detalles}, sin crear otra factura ni alterar la orden.
+     *
+     * @param facturaId identificador de la factura
+     * @return consulta histórica y ruta del archivo TXT generado
+     */
+    public ResultadoReimpresionFactura reimprimirFactura(int facturaId) {
+        return reimprimirConsulta(consultarFactura(facturaId));
+    }
+
+    /**
+     * Reimprime la factura existente asociada a una orden de servicio (RF-24, RN-11).
+     *
+     * @param ordenId identificador de la orden
+     * @return consulta histórica y ruta del archivo TXT generado
+     */
+    public ResultadoReimpresionFactura reimprimirFacturaPorOrden(int ordenId) {
+        return reimprimirConsulta(consultarFacturaPorOrden(ordenId));
+    }
+
+    /**
+     * Reimprime una factura existente por su número único (RF-24, RN-11).
+     *
+     * @param numeroFactura número de factura (ej. {@code F-2026-0001})
+     * @return consulta histórica y ruta del archivo TXT generado
+     */
+    public ResultadoReimpresionFactura reimprimirFacturaPorNumero(String numeroFactura) {
+        return reimprimirConsulta(consultarFacturaPorNumero(numeroFactura));
+    }
+
+    private ConsultaFactura construirConsulta(Factura factura) {
+        FacturaSnapshot snapshot = facturaSnapshotDAO.buscarPorFactura(factura.getId());
+        if (snapshot == null) {
+            throw new CarMotorsException("La factura " + factura.getNumeroFactura() + " no tiene snapshot de cliente "
+                    + "y vehículo.");
+        }
+        List<FacturaDetalle> detalles = facturaDetalleDAO.listarPorFactura(factura.getId());
+        return new ConsultaFactura(factura, snapshot, detalles);
+    }
+
+    private ResultadoReimpresionFactura reimprimirConsulta(ConsultaFactura consulta) {
+        int facturaId = consulta.getFactura().getId();
         try {
-            return generarArchivo(consulta);
+            Path archivo = generarArchivo(consulta);
+            return new ResultadoReimpresionFactura(consulta, archivo);
         } catch (CarMotorsException e) {
             registrarFalloArchivo(facturaId, e);
             throw e;
@@ -255,7 +358,9 @@ public class FacturaService {
         if (carpetaFacturas == null) {
             throw new CarMotorsException("La carpeta de facturas no está configurada.");
         }
-        if (!factura.getNumeroFactura().matches("[A-Za-z0-9_-]+") || consulta.getDetalles().isEmpty()) {
+        if (factura.getNumeroFactura() == null
+                || !factura.getNumeroFactura().matches("[A-Za-z0-9_-]+")
+                || consulta.getDetalles().isEmpty()) {
             throw new CarMotorsException("La factura no tiene datos válidos para generar el TXT.");
         }
 
@@ -274,8 +379,10 @@ public class FacturaService {
             throw new CarMotorsException("No se pudo escribir el comprobante TXT. Revise la carpeta configurada.", e);
         }
 
-        facturaDAO.marcarArchivoGenerado(factura.getId());
-        factura.setArchivoGenerado(true);
+        if (!factura.isArchivoGenerado()) {
+            facturaDAO.marcarArchivoGenerado(factura.getId());
+            factura.setArchivoGenerado(true);
+        }
         return destino;
     }
 
