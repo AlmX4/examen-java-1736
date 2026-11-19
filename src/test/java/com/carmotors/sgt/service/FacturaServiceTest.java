@@ -1,5 +1,6 @@
 package com.carmotors.sgt.service;
 
+import com.carmotors.sgt.controller.FacturaController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
@@ -14,6 +15,7 @@ import com.carmotors.sgt.model.FacturaDetalle;
 import com.carmotors.sgt.model.FacturaSnapshot;
 import com.carmotors.sgt.model.OrdenServicio;
 import com.carmotors.sgt.model.OrdenServicioDetalle;
+import com.carmotors.sgt.model.ResultadoReimpresionFactura;
 import com.carmotors.sgt.model.TipoConcepto;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.repository.ClienteDAO;
@@ -395,6 +397,128 @@ class FacturaServiceTest {
         assertThrows(EntidadNoEncontradaException.class, () -> service.consultarFactura(999));
     }
 
+    @Test
+    @DisplayName("T6.3 RF-24: reimpresión idéntica aunque cambien cliente, vehículo, precios y se borre el TXT")
+    void reimprimirFacturaEsIdenticaTrasCambiosEnCatalogoYBorradoDelTxt(@TempDir Path carpeta) throws IOException {
+        FacturaService conArchivo = crearServicioConArchivo(carpeta.resolve("output"));
+        ConsultaFactura generada = conArchivo.generarFactura(10);
+        Factura facturaOriginal = generada.getFactura();
+        Path archivoOriginal = carpeta.resolve("output")
+                .resolve("factura_" + facturaOriginal.getNumeroFactura() + ".txt");
+        String contenidoOriginal = Files.readString(archivoOriginal, StandardCharsets.UTF_8);
+        int cantidadFacturasInicial = facturaDAO.facturas.size();
+
+        // Se alteran cliente, vehículo, conceptos de la orden y estado de la orden (Entregado = 5)
+        // y se elimina físicamente el TXT original.
+        Cliente cliente = clienteDAO.buscarPorId(3);
+        cliente.setNombre("Cliente Modificado");
+        cliente.setTelefono("3999999999");
+        cliente.setEmail("nuevo@correo.com");
+
+        Vehiculo vehiculo = vehiculoDAO.buscarPorId(3);
+        vehiculo.setPlaca("ZZZ999");
+        vehiculo.setMarca("OtraMarca");
+        vehiculo.setModelo("2099");
+
+        lineaDAO.buscarPorId(100).setNombreServicioSnapshot("Servicio cambiado");
+        lineaDAO.buscarPorId(100).setCostoManoObra(monto("999999.00"));
+        reservaDAO.buscar(100, 1).setNombreRepuestoSnapshot("Repuesto cambiado");
+        reservaDAO.buscar(100, 1).setPrecioUnitarioVenta(monto("888888.00"));
+
+        ordenDAO.actualizarEstado(10, 5);
+        Files.delete(archivoOriginal);
+        assertFalse(Files.exists(archivoOriginal));
+
+        // Reimpresión por ID
+        ResultadoReimpresionFactura reimpresaId = conArchivo.reimprimirFactura(facturaOriginal.getId());
+        assertEquals(archivoOriginal, reimpresaId.getArchivoTxt());
+        assertTrue(Files.exists(archivoOriginal));
+        assertEquals(contenidoOriginal, Files.readString(archivoOriginal, StandardCharsets.UTF_8));
+        assertEquals("Luisa Marcela Díaz", reimpresaId.getConsulta().getSnapshot().getClienteNombre());
+        assertEquals("GHI789", reimpresaId.getConsulta().getSnapshot().getVehiculoPlaca());
+
+        // Reimpresión por número (con minúsculas y espacios) y por orden
+        ResultadoReimpresionFactura reimpresaNumero = conArchivo.reimprimirFacturaPorNumero(
+                "  " + facturaOriginal.getNumeroFactura().toLowerCase() + "  ");
+        assertEquals(contenidoOriginal, Files.readString(reimpresaNumero.getArchivoTxt(), StandardCharsets.UTF_8));
+
+        ResultadoReimpresionFactura reimpresaOrden = conArchivo.reimprimirFacturaPorOrden(10);
+        assertEquals(contenidoOriginal, Files.readString(reimpresaOrden.getArchivoTxt(), StandardCharsets.UTF_8));
+
+        // No crea facturas nuevas ni altera el estado de la orden (sigue Entregado = 5)
+        assertEquals(cantidadFacturasInicial, facturaDAO.facturas.size());
+        assertEquals(5, ordenDAO.buscarPorId(10).getEstadoId());
+        assertTrue(facturaDAO.buscarPorId(facturaOriginal.getId()).isArchivoGenerado());
+    }
+
+    @Test
+    @DisplayName("T6.3 RF-24: consulta por número, por orden, búsqueda opcional y listado de facturas")
+    void consultarPorNumeroOrdenYListar() {
+        ConsultaFactura generada = service.generarFactura(3);
+        String numero = generada.getFactura().getNumeroFactura();
+
+        ConsultaFactura porNumero = service.consultarFacturaPorNumero(" " + numero.toLowerCase() + " ");
+        assertEquals(generada.getFactura().getId(), porNumero.getFactura().getId());
+        assertEquals("Luisa Marcela Díaz", porNumero.getSnapshot().getClienteNombre());
+
+        ConsultaFactura porOrden = service.consultarFacturaPorOrden(3);
+        assertEquals(numero, porOrden.getFactura().getNumeroFactura());
+        assertEquals(2, porOrden.getDetalles().size());
+
+        assertNotNull(service.buscarFacturaPorOrden(3));
+        assertNull(service.buscarFacturaPorOrden(1));
+        assertEquals(5, service.listarFacturas().size());
+    }
+
+    @Test
+    @DisplayName("T6.3 RF-24: validaciones y errores en consulta y reimpresión sin crear registros")
+    void validacionesConsultaYReimpresion(@TempDir Path carpeta) {
+        FacturaService conArchivo = crearServicioConArchivo(carpeta);
+        int cantidadInicial = facturaDAO.facturas.size();
+
+        assertThrows(ValidacionException.class, () -> conArchivo.consultarFactura(0));
+        assertThrows(ValidacionException.class, () -> conArchivo.consultarFacturaPorOrden(-1));
+        assertThrows(ValidacionException.class, () -> conArchivo.buscarFacturaPorOrden(0));
+        assertThrows(ValidacionException.class, () -> conArchivo.consultarFacturaPorNumero("   "));
+        assertThrows(ValidacionException.class, () -> conArchivo.consultarFacturaPorNumero(null));
+
+        assertThrows(EntidadNoEncontradaException.class, () -> conArchivo.consultarFacturaPorNumero("F-2099-0001"));
+        assertThrows(EntidadNoEncontradaException.class, () -> conArchivo.consultarFacturaPorOrden(1));
+        assertThrows(EntidadNoEncontradaException.class, () -> conArchivo.reimprimirFactura(999));
+
+        // Factura 1 del setUp existe en cabecera pero sin snapshot -> error controlado
+        assertThrows(CarMotorsException.class, () -> conArchivo.consultarFactura(1));
+        assertEquals(cantidadInicial, facturaDAO.facturas.size());
+    }
+
+    @Test
+    @DisplayName("T6.3: FacturaController delega consultas, listado y reimpresión")
+    void controladorDelegaConsultaYReimpresion(@TempDir Path carpeta) throws IOException {
+        FacturaService conArchivo = crearServicioConArchivo(carpeta);
+        FacturaController controller = new FacturaController(conArchivo);
+
+        ConsultaFactura generada = controller.generarFactura(6);
+        Factura factura = generada.getFactura();
+
+        assertEquals(factura.getNumeroFactura(), controller.consultarFactura(factura.getId()).getFactura().getNumeroFactura());
+        assertEquals(factura.getId(), controller.consultarFacturaPorOrden(6).getFactura().getId());
+        assertEquals(factura.getId(), controller.buscarFacturaPorOrden(6).getFactura().getId());
+        assertEquals(factura.getId(), controller.consultarFacturaPorNumero(factura.getNumeroFactura()).getFactura().getId());
+        assertFalse(controller.listarFacturas().isEmpty());
+
+        ResultadoReimpresionFactura r1 = controller.reimprimirFactura(factura.getId());
+        ResultadoReimpresionFactura r2 = controller.reimprimirFacturaPorOrden(6);
+        ResultadoReimpresionFactura r3 = controller.reimprimirFacturaPorNumero(factura.getNumeroFactura());
+
+        assertTrue(Files.exists(r1.getArchivoTxt()));
+        assertEquals(r1.getArchivoTxt(), r2.getArchivoTxt());
+        assertEquals(r1.getArchivoTxt(), r3.getArchivoTxt());
+        assertEquals(
+                Files.readString(r1.getArchivoTxt(), StandardCharsets.UTF_8),
+                Files.readString(r3.getArchivoTxt(), StandardCharsets.UTF_8)
+        );
+    }
+
     private void assertNadaGuardado() {
         assertEquals(4, facturaDAO.facturas.size());
         assertTrue(snapshotDAO.snapshots.isEmpty());
@@ -439,6 +563,25 @@ class FacturaServiceTest {
                 }
             }
             return null;
+        }
+
+        @Override
+        public Factura buscarPorNumero(String numeroFactura) {
+            if (numeroFactura == null) {
+                return null;
+            }
+            for (Factura factura : facturas) {
+                if (factura.getNumeroFactura() != null
+                        && factura.getNumeroFactura().equalsIgnoreCase(numeroFactura.trim())) {
+                    return factura;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public List<Factura> listarTodas() {
+            return new ArrayList<>(facturas);
         }
 
         @Override
