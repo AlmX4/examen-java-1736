@@ -7,6 +7,7 @@ import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.DetalleRepuesto;
 import com.carmotors.sgt.model.DetalleTecnico;
 import com.carmotors.sgt.model.OrdenServicio;
+import com.carmotors.sgt.model.ResultadoCancelarOrden;
 import com.carmotors.sgt.model.ResultadoCompletarOrden;
 import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.model.Tecnico;
@@ -152,5 +153,9 @@ public class OrdenServicioController {
 
     public ResultadoCompletarOrden completarOrden(int ordenId) {
         return ordenServicioService.completarOrden(ordenId);
+    }
+
+    public ResultadoCancelarOrden cancelarOrden(int ordenId) {
+        return ordenServicioService.cancelarOrden(ordenId);
     }
 }
