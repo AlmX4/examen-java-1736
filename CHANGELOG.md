@@ -8,6 +8,17 @@
 
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
+### Pendiente de integración — `feat(clientes): add customer service history (T7.4)` (`feature/gestion-clientes` → `develop`, cierra `#56`, RF-20 / RN-17 / RNF-11 / HU-10)
+- **Autor:** `@Sofi11017`
+- **Revisión solicitada:** `@julio7879`
+- **Cambios incluidos:**
+  - Nuevo `ConsultaOrdenServicioDAO.listarPorCliente(int clienteId)` e impl con `PreparedStatement` (`JOIN vehiculos` + `AND v.cliente_id = ?`), extrayendo el armado y la ejecución de la consulta a un helper privado que conserva el `ORDER BY o.fecha_recepcion DESC, o.id DESC` y no altera el comportamiento de `listar(FiltroOrdenServicio)`.
+  - Creación de los DTO `HistorialCliente` (cliente, vehículos y órdenes) y `ResumenOrdenHistorial` (orden, estado, fecha de recepción, placa, líneas, `totalFacturado` en `BigDecimal` y `numeroFactura`) en `com.carmotors.sgt.model`.
+  - Creación de `HistorialClienteService.consultarPorId(int)` y `consultarPorDocumento(String)`: valida las entradas, permite clientes activos **e inactivos** (`RN-17`), recupera vehículos y órdenes, adjunta las líneas de cada orden y toma el `total_final` histórico de `facturas` vía `FacturaDAO.buscarPorOrden`; cuando no existe factura el total y el número quedan `null` (nunca se estiman, `RF-20`).
+  - Ordenamiento de la más reciente a la más antigua con `Stream API`, `sorted` y `Comparator` (fecha de recepción descendente, desempate por ID descendente, fechas nulas al final) (`RNF-11`).
+  - `ClienteController` delega `consultarHistorialCliente(int)` y `consultarHistorialCliente(String)` conservando sus dos constructores anteriores, y `ClienteView` añade la opción "12. Consultar historial del cliente" (rango 0–12) con búsqueda por ID o documento: muestra el estado del cliente, sus vehículos, sus órdenes con estado, fecha y líneas, y el total facturado o "Sin facturar", además de mensajes explícitos cuando no hay vehículos u órdenes (`HU-10`). Cableado en `Main.java`.
+  - Creación de `HistorialClienteServiceTest` con 9 pruebas JUnit 5 en memoria: orden descendente con desempate por ID, líneas adjuntas, orden facturada con `total_final` y número, orden sin factura con total `null`, cliente inactivo consultable, cliente sin vehículos ni órdenes, cliente inexistente por ID y documento, entradas inválidas y normalización del documento. Se actualiza el doble `ConsultaOrdenDAOMock` de `OrdenServicioServiceTest` (335 pruebas en total, 0 fallos).
+
 ### PR #107 — `feat(reportes): add technician productivity report (T7.2)` (`feature/reportes` → `develop`, cierra `#54`, RF-26 / §4.2 / §4.3 / RNF-11 / RNF-15)
 - **Autor:** `@JopsWtD`
 - **Cambios incluidos:**
