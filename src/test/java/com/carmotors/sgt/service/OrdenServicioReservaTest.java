@@ -321,6 +321,11 @@ class OrdenServicioReservaTest {
         public boolean marcarCancelada(int ordenId, int estadoId, LocalDateTime fechaCancelacion) {
             return false;
         }
+
+        @Override
+        public boolean marcarEntregada(int ordenId, int estadoId, LocalDateTime fechaEntrega) {
+            return false;
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {

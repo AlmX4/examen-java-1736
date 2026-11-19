@@ -338,6 +338,11 @@ class OrdenServicioCompletarTest {
             orden.setFechaCancelacion(fechaCancelacion);
             return true;
         }
+
+        @Override
+        public boolean marcarEntregada(int ordenId, int estadoId, LocalDateTime fechaEntrega) {
+            return false;
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {

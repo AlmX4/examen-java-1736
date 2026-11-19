@@ -63,4 +63,15 @@ public interface OrdenServicioDAO {
      * @return {@code true} si se actualizó la orden
      */
     boolean marcarCancelada(int ordenId, int estadoId, LocalDateTime fechaCancelacion);
+
+    /**
+     * Cambia el estado de la orden a Entregado y registra su fecha de entrega
+     * en una sola sentencia (RF-12, RN-10).
+     *
+     * @param ordenId      identificador de la orden
+     * @param estadoId     ID del estado Entregado
+     * @param fechaEntrega fecha y hora de la entrega
+     * @return {@code true} si se actualizó la orden
+     */
+    boolean marcarEntregada(int ordenId, int estadoId, LocalDateTime fechaEntrega);
 }

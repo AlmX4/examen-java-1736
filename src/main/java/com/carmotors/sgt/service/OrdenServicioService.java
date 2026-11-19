@@ -1189,6 +1189,72 @@ public class OrdenServicioService {
     }
 
     /**
+     * Registra la entrega de una orden facturada y pasa su estado a {@code Entregado} (RF-12, RN-10).
+     *
+     * <p>Solo se permite desde {@code Facturado}; cualquier otro estado lanza
+     * {@link com.carmotors.sgt.exception.TransicionEstadoInvalidaException}. El estado y la
+     * {@code fecha_entrega} se persisten en una única unidad de trabajo JDBC que bloquea la
+     * cabecera con {@code FOR UPDATE}.</p>
+     *
+     * @param ordenId identificador de la orden facturada
+     * @return la orden actualizada con su estado y fecha de entrega
+     */
+    public OrdenServicio entregarOrden(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+        LocalDateTime fechaEntrega = LocalDateTime.now().withNano(0);
+
+        if (!usarTransaccionJdbc) {
+            return ejecutarEntregarOrden(ordenId, fechaEntrega, ordenServicioDAO);
+        }
+        return entregarOrdenEnTransaccion(ordenId, fechaEntrega);
+    }
+
+    private OrdenServicio entregarOrdenEnTransaccion(int ordenId, LocalDateTime fechaEntrega) {
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                OrdenServicioDAO ordenDaoTransaccional = new OrdenServicioDAOImpl(connection);
+                OrdenServicio orden = ejecutarEntregarOrden(ordenId, fechaEntrega, ordenDaoTransaccional);
+                connection.commit();
+                return orden;
+            } catch (CarMotorsException e) {
+                connection.rollback();
+                throw e;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new CarMotorsException("No se pudo entregar la orden: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new CarMotorsException("Error inesperado al entregar la orden: " + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transacción de entrega de la orden " + ordenId
+                    + ": " + e.getMessage(), e);
+        }
+    }
+
+    private OrdenServicio ejecutarEntregarOrden(int ordenId, LocalDateTime fechaEntrega, OrdenServicioDAO ordenDao) {
+        // 1. La orden existe y el patrón State permite pasar a Entregado (solo desde Facturado, RN-10).
+        OrdenServicio orden = ordenDao.buscarPorIdParaActualizar(ordenId);
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró una orden de servicio con el ID: " + ordenId);
+        }
+        EstadoOrden nuevoEstado = EstadoOrdenFactory.desdeId(orden.getEstadoId()).entregar();
+
+        // 2. Persiste estado_id y fecha_entrega; si no se actualiza la fila, no hay entrega.
+        if (!ordenDao.marcarEntregada(ordenId, nuevoEstado.getEstadoId(), fechaEntrega)) {
+            throw new CarMotorsException("No se pudo registrar la entrega de la orden " + ordenId + ".");
+        }
+        orden.setEstadoId(nuevoEstado.getEstadoId());
+        orden.setFechaEntrega(fechaEntrega);
+        return orden;
+    }
+
+    /**
      * Completa una orden En Proceso y descuenta del inventario los repuestos reservados en
      * todas sus líneas (RF-13, RN-03, RN-04, RN-08, sección 2.6).
      *
