@@ -1,0 +1,403 @@
+package com.carmotors.sgt.service;
+
+import com.carmotors.sgt.config.ConnectionFactory;
+import com.carmotors.sgt.exception.CarMotorsException;
+import com.carmotors.sgt.exception.DatoDuplicadoException;
+import com.carmotors.sgt.exception.EntidadNoEncontradaException;
+import com.carmotors.sgt.exception.ValidacionException;
+import com.carmotors.sgt.model.Cliente;
+import com.carmotors.sgt.model.ConsultaFactura;
+import com.carmotors.sgt.model.DetalleRepuesto;
+import com.carmotors.sgt.model.Factura;
+import com.carmotors.sgt.model.FacturaDetalle;
+import com.carmotors.sgt.model.FacturaSnapshot;
+import com.carmotors.sgt.model.OrdenServicio;
+import com.carmotors.sgt.model.OrdenServicioDetalle;
+import com.carmotors.sgt.model.TipoConcepto;
+import com.carmotors.sgt.model.Vehiculo;
+import com.carmotors.sgt.repository.ClienteDAO;
+import com.carmotors.sgt.repository.DetalleRepuestoDAO;
+import com.carmotors.sgt.repository.FacturaDAO;
+import com.carmotors.sgt.repository.FacturaDetalleDAO;
+import com.carmotors.sgt.repository.FacturaSnapshotDAO;
+import com.carmotors.sgt.repository.OrdenServicioDAO;
+import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
+import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.repository.impl.ClienteDAOImpl;
+import com.carmotors.sgt.repository.impl.DetalleRepuestoDAOImpl;
+import com.carmotors.sgt.repository.impl.FacturaDAOImpl;
+import com.carmotors.sgt.repository.impl.FacturaDetalleDAOImpl;
+import com.carmotors.sgt.repository.impl.FacturaSnapshotDAOImpl;
+import com.carmotors.sgt.repository.impl.OrdenServicioDAOImpl;
+import com.carmotors.sgt.repository.impl.OrdenServicioDetalleDAOImpl;
+import com.carmotors.sgt.repository.impl.VehiculoDAOImpl;
+import com.carmotors.sgt.service.state.EstadoOrden;
+import com.carmotors.sgt.service.state.EstadoOrdenFactory;
+import com.carmotors.sgt.util.InputValidator;
+
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Reglas de negocio para generar y consultar facturas internas (RF-22, RF-23, RN-09, RN-11, RN-12).
+ *
+ * <p>La cabecera, el snapshot de cliente y vehículo, los conceptos y el cambio de la orden a
+ * Facturado se guardan en una única transacción JDBC (sección 2.7). El archivo TXT y la marca
+ * {@code archivo_generado} pertenecen a T6.2.</p>
+ */
+public class FacturaService {
+
+    /** Tasa de IVA académica fija del proyecto (RN-12); se guarda en {@code facturas.tasa_iva}. */
+    public static final BigDecimal TASA_IVA = new BigDecimal("0.19");
+
+    private static final String PREFIJO_NUMERO = "F-";
+    private static final int DIGITOS_CONSECUTIVO = 4;
+    private static final int MAX_CONSECUTIVO = 9999;
+
+    private final FacturaDAO facturaDAO;
+    private final FacturaSnapshotDAO facturaSnapshotDAO;
+    private final FacturaDetalleDAO facturaDetalleDAO;
+    private final OrdenServicioDAO ordenServicioDAO;
+    private final OrdenServicioDetalleDAO ordenServicioDetalleDAO;
+    private final DetalleRepuestoDAO detalleRepuestoDAO;
+    private final VehiculoDAO vehiculoDAO;
+    private final ClienteDAO clienteDAO;
+    private final boolean usarTransaccionJdbc;
+
+    /**
+     * Constructor de producción con DAOs JDBC por defecto y transacción con una única {@link Connection}.
+     */
+    public FacturaService() {
+        this(new FacturaDAOImpl(), new FacturaSnapshotDAOImpl(), new FacturaDetalleDAOImpl(),
+                new OrdenServicioDAOImpl(), new OrdenServicioDetalleDAOImpl(), new DetalleRepuestoDAOImpl(),
+                new VehiculoDAOImpl(), new ClienteDAOImpl(), true);
+    }
+
+    /**
+     * Constructor de producción con los DAOs inyectados; usa transacción JDBC al generar la factura.
+     */
+    public FacturaService(FacturaDAO facturaDAO, FacturaSnapshotDAO facturaSnapshotDAO,
+                          FacturaDetalleDAO facturaDetalleDAO, OrdenServicioDAO ordenServicioDAO,
+                          OrdenServicioDetalleDAO ordenServicioDetalleDAO, DetalleRepuestoDAO detalleRepuestoDAO,
+                          VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO) {
+        this(facturaDAO, facturaSnapshotDAO, facturaDetalleDAO, ordenServicioDAO, ordenServicioDetalleDAO,
+                detalleRepuestoDAO, vehiculoDAO, clienteDAO, true);
+    }
+
+    /**
+     * Constructor completo: con {@code usarTransaccionJdbc = false} permite probar con DAOs en memoria.
+     */
+    public FacturaService(FacturaDAO facturaDAO, FacturaSnapshotDAO facturaSnapshotDAO,
+                          FacturaDetalleDAO facturaDetalleDAO, OrdenServicioDAO ordenServicioDAO,
+                          OrdenServicioDetalleDAO ordenServicioDetalleDAO, DetalleRepuestoDAO detalleRepuestoDAO,
+                          VehiculoDAO vehiculoDAO, ClienteDAO clienteDAO, boolean usarTransaccionJdbc) {
+        if (facturaDAO == null) {
+            throw new ValidacionException("El DAO de facturas es obligatorio.");
+        }
+        if (facturaSnapshotDAO == null) {
+            throw new ValidacionException("El DAO de snapshots de factura es obligatorio.");
+        }
+        if (facturaDetalleDAO == null) {
+            throw new ValidacionException("El DAO de conceptos de factura es obligatorio.");
+        }
+        if (ordenServicioDAO == null) {
+            throw new ValidacionException("El DAO de órdenes de servicio es obligatorio.");
+        }
+        if (ordenServicioDetalleDAO == null) {
+            throw new ValidacionException("El DAO de líneas de servicio es obligatorio.");
+        }
+        if (detalleRepuestoDAO == null) {
+            throw new ValidacionException("El DAO de repuestos por línea es obligatorio.");
+        }
+        if (vehiculoDAO == null) {
+            throw new ValidacionException("El DAO de vehículos es obligatorio.");
+        }
+        if (clienteDAO == null) {
+            throw new ValidacionException("El DAO de clientes es obligatorio.");
+        }
+        this.facturaDAO = facturaDAO;
+        this.facturaSnapshotDAO = facturaSnapshotDAO;
+        this.facturaDetalleDAO = facturaDetalleDAO;
+        this.ordenServicioDAO = ordenServicioDAO;
+        this.ordenServicioDetalleDAO = ordenServicioDetalleDAO;
+        this.detalleRepuestoDAO = detalleRepuestoDAO;
+        this.vehiculoDAO = vehiculoDAO;
+        this.clienteDAO = clienteDAO;
+        this.usarTransaccionJdbc = usarTransaccionJdbc;
+    }
+
+    /**
+     * Genera la factura interna de una orden Completada (RF-22, RF-23, RN-09, RN-11, RN-12).
+     *
+     * <p>En una única transacción JDBC: bloquea la orden, valida la transición a Facturado con el
+     * patrón State y que no exista factura previa, arma los conceptos con los valores históricos de
+     * la orden, calcula los totales, asigna el número consecutivo del año, guarda la cabecera, el
+     * snapshot y los conceptos, comprueba que haya un snapshot y al menos un concepto, y cambia la
+     * orden a Facturado. Si algo falla, nada cambia.</p>
+     *
+     * @param ordenId identificador de la orden
+     * @return la factura generada con su snapshot y sus conceptos
+     */
+    public ConsultaFactura generarFactura(int ordenId) {
+        if (ordenId <= 0) {
+            throw new ValidacionException("El ID de la orden debe ser un número positivo.");
+        }
+        LocalDateTime fechaEmision = LocalDateTime.now().withNano(0);
+
+        if (!usarTransaccionJdbc) {
+            return ejecutarGenerarFactura(ordenId, fechaEmision, facturaDAO, facturaSnapshotDAO, facturaDetalleDAO,
+                    ordenServicioDAO, ordenServicioDetalleDAO, detalleRepuestoDAO, vehiculoDAO, clienteDAO);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                ConsultaFactura generada = ejecutarGenerarFactura(ordenId, fechaEmision,
+                        new FacturaDAOImpl(connection), new FacturaSnapshotDAOImpl(connection),
+                        new FacturaDetalleDAOImpl(connection), new OrdenServicioDAOImpl(connection),
+                        new OrdenServicioDetalleDAOImpl(connection), new DetalleRepuestoDAOImpl(connection),
+                        new VehiculoDAOImpl(connection), new ClienteDAOImpl(connection));
+                connection.commit();
+                return generada;
+            } catch (CarMotorsException e) {
+                connection.rollback();
+                throw e;
+            } catch (SQLException e) {
+                connection.rollback();
+                throw new CarMotorsException("No se pudo generar la factura: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                connection.rollback();
+                throw new CarMotorsException("Error inesperado al generar la factura: " + e.getMessage(), e);
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transacción de la factura de la orden "
+                    + ordenId + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Consulta una factura con su snapshot y sus conceptos.
+     *
+     * @param facturaId identificador de la factura
+     * @return la factura con su snapshot y sus conceptos
+     */
+    public ConsultaFactura consultarFactura(int facturaId) {
+        if (facturaId <= 0) {
+            throw new ValidacionException("El ID de la factura debe ser un número positivo.");
+        }
+        Factura factura = facturaDAO.buscarPorId(facturaId);
+        if (factura == null) {
+            throw new EntidadNoEncontradaException("No se encontró una factura con el ID: " + facturaId);
+        }
+        FacturaSnapshot snapshot = facturaSnapshotDAO.buscarPorFactura(facturaId);
+        if (snapshot == null) {
+            throw new CarMotorsException("La factura " + factura.getNumeroFactura() + " no tiene snapshot de cliente "
+                    + "y vehículo.");
+        }
+        return new ConsultaFactura(factura, snapshot, facturaDetalleDAO.listarPorFactura(facturaId));
+    }
+
+    private ConsultaFactura ejecutarGenerarFactura(int ordenId, LocalDateTime fechaEmision,
+                                                   FacturaDAO facturaDao, FacturaSnapshotDAO snapshotDao,
+                                                   FacturaDetalleDAO conceptoDao, OrdenServicioDAO ordenDao,
+                                                   OrdenServicioDetalleDAO lineaDao, DetalleRepuestoDAO reservaDao,
+                                                   VehiculoDAO vehiculoDao, ClienteDAO clienteDao) {
+        // 1. La orden existe y el patrón State permite facturarla (solo desde Completado).
+        OrdenServicio orden = ordenDao.buscarPorIdParaActualizar(ordenId);
+        if (orden == null) {
+            throw new EntidadNoEncontradaException("No se encontró una orden de servicio con el ID: " + ordenId);
+        }
+        EstadoOrden nuevoEstado = EstadoOrdenFactory.desdeId(orden.getEstadoId()).facturar();
+
+        // 2. Relación 1:1: la orden no puede tener factura previa (RN-09).
+        Factura previa = facturaDao.buscarPorOrden(ordenId);
+        if (previa != null) {
+            throw new DatoDuplicadoException("La orden " + ordenId + " ya tiene la factura "
+                    + previa.getNumeroFactura() + ".");
+        }
+
+        // 3. Conceptos con los valores históricos de la orden (sección 2.7, RN-11).
+        List<FacturaDetalle> conceptos = armarConceptos(ordenId, lineaDao, reservaDao);
+
+        // 4. Totales (RN-12).
+        Factura factura = calcularTotales(conceptos);
+        factura.setOrdenId(ordenId);
+        factura.setFechaEmision(fechaEmision);
+        factura.setArchivoGenerado(false);
+
+        // 5. Número consecutivo del año, dentro de la misma transacción.
+        factura.setNumeroFactura(siguienteNumero(facturaDao, fechaEmision.getYear()));
+
+        // 6. Cabecera, snapshot con los datos actuales del cliente y vehículo, y conceptos.
+        FacturaSnapshot snapshot = armarSnapshot(orden, vehiculoDao, clienteDao);
+        int facturaId = facturaDao.guardar(factura);
+        factura.setId(facturaId);
+        snapshot.setFacturaId(facturaId);
+        if (!snapshotDao.guardar(snapshot)) {
+            throw new CarMotorsException("No se pudo registrar el snapshot de la factura " + factura.getNumeroFactura()
+                    + ".");
+        }
+        for (FacturaDetalle concepto : conceptos) {
+            concepto.setFacturaId(facturaId);
+            concepto.setId(conceptoDao.guardar(concepto));
+        }
+        verificarFacturaCompleta(factura, snapshotDao, conceptoDao, conceptos.size());
+
+        // 7. La orden pasa a Facturado (patrón State).
+        if (!ordenDao.actualizarEstado(ordenId, nuevoEstado.getEstadoId())) {
+            throw new CarMotorsException("No se pudo cambiar la orden " + ordenId + " a Facturado.");
+        }
+        return new ConsultaFactura(factura, snapshot, conceptos);
+    }
+
+    private List<FacturaDetalle> armarConceptos(int ordenId, OrdenServicioDetalleDAO lineaDao,
+                                                DetalleRepuestoDAO reservaDao) {
+        List<OrdenServicioDetalle> lineas = lineaDao.listarPorOrden(ordenId);
+        if (lineas.isEmpty()) {
+            throw new ValidacionException("La orden " + ordenId + " no tiene líneas de servicio para facturar.");
+        }
+
+        List<FacturaDetalle> conceptos = new ArrayList<>();
+        for (OrdenServicioDetalle linea : lineas) {
+            conceptos.add(crearConcepto(linea.getId(), null, TipoConcepto.MANO_OBRA,
+                    linea.getNombreServicioSnapshot(), 1, linea.getCostoManoObra()));
+            for (DetalleRepuesto reserva : reservaDao.listarPorDetalle(linea.getId())) {
+                conceptos.add(crearConcepto(linea.getId(), reserva.getRepuestoId(), TipoConcepto.REPUESTO,
+                        reserva.getNombreRepuestoSnapshot(), reserva.getCantidadAsignada(),
+                        reserva.getPrecioUnitarioVenta()));
+            }
+        }
+        return conceptos;
+    }
+
+    private FacturaDetalle crearConcepto(int ordenDetalleId, Integer repuestoId, TipoConcepto tipo,
+                                         String descripcion, int cantidad, BigDecimal precioUnitario) {
+        if (precioUnitario == null || precioUnitario.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ValidacionException("La línea " + ordenDetalleId + " tiene un precio inválido para el concepto '"
+                    + descripcion + "'; debe ser mayor o igual a cero.");
+        }
+        FacturaDetalle concepto = new FacturaDetalle();
+        concepto.setOrdenDetalleId(ordenDetalleId);
+        concepto.setRepuestoId(repuestoId);
+        concepto.setTipoConcepto(tipo);
+        concepto.setDescripcionSnapshot(descripcion);
+        concepto.setCantidad(cantidad);
+        concepto.setPrecioUnitario(redondear(precioUnitario));
+        concepto.setSubtotal(redondear(concepto.getPrecioUnitario().multiply(BigDecimal.valueOf(cantidad))));
+        validarConcepto(concepto);
+        return concepto;
+    }
+
+    /** Los campos deben coincidir con el tipo de concepto (sección 2.7, {@code ck_fd_concepto}). */
+    private void validarConcepto(FacturaDetalle concepto) {
+        if (concepto.getTipoConcepto() == TipoConcepto.MANO_OBRA && concepto.getRepuestoId() != null) {
+            throw new ValidacionException("Un concepto de mano de obra no puede tener repuesto asociado.");
+        }
+        if (concepto.getTipoConcepto() == TipoConcepto.REPUESTO && concepto.getRepuestoId() == null) {
+            throw new ValidacionException("Un concepto de repuesto debe tener un repuesto asociado.");
+        }
+        if (concepto.getCantidad() <= 0) {
+            throw new ValidacionException("La cantidad del concepto '" + concepto.getDescripcionSnapshot()
+                    + "' debe ser mayor que cero.");
+        }
+        if (concepto.getDescripcionSnapshot() == null || concepto.getDescripcionSnapshot().trim().isEmpty()) {
+            throw new ValidacionException("Todo concepto de la factura debe tener descripción.");
+        }
+    }
+
+    private Factura calcularTotales(List<FacturaDetalle> conceptos) {
+        BigDecimal totalRepuestos = sumarSubtotales(conceptos, TipoConcepto.REPUESTO);
+        BigDecimal totalManoObra = sumarSubtotales(conceptos, TipoConcepto.MANO_OBRA);
+        BigDecimal subtotal = redondear(totalRepuestos.add(totalManoObra));
+        BigDecimal impuestos = redondear(subtotal.multiply(TASA_IVA));
+
+        Factura factura = new Factura();
+        factura.setTotalRepuestos(totalRepuestos);
+        factura.setTotalManoObra(totalManoObra);
+        factura.setSubtotal(subtotal);
+        factura.setTasaIva(TASA_IVA);
+        factura.setImpuestos(impuestos);
+        factura.setTotalFinal(redondear(subtotal.add(impuestos)));
+        return factura;
+    }
+
+    private BigDecimal sumarSubtotales(List<FacturaDetalle> conceptos, TipoConcepto tipo) {
+        BigDecimal suma = conceptos.stream()
+                .filter(concepto -> concepto.getTipoConcepto() == tipo)
+                .map(concepto -> concepto.getSubtotal())
+                .reduce(BigDecimal.ZERO, (acumulado, subtotal) -> acumulado.add(subtotal));
+        return redondear(suma);
+    }
+
+    private String siguienteNumero(FacturaDAO facturaDao, int anio) {
+        String ultimo = facturaDao.obtenerUltimoNumeroDelAnio(anio);
+        int consecutivo = 1;
+        if (ultimo != null) {
+            String prefijoAnio = PREFIJO_NUMERO + anio + "-";
+            if (!ultimo.startsWith(prefijoAnio)) {
+                throw new CarMotorsException("El último número de factura '" + ultimo + "' no corresponde al año "
+                        + anio + ".");
+            }
+            try {
+                consecutivo = Integer.parseInt(ultimo.substring(prefijoAnio.length())) + 1;
+            } catch (NumberFormatException e) {
+                throw new CarMotorsException("El último número de factura '" + ultimo
+                        + "' no tiene el formato F-<año>-<consecutivo>.", e);
+            }
+        }
+        if (consecutivo > MAX_CONSECUTIVO) {
+            throw new CarMotorsException("Se agotó el consecutivo de facturas del año " + anio + " (máximo "
+                    + MAX_CONSECUTIVO + ").");
+        }
+        String consecutivoTexto = String.valueOf(consecutivo);
+        while (consecutivoTexto.length() < DIGITOS_CONSECUTIVO) {
+            consecutivoTexto = "0" + consecutivoTexto;
+        }
+        return PREFIJO_NUMERO + anio + "-" + consecutivoTexto;
+    }
+
+    private FacturaSnapshot armarSnapshot(OrdenServicio orden, VehiculoDAO vehiculoDao, ClienteDAO clienteDao) {
+        Vehiculo vehiculo = vehiculoDao.buscarPorId(orden.getVehiculoId());
+        if (vehiculo == null) {
+            throw new EntidadNoEncontradaException("No se encontró el vehículo de la orden " + orden.getId() + ".");
+        }
+        Cliente cliente = clienteDao.buscarPorId(vehiculo.getClienteId());
+        if (cliente == null) {
+            throw new EntidadNoEncontradaException("No se encontró el cliente dueño del vehículo "
+                    + vehiculo.getPlaca() + ".");
+        }
+
+        FacturaSnapshot snapshot = new FacturaSnapshot();
+        snapshot.setClienteNombre(cliente.getNombre());
+        snapshot.setClienteDocumento(cliente.getDocumentoIdentidad());
+        snapshot.setClienteTelefono(cliente.getTelefono());
+        snapshot.setClienteEmail(cliente.getEmail());
+        snapshot.setVehiculoPlaca(vehiculo.getPlaca());
+        snapshot.setVehiculoMarca(vehiculo.getMarca());
+        snapshot.setVehiculoModelo(vehiculo.getModelo());
+        return snapshot;
+    }
+
+    /** Antes del commit: exactamente un snapshot y al menos un concepto (sección 2.7). */
+    private void verificarFacturaCompleta(Factura factura, FacturaSnapshotDAO snapshotDao,
+                                          FacturaDetalleDAO conceptoDao, int conceptosEsperados) {
+        if (snapshotDao.buscarPorFactura(factura.getId()) == null) {
+            throw new CarMotorsException("La factura " + factura.getNumeroFactura() + " quedó sin snapshot.");
+        }
+        int conceptosGuardados = conceptoDao.listarPorFactura(factura.getId()).size();
+        if (conceptosGuardados < 1 || conceptosGuardados != conceptosEsperados) {
+            throw new CarMotorsException("La factura " + factura.getNumeroFactura() + " tiene " + conceptosGuardados
+                    + " concepto(s) guardado(s) y se esperaban " + conceptosEsperados + ".");
+        }
+    }
+
+    private BigDecimal redondear(BigDecimal valor) {
+        return valor.setScale(InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+    }
+}
