@@ -611,6 +611,11 @@ class OrdenServicioServiceTest {
         }
 
         @Override
+        public List<ResumenOrdenServicio> listarPorCliente(int clienteId) {
+            return resultados;
+        }
+
+        @Override
         public void cargarDatosFacturados(int ordenId, Cliente cliente, Vehiculo vehiculo) {
             if (ordenId == ordenFacturada) {
                 cliente.setNombre("Cliente histórico");
