@@ -104,7 +104,7 @@ public class LoteView implements SubmenuVista {
             lote.setCantidadInicial(ConsoleReader.leerEnteroPositivo("Cantidad inicial del lote"));
 
             Lote guardado = loteController.registrar(lote);
-            System.out.println("\n  [✓] Lote registrado correctamente con id " + guardado.getId());
+            System.out.println("\n  [✓] Lote registrado correctamente con ID " + guardado.getId());
             System.out.println("  Código: " + guardado.getCodigoLote()
                     + " | Proveedor: " + proveedorId
                     + " | Repuesto: " + repuestoId

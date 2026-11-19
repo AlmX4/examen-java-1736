@@ -129,7 +129,7 @@ public class ProveedorView implements SubmenuVista {
 
     private void buscarProveedor() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor");
             Proveedor proveedor = proveedorController.buscarPorId(id);
             System.out.println("\n  [Proveedor encontrado]");
             imprimirDetalleProveedor(proveedor);
@@ -149,7 +149,7 @@ public class ProveedorView implements SubmenuVista {
             proveedor.setActivo(true);
 
             Proveedor creado = proveedorController.crear(proveedor);
-            System.out.println("\n  [✓] Proveedor creado correctamente con id " + creado.getId());
+            System.out.println("\n  [✓] Proveedor creado correctamente con ID " + creado.getId());
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
@@ -158,7 +158,7 @@ public class ProveedorView implements SubmenuVista {
 
     private void actualizarProveedor() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor a actualizar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor a actualizar");
             Proveedor actual = proveedorController.buscarPorId(id);
             System.out.println("\n  Datos actuales:");
             imprimirDetalleProveedor(actual);
@@ -182,7 +182,7 @@ public class ProveedorView implements SubmenuVista {
 
     private void desactivarProveedor() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor a desactivar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor a desactivar");
             Proveedor actual = proveedorController.buscarPorId(id);
             if (!actual.isActivo()) {
                 System.out.println("\n  [i] El proveedor ya se encuentra inactivo.");

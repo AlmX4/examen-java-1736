@@ -89,7 +89,7 @@ public class EvaluacionProveedorView implements SubmenuVista {
             evaluacion.setFecha(LocalDate.now());
 
             EvaluacionProveedor creada = evaluacionProveedorController.registrar(evaluacion);
-            System.out.println("\n  [✓] Evaluación registrada correctamente con id " + creada.getId());
+            System.out.println("\n  [✓] Evaluación registrada correctamente con ID " + creada.getId());
             System.out.println("  Puntaje de evaluación: " + creada.getPuntaje() + "/5.0");
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());

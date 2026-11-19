@@ -142,7 +142,7 @@ public class RepuestoView implements SubmenuVista {
 
     private void buscarRepuesto() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             Repuesto repuesto = repuestoController.buscarPorId(id);
             System.out.println("\n  [Repuesto encontrado]");
             imprimirDetalleRepuesto(repuesto);
@@ -171,7 +171,7 @@ public class RepuestoView implements SubmenuVista {
             repuesto.setActivo(true);
 
             Repuesto creado = repuestoController.crear(repuesto);
-            System.out.println("\n  [✓] Repuesto creado correctamente con id " + creado.getId());
+            System.out.println("\n  [✓] Repuesto creado correctamente con ID " + creado.getId());
             imprimirDetalleRepuesto(creado);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -181,7 +181,7 @@ public class RepuestoView implements SubmenuVista {
 
     private void actualizarRepuesto() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a actualizar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a actualizar");
             Repuesto actual = repuestoController.buscarPorId(id);
             System.out.println("\n  Datos actuales:");
             imprimirDetalleRepuesto(actual);
@@ -214,7 +214,7 @@ public class RepuestoView implements SubmenuVista {
 
     private void desactivarRepuesto() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a desactivar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a desactivar");
             Repuesto actual = repuestoController.buscarPorId(id);
             if (!actual.isActivo()) {
                 System.out.println("\n  [i] El repuesto ya se encuentra inactivo.");
@@ -272,7 +272,7 @@ public class RepuestoView implements SubmenuVista {
         }
 
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             StockRepuesto stock = inventarioController.consultarStock(id);
             Repuesto repuesto = stock.getRepuesto();
 
