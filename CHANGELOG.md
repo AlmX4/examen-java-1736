@@ -8,9 +8,8 @@
 
 ## [En curso] — Sprint 8: Cierre y entrega (`develop`)
 
-### Pendiente de integración — `docs(documentacion): export architecture diagrams as PNG (T8.3)` (`feature/documentacion` → `develop`, cierra `#60`, RNF-11 / §2.9 / Sprint 8)
+### PR #114 — `docs(documentacion): export architecture diagrams as PNG (T8.3)` (`feature/documentacion` → `develop`, cierra `#60`, RNF-11 / §2.9 / Sprint 8)
 - **Autor:** `@Sofi11017`
-- **Revisión solicitada:** `@julio7879`
 - **Cambios incluidos:**
   - `docs/diagrama-er.png` (2133 × 2807 px) exportado desde `docs/vault/02-Arquitectura/diagramas/CarMotors_Modelo_Logico_v1.3.mmd`, con las 20 tablas del modelo v1.3 y sus claves y cardinalidades.
   - `docs/diagrama-clases.png` (3185 × 1565 px) exportado desde `docs/vault/02-Arquitectura/diagramas/CarMotors_Diagrama_Clases_UML_v1.3.mmd`.
