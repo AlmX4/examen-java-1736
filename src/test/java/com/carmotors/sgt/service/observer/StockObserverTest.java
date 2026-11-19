@@ -325,6 +325,11 @@ class StockObserverTest {
         public List<Lote> listarPorVencer(LocalDate fechaLimite) {
             return new ArrayList<>();
         }
+
+        @Override
+        public boolean descontarUnidades(int loteId, int cantidad) {
+            return false;
+        }
     }
 
     private static class ProveedorRepuestoDAOTest implements ProveedorRepuestoDAO {

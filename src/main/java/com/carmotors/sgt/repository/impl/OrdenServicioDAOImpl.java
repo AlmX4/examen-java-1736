@@ -93,6 +93,33 @@ public class OrdenServicioDAOImpl implements OrdenServicioDAO {
         }
     }
 
+    @Override
+    public boolean marcarCompletada(int ordenId, int estadoId, LocalDateTime fechaCompletado) {
+        String sql = "UPDATE ordenes_servicio SET estado_id = ?, fecha_completado = ? WHERE id = ?";
+
+        if (conexionCompartida != null) {
+            return ejecutarMarcarCompletada(conexionCompartida, sql, ordenId, estadoId, fechaCompletado);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return ejecutarMarcarCompletada(connection, sql, ordenId, estadoId, fechaCompletado);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al completar la orden " + ordenId + ": " + e.getMessage(), e);
+        }
+    }
+
+    private boolean ejecutarMarcarCompletada(Connection connection, String sql, int ordenId, int estadoId,
+                                             LocalDateTime fechaCompletado) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setInt(1, estadoId);
+            asignarFecha(preparedStatement, 2, fechaCompletado);
+            preparedStatement.setInt(3, ordenId);
+            return preparedStatement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al completar la orden " + ordenId + ": " + e.getMessage(), e);
+        }
+    }
+
     private int insertarOrden(Connection connection, String sql, OrdenServicio orden) {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setInt(1, orden.getVehiculoId());

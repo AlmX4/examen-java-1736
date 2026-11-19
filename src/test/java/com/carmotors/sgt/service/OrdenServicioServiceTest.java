@@ -771,6 +771,11 @@ class OrdenServicioServiceTest {
             orden.setEstadoId(nuevoEstadoId);
             return true;
         }
+
+        @Override
+        public boolean marcarCompletada(int ordenId, int estadoId, LocalDateTime fechaCompletado) {
+            return false;
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {

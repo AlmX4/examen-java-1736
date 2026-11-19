@@ -33,4 +33,14 @@ public interface LoteDAO {
      * a la fecha límite indicada (incluye lotes ya vencidos y lotes por vencer hasta la fecha límite).
      */
     List<Lote> listarPorVencer(LocalDate fechaLimite);
+
+    /**
+     * Descuenta unidades del saldo de un lote al completar una orden (RN-03).
+     * Solo actualiza si el lote tiene saldo suficiente.
+     *
+     * @param loteId   identificador del lote
+     * @param cantidad unidades a descontar
+     * @return {@code true} si se descontó; {@code false} si el lote no existe o no tiene saldo suficiente
+     */
+    boolean descontarUnidades(int loteId, int cantidad);
 }

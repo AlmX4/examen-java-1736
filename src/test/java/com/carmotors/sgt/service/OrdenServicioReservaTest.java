@@ -311,6 +311,11 @@ class OrdenServicioReservaTest {
         public boolean actualizarEstado(int ordenId, int nuevoEstadoId) {
             throw new UnsupportedOperationException("No se usa en estas pruebas.");
         }
+
+        @Override
+        public boolean marcarCompletada(int ordenId, int estadoId, LocalDateTime fechaCompletado) {
+            return false;
+        }
     }
 
     private static class OrdenServicioDetalleDAOMock implements OrdenServicioDetalleDAO {
@@ -548,6 +553,11 @@ class OrdenServicioReservaTest {
         @Override
         public List<Lote> listarPorVencer(LocalDate fechaLimite) {
             return new ArrayList<>();
+        }
+
+        @Override
+        public boolean descontarUnidades(int loteId, int cantidad) {
+            return false;
         }
     }
 
