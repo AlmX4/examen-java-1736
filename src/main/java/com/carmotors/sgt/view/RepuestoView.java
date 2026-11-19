@@ -43,7 +43,7 @@ public class RepuestoView implements SubmenuVista {
 
     @Override
     public String obtenerTitulo() {
-        return "Inventario - Repuestos";
+        return "Inventario y Lotes";
     }
 
     @Override
@@ -51,20 +51,22 @@ public class RepuestoView implements SubmenuVista {
         boolean ejecutando = true;
         while (ejecutando) {
             System.out.println("\n==================================================");
-            System.out.println("                 GESTIÓN DE REPUESTOS");
+            System.out.println("           GESTIÓN DE INVENTARIO Y LOTES          ");
             System.out.println("==================================================");
+            System.out.println("  -- Catálogo de Repuestos --");
             System.out.println("  1. Listar repuestos");
-            System.out.println("  2. Buscar repuesto por id");
+            System.out.println("  2. Buscar repuesto por ID");
             System.out.println("  3. Crear repuesto");
             System.out.println("  4. Actualizar repuesto");
             System.out.println("  5. Desactivar repuesto");
             System.out.println("  6. Reactivar repuesto");
             System.out.println("  7. Ver proveedores del repuesto");
-            System.out.println("  8. Ingreso de lotes");
+            System.out.println("  -- Lotes, Stock y Alertas --");
+            System.out.println("  8. Gestión e ingreso de lotes");
             System.out.println("  9. Ver stock del repuesto");
             System.out.println(" 10. Buscar y filtrar repuestos");
             System.out.println(" 11. Reporte de stock bajo");
-            System.out.println("  0. Volver");
+            System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 11);
@@ -140,7 +142,7 @@ public class RepuestoView implements SubmenuVista {
 
     private void buscarRepuesto() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             Repuesto repuesto = repuestoController.buscarPorId(id);
             System.out.println("\n  [Repuesto encontrado]");
             imprimirDetalleRepuesto(repuesto);
@@ -169,7 +171,7 @@ public class RepuestoView implements SubmenuVista {
             repuesto.setActivo(true);
 
             Repuesto creado = repuestoController.crear(repuesto);
-            System.out.println("\n  [✓] Repuesto creado correctamente con id " + creado.getId());
+            System.out.println("\n  [✓] Repuesto creado correctamente con ID " + creado.getId());
             imprimirDetalleRepuesto(creado);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -179,7 +181,7 @@ public class RepuestoView implements SubmenuVista {
 
     private void actualizarRepuesto() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a actualizar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a actualizar");
             Repuesto actual = repuestoController.buscarPorId(id);
             System.out.println("\n  Datos actuales:");
             imprimirDetalleRepuesto(actual);
@@ -212,7 +214,7 @@ public class RepuestoView implements SubmenuVista {
 
     private void desactivarRepuesto() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a desactivar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a desactivar");
             Repuesto actual = repuestoController.buscarPorId(id);
             if (!actual.isActivo()) {
                 System.out.println("\n  [i] El repuesto ya se encuentra inactivo.");
@@ -237,10 +239,18 @@ public class RepuestoView implements SubmenuVista {
 
     private void reactivarRepuesto() {
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a reactivar");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a reactivar");
             Repuesto actual = repuestoController.buscarPorId(id);
+            imprimirDetalleRepuesto(actual);
+
             if (actual.isActivo()) {
                 System.out.println("\n  [i] El repuesto ya se encuentra activo.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            if (!ConsoleReader.leerConfirmacion("¿Confirma reactivar el repuesto '" + actual.getNombre() + "'?")) {
+                System.out.println("\n  [i] Operación cancelada.");
                 ConsoleReader.pausar();
                 return;
             }
@@ -262,7 +272,7 @@ public class RepuestoView implements SubmenuVista {
         }
 
         try {
-            int id = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int id = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             StockRepuesto stock = inventarioController.consultarStock(id);
             Repuesto repuesto = stock.getRepuesto();
 

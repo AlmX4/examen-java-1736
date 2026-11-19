@@ -49,7 +49,7 @@ public class FacturacionView implements SubmenuVista {
             System.out.println("  3. Consultar factura");
             System.out.println("  4. Reimprimir factura (regenerar TXT)");
             System.out.println("  5. Listar facturas emitidas");
-            System.out.println("  0. Volver");
+            System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 5);

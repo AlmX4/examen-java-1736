@@ -66,4 +66,39 @@ class ConsolaMenuViewTest {
         menu.mostrarMenuPrincipal();
         assertEquals(1, intentos[0]);
     }
+
+    @Test
+    void menuPrincipalRecorreLosSieteModulosConectadosYSaleLimpio() {
+        ConsoleReader.setScanner(new Scanner("1\n2\n3\n4\n5\n6\n7\n0\n"));
+        ConsolaMenuView menu = new ConsolaMenuView();
+
+        final int[] visitas = new int[7];
+        menu.setSubmenuClientes(submenuContado("Clientes y Vehículos", visitas, 0));
+        menu.setSubmenuProveedores(submenuContado("Proveedores", visitas, 1));
+        menu.setSubmenuInventario(submenuContado("Inventario y Lotes", visitas, 2));
+        menu.setSubmenuTecnicos(submenuContado("Técnicos y Especialidades", visitas, 3));
+        menu.setSubmenuServicios(submenuContado("Servicios y Órdenes de Trabajo", visitas, 4));
+        menu.setSubmenuFacturacion(submenuContado("Facturación", visitas, 5));
+        menu.setSubmenuReportes(submenuContado("Reportes Gerenciales", visitas, 6));
+
+        menu.mostrarMenuPrincipal();
+
+        for (int i = 0; i < visitas.length; i++) {
+            assertEquals(1, visitas[i], "El módulo #" + (i + 1) + " debe invocarse exactamente una vez.");
+        }
+    }
+
+    private SubmenuVista submenuContado(String titulo, int[] visitas, int indice) {
+        return new SubmenuVista() {
+            @Override
+            public String obtenerTitulo() {
+                return titulo;
+            }
+
+            @Override
+            public void mostrarMenu() {
+                visitas[indice] = visitas[indice] + 1;
+            }
+        };
+    }
 }

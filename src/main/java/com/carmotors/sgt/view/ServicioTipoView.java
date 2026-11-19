@@ -41,7 +41,7 @@ public class ServicioTipoView implements SubmenuVista {
             System.out.println("  3. Registrar tipo de servicio");
             System.out.println("  4. Actualizar tipo de servicio");
             System.out.println("  5. Eliminar tipo de servicio");
-            System.out.println("  0. Volver al menú principal");
+            System.out.println("  0. Volver al menú anterior");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 5);

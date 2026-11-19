@@ -48,7 +48,7 @@ public class ReportesView implements SubmenuVista {
             System.out.println("  2. Servicios más solicitados (RF-25)");
             System.out.println("  3. Productividad por técnico (RF-26)");
             System.out.println("  4. Recordatorios de mantenimiento preventivo (RF-21)");
-            System.out.println("  0. Volver");
+            System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 4);
@@ -152,7 +152,7 @@ public class ReportesView implements SubmenuVista {
     }
 
     private String ajustar(String texto, int ancho) {
-        if (texto == null || texto.isBlank()) {
+        if (texto == null || texto.trim().isEmpty()) {
             return "N/A";
         }
         return texto.length() <= ancho ? texto : texto.substring(0, ancho - 1) + "…";

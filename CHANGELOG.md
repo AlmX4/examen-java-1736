@@ -6,6 +6,18 @@
 
 ---
 
+## [En curso] — Sprint 8: Cierre y entrega (`develop`)
+
+### PR #113 — `feat(view): polish console menus, confirmations, and navigation flows (T8.1)` (`feature/documentacion` → `develop`, cierra `#58`, RNF-03 / RNF-24)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - `Main.java`: captura de excepciones de alto nivel alrededor de la inicialización y arranque del menú principal con mensaje amigable (`[!] Error crítico...`) sin `System.exit()` ni trazas crudas.
+  - Estandarización de encabezados, títulos (`obtenerTitulo()`), agrupación visual de opciones (conservando toda la numeración existente), capitalización de `"ID"` en opciones/prompts y etiquetas de retorno (`0. Volver al menú principal` en submenús de primer nivel: `ClienteView`, `ProveedorView`, `RepuestoView`, `TecnicoView`, `ServiciosMenuView`, `FacturacionView`, `ReportesView`; `0. Volver al menú anterior` en submenús de segundo nivel: `EvaluacionProveedorView`, `CatalogoProveedorView`, `LoteView`, `ServicioTipoView`, `OrdenServicioView`).
+  - Confirmaciones de seguridad explícitas `(S/N)` vía `ConsoleReader.leerConfirmacion` agregadas en reactivaciones (`ClienteView`, `ProveedorView`, `RepuestoView`, `TecnicoView`), retiro de línea (`OrdenServicioView.quitarLinea`) y transición a `En Proceso` (`OrdenServicioView.pasarAEnProceso`).
+  - Eliminación de callejones sin salida y corrección de pausas en `OrdenServicioView`: `seleccionarLinea` y `seleccionarRepuestoReservado` permiten `0 para cancelar`; `reservarRepuesto` y `listarOrdenes` usan manejo homogéneo `try / catch / finally { ConsoleReader.pausar(); }` sin pausas duplicadas.
+  - Alineación estricta al alcance Java del curso (`trim().isEmpty()` en `ReportesView.ajustar` y `OrdenServicioView.textoDisponible`).
+  - `ConsolaMenuViewTest`: nueva prueba unitaria `menuPrincipalRecorreLosSieteModulosConectadosYSaleLimpio()` que valida la invocación de los 7 módulos conectados (`mvn clean test`: 349 pruebas, 0 fallos).
+
 ## [En curso] — Sprint 7: Reportes gerenciales e historial (`develop`)
 
 ### PR #112 — `feat(reportes): add maintenance reminders report (T7.5)` (`feature/reportes` → `develop`, cierra `#57`, RF-21 / RN-15 / §4.2 / RNF-11)

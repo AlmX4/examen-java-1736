@@ -3,8 +3,8 @@ package com.carmotors.sgt.view;
 import com.carmotors.sgt.util.ConsoleReader;
 
 /**
- * Esqueleto del menú principal por consola de CarMotors SGT (T1.3).
- * Orquesta únicamente la navegación de alto nivel hacia los submenús de cada módulo
+ * Menú principal por consola de CarMotors SGT (T1.3, T8.1).
+ * Orquesta únicamente la navegación de alto nivel hacia los 7 módulos del taller
  * usando {@link ConsoleReader}, sin lógica de negocio ni acceso directo a datos (RNF-03, RNF-24).
  */
 public class ConsolaMenuView {

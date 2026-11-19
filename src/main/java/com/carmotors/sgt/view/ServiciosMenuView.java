@@ -34,8 +34,8 @@ public class ServiciosMenuView implements SubmenuVista {
             System.out.println("\n==================================================");
             System.out.println("         SERVICIOS Y ÓRDENES DE TRABAJO           ");
             System.out.println("==================================================");
-            System.out.println("  1. Tipos de servicio");
-            System.out.println("  2. Órdenes de servicio");
+            System.out.println("  1. Catálogo de tipos de servicio");
+            System.out.println("  2. Gestión de órdenes de servicio");
             System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 

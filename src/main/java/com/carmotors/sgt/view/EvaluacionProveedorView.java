@@ -39,13 +39,13 @@ public class EvaluacionProveedorView implements SubmenuVista {
         boolean ejecutando = true;
         while (ejecutando) {
             System.out.println("\n==================================================");
-            System.out.println("          EVALUACIONES DE PROVEEDORES");
+            System.out.println("          EVALUACIONES DE PROVEEDORES             ");
             System.out.println("==================================================");
             System.out.println("  1. Registrar evaluación");
             System.out.println("  2. Ver historial por proveedor");
             System.out.println("  3. Ver promedio de proveedor");
             System.out.println("  4. Ranking de proveedores");
-            System.out.println("  0. Volver");
+            System.out.println("  0. Volver al menú anterior");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 4);
@@ -73,7 +73,7 @@ public class EvaluacionProveedorView implements SubmenuVista {
 
     private void registrarEvaluacion() {
         try {
-            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor");
+            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor");
             Proveedor proveedor = proveedorController.buscarPorId(proveedorId);
             if (!proveedor.isActivo()) {
                 System.out.println("\n  [!] Error: El proveedor está inactivo y no puede ser evaluado.");
@@ -89,7 +89,7 @@ public class EvaluacionProveedorView implements SubmenuVista {
             evaluacion.setFecha(LocalDate.now());
 
             EvaluacionProveedor creada = evaluacionProveedorController.registrar(evaluacion);
-            System.out.println("\n  [✓] Evaluación registrada correctamente con id " + creada.getId());
+            System.out.println("\n  [✓] Evaluación registrada correctamente con ID " + creada.getId());
             System.out.println("  Puntaje de evaluación: " + creada.getPuntaje() + "/5.0");
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -99,7 +99,7 @@ public class EvaluacionProveedorView implements SubmenuVista {
 
     private void verHistorial() {
         try {
-            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor");
+            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor");
             Proveedor proveedor = proveedorController.buscarPorId(proveedorId);
             List<EvaluacionProveedor> evaluaciones = evaluacionProveedorController.listarPorProveedor(proveedorId);
             if (evaluaciones.isEmpty()) {
@@ -122,7 +122,7 @@ public class EvaluacionProveedorView implements SubmenuVista {
 
     private void verPromedio() {
         try {
-            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor");
+            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor");
             Proveedor proveedor = proveedorController.buscarPorId(proveedorId);
             BigDecimal promedio = evaluacionProveedorController.obtenerPromedioProveedor(proveedorId);
             System.out.println("\n  [Promedio de evaluaciones] " + proveedor.getNombre());

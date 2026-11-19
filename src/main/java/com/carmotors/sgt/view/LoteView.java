@@ -45,13 +45,13 @@ public class LoteView implements SubmenuVista {
         boolean ejecutando = true;
         while (ejecutando) {
             System.out.println("\n==================================================");
-            System.out.println("                  GESTIÓN DE LOTES");
+            System.out.println("                  GESTIÓN DE LOTES                ");
             System.out.println("==================================================");
             System.out.println("  1. Registrar lote");
             System.out.println("  2. Consultar lote por código");
             System.out.println("  3. Listar lotes por repuesto");
             System.out.println("  4. Reporte de lotes por vencer");
-            System.out.println("  0. Volver");
+            System.out.println("  0. Volver al menú anterior");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 4);
@@ -79,7 +79,7 @@ public class LoteView implements SubmenuVista {
 
     private void registrarLote() {
         try {
-            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor");
+            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor");
             Proveedor proveedor = proveedorController.buscarPorId(proveedorId);
             if (!proveedor.isActivo()) {
                 System.out.println("\n  [!] Error: El proveedor está inactivo y no puede registrar lotes.");
@@ -87,7 +87,7 @@ public class LoteView implements SubmenuVista {
                 return;
             }
 
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
             if (!repuesto.isActivo()) {
                 System.out.println("\n  [!] Error: El repuesto está inactivo y no puede recibir lotes nuevos.");
@@ -104,7 +104,7 @@ public class LoteView implements SubmenuVista {
             lote.setCantidadInicial(ConsoleReader.leerEnteroPositivo("Cantidad inicial del lote"));
 
             Lote guardado = loteController.registrar(lote);
-            System.out.println("\n  [✓] Lote registrado correctamente con id " + guardado.getId());
+            System.out.println("\n  [✓] Lote registrado correctamente con ID " + guardado.getId());
             System.out.println("  Código: " + guardado.getCodigoLote()
                     + " | Proveedor: " + proveedorId
                     + " | Repuesto: " + repuestoId
@@ -142,7 +142,7 @@ public class LoteView implements SubmenuVista {
 
     private void listarPorRepuesto() {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
             List<Lote> lotes = loteController.listarPorRepuesto(repuestoId);
 

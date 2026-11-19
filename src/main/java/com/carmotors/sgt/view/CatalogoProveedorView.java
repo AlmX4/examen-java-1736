@@ -52,7 +52,7 @@ public class CatalogoProveedorView {
     public void gestionarCatalogoProveedor() {
         Proveedor proveedor;
         try {
-            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el id del proveedor");
+            int proveedorId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del proveedor");
             proveedor = proveedorController.buscarPorId(proveedorId);
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -70,7 +70,7 @@ public class CatalogoProveedorView {
             System.out.println("  3. Actualizar costo y tiempo de entrega");
             System.out.println("  4. Quitar asociación");
             System.out.println("  5. Marcar como proveedor habitual");
-            System.out.println("  0. Volver");
+            System.out.println("  0. Volver al menú anterior");
             System.out.println("==================================================");
 
             int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 5);
@@ -104,7 +104,7 @@ public class CatalogoProveedorView {
      */
     public void verProveedoresDeRepuesto() {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
             List<ProveedorRepuesto> catalogo = proveedorRepuestoController.listarPorRepuesto(repuestoId);
             if (catalogo.isEmpty()) {
@@ -135,7 +135,7 @@ public class CatalogoProveedorView {
      */
     public void compararProveedoresDeRepuesto() {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a comparar");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a comparar");
             Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
             List<ComparacionProveedor> comparacion = proveedorRepuestoController.compararProveedoresPorRepuesto(repuestoId);
             if (comparacion.isEmpty()) {
@@ -191,7 +191,7 @@ public class CatalogoProveedorView {
 
     private void asociarRepuesto(Proveedor proveedor) {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a asociar");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a asociar");
             Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
             System.out.println("  Repuesto: " + repuesto.getNombre() + " (" + repuesto.getMarca() + ")");
 
@@ -217,7 +217,7 @@ public class CatalogoProveedorView {
 
     private void actualizarCondiciones(Proveedor proveedor) {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             BigDecimal costo = ConsoleReader.leerBigDecimalPositivo("Nuevo costo de compra");
             int tiempoEntrega = ConsoleReader.leerEnteroNoNegativo("Nuevo tiempo de entrega (días)");
 
@@ -233,7 +233,7 @@ public class CatalogoProveedorView {
 
     private void quitarAsociacion(Proveedor proveedor) {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto a quitar");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto a quitar");
             Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
             if (!ConsoleReader.leerConfirmacion("¿Confirma quitar '" + repuesto.getNombre()
                     + "' del catálogo de '" + proveedor.getNombre() + "'?")) {
@@ -251,7 +251,7 @@ public class CatalogoProveedorView {
 
     private void marcarHabitual(Proveedor proveedor) {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el id del repuesto");
+            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
             proveedorRepuestoController.marcarHabitual(proveedor.getId(), repuestoId);
             System.out.println("\n  [✓] '" + proveedor.getNombre() + "' es ahora el proveedor habitual del repuesto "
                     + repuestoId + ". Si había otro habitual, quedó desmarcado.");
