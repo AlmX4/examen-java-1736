@@ -1,0 +1,56 @@
+%% Arquitectura por capas de CarMotors SGT (v1.3)
+%% Fuente editable: docs/vault/02-Arquitectura/diagramas/CarMotors_Arquitectura_Capas_v1.3.mmd
+%% Exportar a docs/arquitectura.png
+flowchart LR
+    subgraph VIEW["view · com.carmotors.sgt.view"]
+        direction TB
+        V1["Menús de consola<br/>SubmenuVista · ConsoleReader"]
+    end
+
+    subgraph CONTROLLER["controller · com.carmotors.sgt.controller"]
+        direction TB
+        C1["Recibe peticiones de la vista<br/>delega en service o TallerFacade"]
+    end
+
+    subgraph SERVICE["service · com.carmotors.sgt.service"]
+        direction TB
+        S1["Reglas de negocio RN-01 a RN-22<br/>validaciones · transacciones JDBC"]
+        subgraph PATTERNS["patrones de diseño"]
+            direction LR
+            P1["state"]
+            P2["chain"]
+            P3["observer"]
+            P4["builder"]
+            P5["facade"]
+        end
+    end
+
+    subgraph REPOSITORY["repository / repository.impl"]
+        direction TB
+        R1["Interfaces DAO<br/>JDBC puro con PreparedStatement"]
+    end
+
+    subgraph DB["MySQL 8"]
+        direction TB
+        D1[("20 tablas<br/>database/schema.sql")]
+    end
+
+    subgraph SUPPORT["paquetes de soporte"]
+        direction LR
+        X1["config<br/>ConnectionFactory"]
+        X2["model<br/>POJOs y DTOs"]
+        X3["util<br/>ConsoleReader · InputValidator"]
+        X4["exception<br/>jerarquía propia"]
+    end
+
+    V1 --> C1
+    C1 --> S1
+    S1 --> R1
+    R1 --> D1
+    S1 -.-> PATTERNS
+    V1 -.-> X3
+    C1 -.-> X4
+    S1 -.-> X1
+    S1 -.-> X2
+    S1 -.-> X4
+    R1 -.-> X1
