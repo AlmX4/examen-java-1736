@@ -1,6 +1,7 @@
 package com.carmotors.sgt.view;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.carmotors.sgt.controller.ProveedorController;
@@ -12,18 +13,13 @@ import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 /**
  * Vista de consola del catálogo proveedor-repuesto (RF-29). Se usa desde el submenú
  * de proveedores (gestión del catálogo) y desde el de inventario (proveedores de un repuesto).
  */
 public class CatalogoProveedorView {
-
-    private static final String FORMATO_REPUESTOS = "  %-6s %-34s %-14s %-12s %-8s%n";
-    private static final String FORMATO_PROVEEDORES = "  %-6s %-26s %-9s %-14s %-12s %-8s%n";
-    private static final String FORMATO_COMPARACION = "  %-6s %-24s %-12s %-10s %-18s %-8s%n";
-    private static final String SEPARADOR = "  ------------------------------------------------------------------------------";
-    private static final String SEPARADOR_COMPARACION = "  -----------------------------------------------------------------------------------------";
 
     private final ProveedorRepuestoController proveedorRepuestoController;
     private final ProveedorController proveedorController;
@@ -111,18 +107,22 @@ public class CatalogoProveedorView {
                 System.out.println("\n  [i] Ningún proveedor ofrece el repuesto '" + repuesto.getNombre() + "'.");
             } else {
                 System.out.println("\n  [Proveedores de " + repuesto.getNombre() + "]");
-                System.out.printf(FORMATO_PROVEEDORES, "ID", "Proveedor", "Estado", "Costo", "Entrega", "Habitual");
-                System.out.println(SEPARADOR);
+                List<String[]> filas = new ArrayList<>();
                 for (ProveedorRepuesto item : catalogo) {
                     Proveedor proveedor = proveedorController.buscarPorId(item.getProveedorId());
-                    System.out.printf(FORMATO_PROVEEDORES,
-                            proveedor.getId(),
+                    filas.add(new String[]{
+                            String.valueOf(proveedor.getId()),
                             proveedor.getNombre(),
                             proveedor.isActivo() ? "ACTIVO" : "INACTIVO",
                             "$" + item.getCosto(),
                             item.getTiempoEntregaDias() + " días",
-                            item.isEsHabitual() ? "Sí" : "-");
+                            item.isEsHabitual() ? "Sí" : "-"
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Proveedor", "Estado", "Costo", "Entrega", "Habitual"},
+                        filas,
+                        new boolean[]{true, false, false, true, true, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -143,20 +143,24 @@ public class CatalogoProveedorView {
             } else {
                 System.out.println("\n  [Comparación de proveedores activos para: " + repuesto.getNombre()
                         + " (" + repuesto.getMarca() + ")]");
-                System.out.printf(FORMATO_COMPARACION, "ID", "Proveedor", "Costo", "Entrega", "Calificación", "Habitual");
-                System.out.println(SEPARADOR_COMPARACION);
+                List<String[]> filas = new ArrayList<>();
                 for (ComparacionProveedor item : comparacion) {
                     String calificacion = (item.getPromedioEvaluacion() != null)
                             ? item.getPromedioEvaluacion() + " (" + item.getCantidadEvaluaciones() + " eval)"
                             : "Sin evaluar";
-                    System.out.printf(FORMATO_COMPARACION,
-                            item.getProveedorId(),
+                    filas.add(new String[]{
+                            String.valueOf(item.getProveedorId()),
                             item.getNombreProveedor(),
                             "$" + item.getCosto(),
                             item.getTiempoEntregaDias() + " días",
                             calificacion,
-                            item.isEsHabitual() ? "Sí" : "-");
+                            item.isEsHabitual() ? "Sí" : "-"
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Proveedor", "Costo", "Entrega", "Calificación", "Habitual"},
+                        filas,
+                        new boolean[]{true, false, true, true, false, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -171,17 +175,21 @@ public class CatalogoProveedorView {
                 System.out.println("\n  [i] El proveedor '" + proveedor.getNombre() + "' aún no ofrece repuestos.");
             } else {
                 System.out.println("\n  [Repuestos ofrecidos por " + proveedor.getNombre() + "]");
-                System.out.printf(FORMATO_REPUESTOS, "ID", "Repuesto", "Costo", "Entrega", "Habitual");
-                System.out.println(SEPARADOR);
+                List<String[]> filas = new ArrayList<>();
                 for (ProveedorRepuesto item : catalogo) {
                     Repuesto repuesto = repuestoController.buscarPorId(item.getRepuestoId());
-                    System.out.printf(FORMATO_REPUESTOS,
-                            repuesto.getId(),
+                    filas.add(new String[]{
+                            String.valueOf(repuesto.getId()),
                             repuesto.getNombre(),
                             "$" + item.getCosto(),
                             item.getTiempoEntregaDias() + " días",
-                            item.isEsHabitual() ? "Sí" : "-");
+                            item.isEsHabitual() ? "Sí" : "-"
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Repuesto", "Costo", "Entrega", "Habitual"},
+                        filas,
+                        new boolean[]{true, false, true, true, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());

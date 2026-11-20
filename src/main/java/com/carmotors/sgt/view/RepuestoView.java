@@ -1,5 +1,6 @@
 package com.carmotors.sgt.view;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.carmotors.sgt.controller.InventarioController;
@@ -9,6 +10,7 @@ import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.RepuestoTipo;
 import com.carmotors.sgt.model.StockRepuesto;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 public class RepuestoView implements SubmenuVista {
 
@@ -130,9 +132,7 @@ public class RepuestoView implements SubmenuVista {
                 System.out.println("\n  [i] No hay repuestos registrados.");
             } else {
                 System.out.println("\n  [Lista de repuestos]");
-                for (Repuesto repuesto : repuestos) {
-                    imprimirDetalleRepuesto(repuesto);
-                }
+                imprimirTablaRepuestos(repuestos);
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -290,11 +290,16 @@ public class RepuestoView implements SubmenuVista {
 
             System.out.println("\n  [Stock del repuesto]");
             System.out.println("  - ID " + repuesto.getId() + " | " + repuesto.getNombre());
-            System.out.println("    Stock físico     : " + stock.getStockFisico());
-            System.out.println("    Stock operativo  : " + stock.getStockOperativo());
-            System.out.println("    Reservado        : " + stock.getReservado());
-            System.out.println("    Disponible       : " + stock.getDisponible());
-            System.out.println("    Stock mínimo     : " + stock.getStockMinimo());
+            List<String[]> metricas = new ArrayList<>();
+            metricas.add(new String[]{"Stock físico", String.valueOf(stock.getStockFisico())});
+            metricas.add(new String[]{"Stock operativo", String.valueOf(stock.getStockOperativo())});
+            metricas.add(new String[]{"Reservado", String.valueOf(stock.getReservado())});
+            metricas.add(new String[]{"Disponible", String.valueOf(stock.getDisponible())});
+            metricas.add(new String[]{"Stock mínimo", String.valueOf(stock.getStockMinimo())});
+            ConsoleTableFormatter.imprimirTabla(
+                    new String[]{"Métrica", "Cantidad"},
+                    metricas,
+                    new boolean[]{false, true});
 
             if (stock.getDeficit() > 0) {
                 System.out.println("\n  [!] ALERTA: faltan " + stock.getDeficit()
@@ -321,9 +326,7 @@ public class RepuestoView implements SubmenuVista {
                 System.out.println("\n  [i] No se encontraron repuestos que coincidan con los filtros indicados.");
             } else {
                 System.out.println("\n  [Resultados encontrados: " + resultados.size() + "]");
-                for (Repuesto repuesto : resultados) {
-                    imprimirDetalleRepuesto(repuesto);
-                }
+                imprimirTablaRepuestos(resultados);
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -359,20 +362,32 @@ public class RepuestoView implements SubmenuVista {
                 System.out.println("\n  [i] No hay repuestos activos con stock bajo mínimo.");
             } else {
                 System.out.println("\n  [Reporte de stock bajo: " + bajoMinimo.size() + " repuesto(s)]");
+                List<String[]> filas = new ArrayList<>();
+                List<String> alertas = new ArrayList<>();
                 for (StockRepuesto stock : bajoMinimo) {
                     Repuesto repuesto = stock.getRepuesto();
-                    System.out.println("  - ID " + repuesto.getId()
-                            + " | " + repuesto.getNombre()
-                            + " | Físico: " + stock.getStockFisico()
-                            + " | Operativo: " + stock.getStockOperativo()
-                            + " | Reservado: " + stock.getReservado()
-                            + " | Disponible: " + stock.getDisponible()
-                            + " | Mínimo: " + stock.getStockMinimo()
-                            + " | Proveedor habitual: " + stock.getProveedorHabitual());
+                    filas.add(new String[]{
+                            String.valueOf(repuesto.getId()),
+                            repuesto.getNombre(),
+                            String.valueOf(stock.getStockFisico()),
+                            String.valueOf(stock.getStockOperativo()),
+                            String.valueOf(stock.getReservado()),
+                            String.valueOf(stock.getDisponible()),
+                            String.valueOf(stock.getStockMinimo()),
+                            String.valueOf(stock.getDeficit()),
+                            stock.getProveedorHabitual()
+                    });
                     if (stock.getDeficit() > 0) {
-                        System.out.println("      [!] ALERTA: déficit de " + stock.getDeficit()
-                                + " unidad(es) para cubrir reservas vigentes.");
+                        alertas.add("  [!] ALERTA (" + repuesto.getNombre() + "): déficit de "
+                                + stock.getDeficit() + " unidad(es) para cubrir reservas vigentes.");
                     }
+                }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Repuesto", "Físico", "Operativo", "Reservado", "Disponible", "Mínimo", "Déficit", "Proveedor habitual"},
+                        filas,
+                        new boolean[]{true, false, true, true, true, true, true, true, false});
+                for (String alerta : alertas) {
+                    System.out.println(alerta);
                 }
             }
         } catch (CarMotorsException e) {
@@ -400,6 +415,26 @@ public class RepuestoView implements SubmenuVista {
             }
             System.out.println("  [!] Error: El ID del tipo de repuesto no pertenece al catálogo.");
         }
+    }
+
+    private void imprimirTablaRepuestos(List<Repuesto> repuestos) {
+        List<String[]> filas = new ArrayList<>();
+        for (Repuesto repuesto : repuestos) {
+            filas.add(new String[]{
+                    String.valueOf(repuesto.getId()),
+                    repuesto.getNombre(),
+                    repuestoController.obtenerNombreTipo(repuesto.getRepuestoTipoId()),
+                    repuesto.getMarca(),
+                    "$" + repuesto.getPrecioVenta(),
+                    String.valueOf(repuesto.getStockMinimo()),
+                    String.valueOf(repuesto.getCantidadReservada()),
+                    repuesto.isActivo() ? "ACTIVO" : "INACTIVO"
+            });
+        }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"ID", "Nombre", "Tipo", "Marca", "Precio", "Mínimo", "Reservada", "Estado"},
+                filas,
+                new boolean[]{true, false, false, false, true, true, true, false});
     }
 
     private void imprimirDetalleRepuesto(Repuesto repuesto) {

@@ -1,5 +1,6 @@
 package com.carmotors.sgt.view;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.carmotors.sgt.controller.LoteController;
@@ -11,6 +12,7 @@ import com.carmotors.sgt.model.LotePorVencer;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 import com.carmotors.sgt.util.InputValidator;
 
 public class LoteView implements SubmenuVista {
@@ -150,16 +152,23 @@ public class LoteView implements SubmenuVista {
                 System.out.println("\n  [i] El repuesto '" + repuesto.getNombre() + "' no tiene lotes registrados.");
             } else {
                 System.out.println("\n  [Lotes del repuesto: " + repuesto.getNombre() + "]");
+                List<String[]> filas = new ArrayList<>();
                 for (Lote lote : lotes) {
                     Proveedor proveedor = proveedorController.buscarPorId(lote.getProveedorId());
                     String caducidad = lote.getFechaCaducidad() == null ? "Sin caducidad" : lote.getFechaCaducidad().toString();
-                    System.out.println("  - " + lote.getCodigoLote()
-                            + " | proveedor: " + proveedor.getNombre()
-                            + " | ingreso: " + lote.getFechaIngreso()
-                            + " | caducidad: " + caducidad
-                            + " | inicial: " + lote.getCantidadInicial()
-                            + " | restante: " + lote.getCantidadActual());
+                    filas.add(new String[]{
+                            lote.getCodigoLote(),
+                            proveedor.getNombre(),
+                            String.valueOf(lote.getFechaIngreso()),
+                            caducidad,
+                            String.valueOf(lote.getCantidadInicial()),
+                            String.valueOf(lote.getCantidadActual())
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"Código Lote", "Proveedor", "Ingreso", "Caducidad", "Inicial", "Restante"},
+                        filas,
+                        new boolean[]{false, false, false, false, true, true});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -184,39 +193,35 @@ public class LoteView implements SubmenuVista {
             if (reporte.isEmpty()) {
                 System.out.println("\n  [i] No hay lotes vencidos ni próximos a vencer en los próximos " + dias + " días.");
             } else {
-                System.out.println("\n==========================================================================================");
-                System.out.println("                    REPORTE DE LOTES POR VENCER / VENCIDOS");
-                System.out.println("                    (Horizonte: " + dias + " días a partir de hoy)");
-                System.out.println("==========================================================================================");
-                System.out.printf("  %-18s %-12s %-20s %-18s %-12s %-8s %-14s%n",
-                        "Código Lote", "Estado", "Repuesto", "Proveedor", "Caducidad", "Saldo", "Días");
-                System.out.println("------------------------------------------------------------------------------------------");
+                System.out.println("\n  [Reporte de lotes por vencer / vencidos (horizonte: " + dias + " días a partir de hoy)]");
+                List<String[]> filas = new ArrayList<>();
                 for (LotePorVencer item : reporte) {
                     String diasTexto = item.getDiasRestantes() < 0
                             ? "Vencido (" + Math.abs(item.getDiasRestantes()) + "d)"
                             : (item.getDiasRestantes() == 0 ? "Vence hoy" : item.getDiasRestantes() + "d");
-                    System.out.printf("  %-18s %-12s %-20s %-18s %-12s %-8d %-14s%n",
+                    String caducidad = item.getLote().getFechaCaducidad() == null
+                            ? "Sin caducidad"
+                            : item.getLote().getFechaCaducidad().toString();
+                    filas.add(new String[]{
                             item.getLote().getCodigoLote(),
                             item.getEstado(),
-                            abreviar(item.getNombreRepuesto(), 20),
-                            abreviar(item.getNombreProveedor(), 18),
-                            item.getLote().getFechaCaducidad(),
-                            item.getLote().getCantidadActual(),
-                            diasTexto);
+                            item.getNombreRepuesto(),
+                            item.getNombreProveedor(),
+                            caducidad,
+                            String.valueOf(item.getLote().getCantidadActual()),
+                            diasTexto
+                    });
                 }
-                System.out.println("==========================================================================================");
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"Código Lote", "Estado", "Repuesto", "Proveedor", "Caducidad", "Saldo", "Días"},
+                        filas,
+                        new boolean[]{false, false, false, false, false, true, false},
+                        28);
                 System.out.println("  Total de lotes listados: " + reporte.size());
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
         }
         ConsoleReader.pausar();
-    }
-
-    private String abreviar(String texto, int max) {
-        if (texto == null) {
-            return "";
-        }
-        return texto.length() <= max ? texto : texto.substring(0, max - 3) + "...";
     }
 }
