@@ -603,6 +603,43 @@ public class OrdenServicioService {
     }
 
     /**
+     * Ajusta el costo de mano de obra de una línea en una orden editable antes de completar (RN-08).
+     *
+     * @param ordenId    identificador de la orden editable
+     * @param detalleId  identificador de la línea perteneciente a la orden
+     * @param nuevoCosto nuevo importe de mano de obra mayor o igual a cero
+     * @return la línea actualizada con su nuevo costo
+     */
+    public OrdenServicioDetalle actualizarCostoManoObra(int ordenId, int detalleId, BigDecimal nuevoCosto) {
+        validarOrdenId(ordenId);
+        validarDetalleId(detalleId);
+        if (nuevoCosto == null) {
+            throw new ValidacionException("El costo de mano de obra es obligatorio.");
+        }
+        if (nuevoCosto.signum() < 0) {
+            throw new ValidacionException("El costo de mano de obra no puede ser negativo.");
+        }
+        BigDecimal costoNormalizado = nuevoCosto.setScale(
+                InputValidator.ESCALA_MONETARIA, InputValidator.REDONDEO_MONETARIO);
+        if (costoNormalizado.compareTo(InputValidator.MAX_MONTO_DECIMAL_12_2) > 0) {
+            throw new ValidacionException("El costo de mano de obra supera el límite permitido.");
+        }
+
+        OrdenServicioDetalle[] resultado = new OrdenServicioDetalle[1];
+        editarLineas(ordenId, (detallesDao, tiposDao, tecnicosDao, repuestosDao, estado) -> {
+            OrdenServicioDetalle linea = buscarLineaDeOrden(detallesDao, ordenId, detalleId, true);
+            if (!detallesDao.actualizarCostoManoObra(ordenId, detalleId, costoNormalizado)) {
+                throw new CarMotorsException("No se pudo actualizar el costo de mano de obra de la línea "
+                        + detalleId + ".");
+            }
+            linea.setCostoManoObra(costoNormalizado);
+            resultado[0] = linea;
+            return detalleId;
+        });
+        return resultado[0];
+    }
+
+    /**
      * Verifica que una orden exista y se encuentre en estado editable ({@code Pendiente} o {@code En Proceso}).
      *
      * @param ordenId identificador de la orden
@@ -645,25 +682,43 @@ public class OrdenServicioService {
         OrdenServicioDetalle linea = buscarLineaDeOrden(ordenServicioDetalleDAO, ordenId, detalleId, false);
         ServicioTipo tipo = obtenerServicioTipoObligatorio(servicioTipoDAO, linea.getServicioTipoId());
 
-        List<Tecnico> activos = tecnicoDAO.listarActivos();
-        Map<Integer, Integer> cargas = tecnicoDAO.contarCargaActivaPorTecnico();
         List<DetalleTecnico> yaAsignados = ordenServicioDetalleDAO.listarTecnicosAsignados(detalleId);
-
         Set<Integer> idsAsignados = new HashSet<>();
         for (DetalleTecnico asignacion : yaAsignados) {
             idsAsignados.add(asignacion.getTecnicoId());
         }
+        return sugerirEntreActivos(tipo.getEspecialidadId(), idsAsignados);
+    }
 
+    /**
+     * Sugiere el técnico óptimo antes de persistir una nueva línea según el tipo de servicio elegido (RF-09, RN-20).
+     *
+     * @param ordenId        identificador de la orden editable
+     * @param servicioTipoId identificador del tipo de servicio de la nueva línea
+     * @return sugerencia encontrada o {@code null} si no hay técnicos activos elegibles
+     */
+    public SugerenciaTecnico sugerirTecnicoParaTipoServicio(int ordenId, int servicioTipoId) {
+        validarOrdenId(ordenId);
+        if (servicioTipoId <= 0) {
+            throw new ValidacionException("El ID del tipo de servicio debe ser un número positivo.");
+        }
+        validarEstadoEditable(ordenServicioDAO.buscarPorId(ordenId), ordenId);
+        ServicioTipo tipo = obtenerServicioTipoObligatorio(servicioTipoDAO, servicioTipoId);
+        return sugerirEntreActivos(tipo.getEspecialidadId(), new HashSet<>());
+    }
+
+    private SugerenciaTecnico sugerirEntreActivos(int especialidadRequeridaId, Set<Integer> idsExcluidos) {
+        List<Tecnico> activos = tecnicoDAO.listarActivos();
+        Map<Integer, Integer> cargas = tecnicoDAO.contarCargaActivaPorTecnico();
         List<Tecnico> candidatos = new ArrayList<>();
         if (activos != null) {
             for (Tecnico tecnico : activos) {
-                if (tecnico != null && !idsAsignados.contains(tecnico.getId())) {
+                if (tecnico != null && !idsExcluidos.contains(tecnico.getId())) {
                     candidatos.add(tecnico);
                 }
             }
         }
-
-        return sugerenciaTecnicoChain.sugerir(tipo.getEspecialidadId(), candidatos, cargas);
+        return sugerenciaTecnicoChain.sugerir(especialidadRequeridaId, candidatos, cargas);
     }
 
     /**

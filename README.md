@@ -4,7 +4,7 @@
 ![Maven](https://img.shields.io/badge/Maven-3.8%2B-C71A36?style=flat-square&logo=apachemaven&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0.16%2B-4479A1?style=flat-square&logo=mysql&logoColor=white)
 ![JDBC](https://img.shields.io/badge/Persistencia-JDBC%20Puro-007396?style=flat-square)
-![JUnit 5](https://img.shields.io/badge/JUnit-5.11.4%20(360%20tests)-25A162?style=flat-square&logo=junit5&logoColor=white)
+![JUnit 5](https://img.shields.io/badge/JUnit-5.11.4%20(367%20tests)-25A162?style=flat-square&logo=junit5&logoColor=white)
 
 **CarMotors SGT** es una aplicación de consola desarrollada en **Java 17** con persistencia relacional en **MySQL 8** mediante **JDBC puro** (sin ORM ni frameworks web). El sistema centraliza la operación integral de un taller automotriz: gestión de clientes y vehículos, catálogo y evaluación de proveedores, control de inventario por lotes con trazabilidad **FEFO**, asignación inteligente de técnicos, ciclo de vida transaccional de órdenes de servicio, facturación inmutable con emisión de comprobantes `.txt` en UTF-8 y reportes gerenciales.
 
@@ -31,7 +31,7 @@
 | **Construcción y Ejecución** | Apache Maven 3.8+ | Coordenadas `com.campuslands:Proyecto-Java-Grupo4:1.0-SNAPSHOT` y plugin `exec-maven-plugin:3.5.0` (`mainClass`: `com.carmotors.sgt.Main`) |
 | **Motor de Base de Datos** | MySQL Server `8.0.16+` | Motor `InnoDB`, charset `utf8mb4`, collation `utf8mb4_0900_ai_ci` y restricciones `CHECK` nativas |
 | **Conectividad SQL** | `com.mysql:mysql-connector-j:8.4.0` | JDBC puro con `PreparedStatement` y control explícito de transacciones |
-| **Pruebas Automatizadas** | `org.junit.jupiter:junit-jupiter:5.11.4` | Suite completa con **39** clases de prueba y **360** casos ejecutados |
+| **Pruebas Automatizadas** | `org.junit.jupiter:junit-jupiter:5.11.4` | Suite completa con **40** clases de prueba y **367** casos ejecutados |
 
 ---
 
@@ -51,12 +51,12 @@ El sistema implementa una arquitectura en capas estrictamente desacoplada siguie
 | `com.carmotors.sgt.repository` y `.impl` | Contratos DAO e implementaciones JDBC puras basadas en `PreparedStatement` con soporte para recibir una `Connection` compartida. | **Nunca** decide reglas de negocio ni imprime salidas en consola. |
 | `com.carmotors.sgt.model` | Entidades del dominio, DTOs de consulta/reporte y enumeraciones tipadas. | Objetos de transporte y dominio sin dependencias hacia consola o JDBC. |
 | `com.carmotors.sgt.config` | Gestión centralizada de configuración externa y creación de conexiones JDBC (`ConnectionFactory`). | Carga segura desde classpath sin exponer credenciales en código fuente. |
-| `com.carmotors.sgt.util` | Utilidades reutilizables para lectura robusta de consola (`ConsoleReader`) y validación de formatos (`InputValidator`). | Funciones auxiliares transversales sin estado de negocio. |
+| `com.carmotors.sgt.util` | Utilidades reutilizables para lectura robusta de consola (`ConsoleReader`), formateo tabular (`ConsoleTableFormatter`) y validación de formatos (`InputValidator`). | Funciones auxiliares transversales sin estado de negocio. |
 | `com.carmotors.sgt.exception` | Jerarquía de excepciones propias del dominio encabezada por `CarMotorsException` (`RuntimeException`). | Permite recuperación controlada de errores sin abortar la consola. |
 
 ### Estructura de Directorios
 
-El código fuente productivo cuenta con **160** tipos de producción y **13** archivos `package-info.java` (**173** archivos `.java` en total), acompañados de **39** clases de prueba:
+El código fuente productivo cuenta con **161** tipos de producción y **13** archivos `package-info.java` (**174** archivos `.java` en total), acompañados de **40** clases de prueba:
 
 ```text
 Proyecto-Java-Grupo4/
@@ -93,12 +93,13 @@ Proyecto-Java-Grupo4/
 │   │   │   │   └── state/                       # Patrón State (ciclo de vida de órdenes)
 │   │   │   ├── util/
 │   │   │   │   ├── ConsoleReader.java
+│   │   │   │   ├── ConsoleTableFormatter.java
 │   │   │   │   └── InputValidator.java
 │   │   │   └── view/                            # Interfaz SubmenuVista + 13 vistas de consola
 │   │   └── resources/
 │   │       └── config.properties.example        # Plantilla de configuración externa
 │   └── test/
-│       └── java/com/carmotors/sgt/              # 39 clases de pruebas unitarias y de integración
+│       └── java/com/carmotors/sgt/              # 40 clases de pruebas unitarias y de integración
 ├── .gitignore
 ├── pom.xml
 └── README.md
@@ -139,7 +140,7 @@ El punto de navegación principal reside en `ConsolaMenuView`, el cual integra l
 ### 5. Servicios y Órdenes de Trabajo (`ServiciosMenuView`, `ServicioTipoView`, `OrdenServicioView`)
 - Catálogo de tipos de servicio clasificados en preventivos (con intervalo de mantenimiento en meses) y correctivos, asociados a su especialidad requerida y precio base de mano de obra.
 - Creación transaccional multi-línea de órdenes de servicio para un vehículo.
-- Edición de órdenes en estados habilitados: agregar o retirar líneas de servicio, asignar técnicos con **sugerencia automática inteligente**, registrar horas trabajadas y reservar o retirar repuestos por línea.
+- Edición de órdenes en estados habilitados: agregar o retirar líneas de servicio, ajustar el costo de mano de obra antes de completar, asignar técnicos con **sugerencia automática inteligente**, registrar horas trabajadas y reservar o retirar repuestos por línea.
 - Listado con filtros combinables mediante **Stream API** y consulta de detalle consolidado de la orden.
 - Control estricto de transiciones de estado: `En Proceso`, `Completado`, `Cancelar` y `Entregar`.
 
@@ -366,7 +367,7 @@ mvn clean compile exec:java
 
 ### 5. Ejecutar la Suite de Pruebas
 
-Para ejecutar las **39** clases de pruebas unitarias y de integración (**360** casos de prueba con JUnit 5):
+Para ejecutar las **40** clases de pruebas unitarias y de integración (**367** casos de prueba con JUnit 5):
 
 ```bash
 mvn clean test
@@ -382,5 +383,5 @@ Proyecto desarrollado por el **Grupo 4**:
 |---|---|---|
 | **Julio** | [`@julio7879`](https://github.com/julio7879) | Líder de Proyecto y Arquitectura |
 | **Andrés Jiménez** | [`@AlmX4`](https://github.com/AlmX4) | Desarrollador Backend |
-| **Jhorman** | [`@JopsWtD`](https://github.com/JopsWtD) | Desarrollador Backend |
+| **Jhorman** | [`@JopsWtD`](https://github.com/JopsWtD) | Desarrollador Backend y Arquitectura |
 | **Sofía** | [`@Sofi11017`](https://github.com/Sofi11017) | Desarrolladora Backend |

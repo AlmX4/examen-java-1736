@@ -4,6 +4,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,5 +109,25 @@ class InputValidatorTest {
         assertEquals("3205550001", ConsoleReader.leerTelefonoOpcional("Teléfono"));
         assertEquals("Transportes Rápidos S.A.S.", ConsoleReader.leerNombreCliente("Cliente"));
         assertEquals("900123456-7", ConsoleReader.leerDocumentoCliente("NIT"));
+    }
+
+    @Test
+    @DisplayName("leerHorasNoNegativas informa error hablando de horas y nunca de importe")
+    void leerHorasNoNegativasMuestraMensajeDeHoras() {
+        ConsoleReader.setScanner(new Scanner("-2\n1.5\n"));
+        PrintStream salidaOriginal = System.out;
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        BigDecimal resultado;
+        try {
+            System.setOut(new PrintStream(buffer, true, StandardCharsets.UTF_8));
+            resultado = ConsoleReader.leerHorasNoNegativas("Horas trabajadas");
+        } finally {
+            System.setOut(salidaOriginal);
+        }
+
+        String salida = buffer.toString(StandardCharsets.UTF_8).toLowerCase();
+        assertTrue(salida.contains("horas"));
+        assertFalse(salida.contains("importe"));
+        assertEquals(new BigDecimal("1.50"), resultado);
     }
 }

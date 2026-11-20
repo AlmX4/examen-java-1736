@@ -189,6 +189,21 @@ public class OrdenServicioDetalleDAOImpl implements OrdenServicioDetalleDAO {
     }
 
     @Override
+    public boolean actualizarCostoManoObra(int ordenId, int detalleId, BigDecimal costoManoObra) {
+        validarConexionCompartida();
+        String sql = "UPDATE orden_servicio_detalle SET costo_mano_obra = ? WHERE orden_id = ? AND id = ?";
+        try (PreparedStatement statement = conexionCompartida.prepareStatement(sql)) {
+            statement.setBigDecimal(1, costoManoObra);
+            statement.setInt(2, ordenId);
+            statement.setInt(3, detalleId);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al actualizar el costo de mano de obra de la línea "
+                    + detalleId + ": " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public void eliminar(int ordenId, int detalleId) {
         validarConexionCompartida();
         // Las claves foráneas eliminan las asignaciones de esta línea.

@@ -214,6 +214,22 @@ public final class ConsoleReader {
     }
 
     /**
+     * Solicita una cantidad de horas trabajadas mayor o igual a 0.00 con escala 2 y {@code RoundingMode.HALF_UP}.
+     */
+    public static BigDecimal leerHorasNoNegativas(String mensaje) {
+        while (true) {
+            String entrada = leerLineaSegura(mensaje);
+            if (InputValidator.esBigDecimalValido(entrada)) {
+                BigDecimal valor = InputValidator.convertirABigDecimal(entrada);
+                if (InputValidator.esBigDecimalNoNegativo(valor)) {
+                    return valor;
+                }
+            }
+            System.out.println("  [!] Error: Debe ingresar una cantidad de horas válida mayor o igual a 0.00 (ej. 1.50).");
+        }
+    }
+
+    /**
      * Solicita una fecha obligatoria en formato estricto {@code yyyy-MM-dd}.
      */
     public static LocalDate leerFecha(String mensaje) {

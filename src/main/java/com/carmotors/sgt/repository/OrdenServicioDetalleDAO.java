@@ -97,6 +97,18 @@ public interface OrdenServicioDetalleDAO {
     Map<Integer, Integer> listarReservasParaActualizar(int detalleId);
 
     /**
+     * Actualiza el costo de mano de obra de una línea dentro de una orden editable (RN-08).
+     *
+     * @param ordenId       identificador de la orden
+     * @param detalleId     identificador de la línea
+     * @param costoManoObra nuevo costo de mano de obra (mayor o igual a cero)
+     * @return {@code true} si se actualizó exactamente la fila indicada
+     */
+    default boolean actualizarCostoManoObra(int ordenId, int detalleId, BigDecimal costoManoObra) {
+        throw new UnsupportedOperationException("actualizarCostoManoObra no implementado en este DAO.");
+    }
+
+    /**
      * Elimina una línea de servicio perteneciente a la orden indicada.
      *
      * @param ordenId   identificador de la orden
