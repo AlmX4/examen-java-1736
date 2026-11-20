@@ -8,6 +8,12 @@
 
 ## [En curso] — Sprint 8: Cierre y entrega (`develop`)
 
+### Pendiente de integración — `docs(readme): add complete system README and move diagrams to assets (T8.4)` (`feature/readme-cierre` → `develop`, cierra `#61`, RNF-20)
+- **Autor:** `@julio7879`
+- **Cambios incluidos:**
+  - `README.md`: documentación completa del sistema CarMotors SGT (stack tecnológico, arquitectura en capas, estructura de paquetes, funcionalidades de los 7 módulos, reglas de negocio críticas, modelo de 20 tablas, diagramas UML, 7 patrones de diseño, principios SOLID, guía paso a paso de instalación/ejecución y autores del Grupo 4).
+  - `assets/`: copia de `arquitectura.png`, `diagrama-clases.png` y `diagrama-er.png` como ubicación pública definitiva para enlazar desde `README.md`.
+
 ### Pendiente de integración — `fix(view): prevent silent field clearing, add cancel options, and align order submenu UX` (`fix/pulido-consola-ux` → `develop`, RNF-03 / RNF-13 / RNF-24 / RN-05)
 - **Autor:** `@julio7879`
 - **Motivo del arreglo:** Auditoría exhaustiva de UX en las vistas de consola detectó: (1) presionar Enter en campos opcionales de `actualizarCliente`, `actualizarProveedor` y `actualizarTecnico` sobrescribía silenciosamente datos vigentes con `null`; (2) `OrdenServicioView` tenía numeración visual desordenada (`6 -> 9 -> 7 -> 8 -> 10`), permitía `0`/negativos en `reservarRepuesto`, no validaba orden editable al inicio de `reservarRepuesto`/`retirarRepuesto`/`quitarLinea`, imprimía `"tras liberar la reserva"` aunque el retiro fallara y mostraba `Especialidad ID` en crudo en `agregarLinea`; (3) cuatro selectores `while (true)` atrapaban al usuario sin opción `0 para cancelar`; y (4) `CatalogoProveedorView.actualizarCondiciones` pedía costo y días sin mostrar las condiciones vigentes ni comprobar primero que el repuesto existiera en el catálogo del proveedor.
