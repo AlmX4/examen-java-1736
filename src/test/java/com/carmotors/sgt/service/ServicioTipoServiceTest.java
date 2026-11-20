@@ -141,6 +141,19 @@ class ServicioTipoServiceTest {
         assertEquals(0, servicioTipoService.listarTodos().size());
     }
 
+    @Test
+    @DisplayName("Debe rechazar nombre numérico o mayor a 100 caracteres, precio desbordado e intervalo > 120 meses")
+    void rechazarNombreInvalidoPrecioExcesivoEIntervaloDesbordado() {
+        assertThrows(ValidacionException.class, () -> servicioTipoService.registrarServicioTipo(
+                new ServicioTipo(0, "0", 2, 1, new BigDecimal("50000.00"), null)));
+        assertThrows(ValidacionException.class, () -> servicioTipoService.registrarServicioTipo(
+                new ServicioTipo(0, "a".repeat(101), 2, 1, new BigDecimal("50000.00"), null)));
+        assertThrows(ValidacionException.class, () -> servicioTipoService.registrarServicioTipo(
+                new ServicioTipo(0, "Servicio válido", 2, 1, new BigDecimal("10000000000.00"), null)));
+        assertThrows(ValidacionException.class, () -> servicioTipoService.registrarServicioTipo(
+                new ServicioTipo(0, "Preventivo extremo", 1, 1, new BigDecimal("50000.00"), 121)));
+    }
+
     private static class MantenimientoTipoDAOEnMemoria implements MantenimientoTipoDAO {
 
         private final List<MantenimientoTipo> datos = new ArrayList<>();

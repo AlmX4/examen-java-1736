@@ -195,6 +195,19 @@ class RepuestoServiceTest {
     }
 
     @Test
+    @DisplayName("Debe rechazar precio que redondea a 0.00, precio fuera de DECIMAL(12,2) y textos numéricos")
+    void rechazarPrecioRedondeadoACeroYTextosNumericos() {
+        Repuesto precioRedondeadoCero = new Repuesto(0, 1, "Bujía", "NGK", new BigDecimal("0.004"), 0, 1, true);
+        assertThrows(ValidacionException.class, () -> service.crearRepuesto(precioRedondeadoCero));
+
+        Repuesto precioDesbordado = new Repuesto(0, 1, "Bujía", "NGK", new BigDecimal("10000000000.00"), 0, 1, true);
+        assertThrows(ValidacionException.class, () -> service.crearRepuesto(precioDesbordado));
+
+        Repuesto nombreNumerico = new Repuesto(0, 1, "0", "NGK", new BigDecimal("25000.00"), 0, 1, true);
+        assertThrows(ValidacionException.class, () -> service.crearRepuesto(nombreNumerico));
+    }
+
+    @Test
     @DisplayName("Debe filtrar repuestos por nombre, tipo, marca y proveedor de forma insensible a mayúsculas y tildes")
     void filtraRepuestosPorCadaCriterioYCombinaciones() {
         Repuesto r1 = crearRepuestoBase(1, "Filtro de aceite sintético", "Bosch");

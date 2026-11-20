@@ -211,6 +211,10 @@ public class LoteService {
         if (codigoNormalizado.length() > MAX_LONGITUD_CODIGO_LOTE) {
             throw new ValidacionException("El código del lote no puede superar los " + MAX_LONGITUD_CODIGO_LOTE + " caracteres.");
         }
+        if (!InputValidator.esCodigoLoteValido(codigoNormalizado)) {
+            throw new ValidacionException(
+                    "El código del lote debe tener entre 3 y 40 caracteres alfanuméricos o guiones (sin espacios) e incluir al menos una letra.");
+        }
         lote.setCodigoLote(codigoNormalizado);
 
         if (lote.getProveedorId() <= 0) {
@@ -224,6 +228,9 @@ public class LoteService {
         }
         if (lote.getFechaIngreso() == null) {
             throw new ValidacionException("La fecha de ingreso del lote es obligatoria.");
+        }
+        if (lote.getFechaIngreso().isAfter(LocalDate.now())) {
+            throw new ValidacionException("La fecha de ingreso del lote no puede ser futura.");
         }
         if (lote.getFechaCaducidad() != null && !lote.getFechaCaducidad().isAfter(lote.getFechaIngreso())) {
             throw new ValidacionException("La fecha de caducidad debe ser estrictamente posterior a la fecha de ingreso.");

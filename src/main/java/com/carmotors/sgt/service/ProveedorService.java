@@ -136,12 +136,15 @@ public class ProveedorService {
             throw new ValidacionException("El proveedor no puede ser nulo.");
         }
 
-        String nombre = InputValidator.normalizarTexto(proveedor.getNombre());
+        String nombre = InputValidator.normalizarEspacios(proveedor.getNombre());
         if (nombre.isEmpty()) {
             throw new ValidacionException("El nombre del proveedor es obligatorio.");
         }
         if (nombre.length() > MAX_LONGITUD_NOMBRE) {
             throw new ValidacionException("El nombre del proveedor no puede superar los " + MAX_LONGITUD_NOMBRE + " caracteres.");
+        }
+        if (nombre.length() < 3 || !InputValidator.contieneLetra(nombre)) {
+            throw new ValidacionException("El nombre del proveedor debe tener al menos 3 caracteres e incluir letras.");
         }
         proveedor.setNombre(nombre);
 
@@ -157,13 +160,23 @@ public class ProveedorService {
         }
 
         String telefono = InputValidator.normalizarTexto(proveedor.getTelefono());
-        if (!telefono.isEmpty() && telefono.length() > MAX_LONGITUD_TELEFONO) {
-            throw new ValidacionException("El teléfono del proveedor no puede superar los " + MAX_LONGITUD_TELEFONO + " caracteres.");
+        if (!telefono.isEmpty()) {
+            if (telefono.length() > MAX_LONGITUD_TELEFONO) {
+                throw new ValidacionException("El teléfono del proveedor no puede superar los " + MAX_LONGITUD_TELEFONO + " caracteres.");
+            }
+            if (!InputValidator.esTelefonoValido(telefono)) {
+                throw new ValidacionException("El teléfono del proveedor debe contener entre 7 y 15 dígitos numéricos.");
+            }
         }
 
-        String direccion = InputValidator.normalizarTexto(proveedor.getDireccion());
-        if (!direccion.isEmpty() && direccion.length() > MAX_LONGITUD_DIRECCION) {
-            throw new ValidacionException("La dirección del proveedor no puede superar los " + MAX_LONGITUD_DIRECCION + " caracteres.");
+        String direccion = InputValidator.normalizarEspacios(proveedor.getDireccion());
+        if (!direccion.isEmpty()) {
+            if (direccion.length() > MAX_LONGITUD_DIRECCION) {
+                throw new ValidacionException("La dirección del proveedor no puede superar los " + MAX_LONGITUD_DIRECCION + " caracteres.");
+            }
+            if (direccion.length() < 5 || !InputValidator.contieneLetra(direccion)) {
+                throw new ValidacionException("La dirección del proveedor debe tener al menos 5 caracteres e incluir letras.");
+            }
         }
     }
 

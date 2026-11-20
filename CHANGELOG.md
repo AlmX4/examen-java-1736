@@ -8,6 +8,15 @@
 
 ## [En curso] — Sprint 8: Cierre y entrega (`develop`)
 
+### Pendiente de integración — `fix(validaciones): harden logical input validation across services and console` (`fix/validaciones-entrada` → `develop`, RNF-13 / RF-01 / RF-02 / RF-08 / RF-17 / RF-18 / RF-28 / RF-29 / RF-31 / RF-33)
+- **Autor:** `@julio7879`
+- **Motivo del arreglo:** Durante pruebas manuales en consola se detectó que formularios y servicios aceptaban valores ilógicos (`nombre = "0"`, `documento = "2"`, `telefono = "2"`, precios `0.004` que redondeaban a `0.00`, fechas futuras en lotes/evaluaciones, asociación de repuestos inactivos e intervalos `Integer.MAX_VALUE` en tipos de servicio).
+- **Cambios incluidos:**
+  - Extensión de `InputValidator` y `ConsoleReader` con validadores y lectores de consola con repregunta inmediata (`esNombrePersonaValido`, `esNombreClienteValido`, `esDocumentoNumericoValido`, `esDocumentoClienteValido`, `esTelefonoValido`, `esCodigoLoteValido`, `contieneLetra`, `contieneAlfanumerico`, `contieneDigito`, `MAX_MONTO_DECIMAL_12_2`).
+  - Endurecimiento espejo en `TecnicoService` (incluyendo límites `VARCHAR` de `schema.sql`), `ClienteService`, `VehiculoService`, `ProveedorService`, `EvaluacionProveedorService`, `ProveedorRepuestoService` (bloqueo de repuestos inactivos y tope `DECIMAL(12,2)`), `RepuestoService` (corrección de orden redondeo→validación positiva para impedir `0.004 -> 0.00`), `LoteService` (formato de código y rechazo de `fechaIngreso` futura), `ServicioTipoService` (límite 100 chars, tope `DECIMAL(12,2)` e intervalo `1..120` meses) y `OrdenServicioService` (descripción descriptiva con letras).
+  - Conexión de los lectores validados en `TecnicoView`, `ClienteView` y `ProveedorView`.
+  - Nueva suite `InputValidatorTest` y ampliación de `TecnicoServiceTest`, `RepuestoServiceTest` y `ServicioTipoServiceTest` (**356** pruebas en total: **0** fallos, **0** errores, **0** omitidas con MySQL 8 activo).
+
 ### PR #114 — `docs(documentacion): export architecture diagrams as PNG (T8.3)` (`feature/documentacion` → `develop`, cierra `#60`, RNF-11 / §2.9 / Sprint 8)
 - **Autor:** `@Sofi11017`
 - **Cambios incluidos:**
