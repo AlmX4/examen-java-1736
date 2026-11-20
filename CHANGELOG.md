@@ -37,6 +37,12 @@
   - Conexión de los lectores validados en `TecnicoView`, `ClienteView` y `ProveedorView`.
   - Nueva suite `InputValidatorTest` y ampliación de `TecnicoServiceTest`, `RepuestoServiceTest` y `ServicioTipoServiceTest` (**356** pruebas en total: **0** fallos, **0** errores, **0** omitidas con MySQL 8 activo).
 
+### PR #115 — `feat(database): consolidate representative seed data (T8.2)` (`feature/documentacion` → `develop`, cierra `#59`, RNF-25 / sección 9)
+- **Autor:** `@AlmX4`
+- `database/data.sql` consolida 12 clientes, 18 vehículos, 8 proveedores, 20 repuestos, 30 lotes, 6 técnicos, 12 órdenes en los seis estados y 4 facturas con sus snapshots y conceptos.
+- Incluye disponibilidad por debajo, justo en y por encima del mínimo, lotes vencidos y próximos a vencer, empate de carga, órdenes con varias líneas, historial de cancelación y un recordatorio preventivo próximo.
+- Las reservas reflejan solo las órdenes abiertas. Las facturas cuadran con sus conceptos y quedan listas para generar el TXT, incluida una factura de solo mano de obra.
+
 ### PR #114 — `docs(documentacion): export architecture diagrams as PNG (T8.3)` (`feature/documentacion` → `develop`, cierra `#60`, RNF-11 / §2.9 / Sprint 8)
 - **Autor:** `@Sofi11017`
 - **Cambios incluidos:**
