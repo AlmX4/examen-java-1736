@@ -28,8 +28,3 @@ output/
 .DS_Store
 Thumbs.db
 
-# Obsidian: estado local de cada integrante (la configuración compartida sí se versiona)
-docs/vault/.obsidian/workspace.json
-docs/vault/.obsidian/workspace-mobile.json
-docs/vault/.obsidian/cache
-docs/vault/.trash/
