@@ -2,6 +2,7 @@ package com.carmotors.sgt.view;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.carmotors.sgt.controller.EvaluacionProveedorController;
@@ -11,6 +12,7 @@ import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.RankingProveedor;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 public class EvaluacionProveedorView implements SubmenuVista {
 
@@ -106,13 +108,23 @@ public class EvaluacionProveedorView implements SubmenuVista {
                 System.out.println("\n  [i] El proveedor '" + proveedor.getNombre() + "' aún no tiene evaluaciones.");
             } else {
                 System.out.println("\n  [Historial de evaluaciones para " + proveedor.getNombre() + "]");
+                List<String[]> filas = new ArrayList<>();
                 for (EvaluacionProveedor evaluacion : evaluaciones) {
-                    System.out.println("  - Fecha: " + evaluacion.getFecha()
-                            + " | Calidad: " + evaluacion.getCalidad()
-                            + " | Puntualidad: " + evaluacion.getPuntualidad()
-                            + " | Puntaje: " + evaluacion.getPuntaje()
-                            + " | Comentario: " + (evaluacion.getComentario() == null ? "Sin comentario" : evaluacion.getComentario()));
+                    String comentario = (evaluacion.getComentario() == null || evaluacion.getComentario().isEmpty())
+                            ? "Sin comentario"
+                            : evaluacion.getComentario();
+                    filas.add(new String[]{
+                            evaluacion.getFecha() != null ? evaluacion.getFecha().toString() : "Sin fecha",
+                            String.valueOf(evaluacion.getCalidad()),
+                            String.valueOf(evaluacion.getPuntualidad()),
+                            String.valueOf(evaluacion.getPuntaje()),
+                            comentario
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"Fecha", "Calidad", "Puntualidad", "Puntaje", "Comentario"},
+                        filas,
+                        new boolean[]{false, true, true, true, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -139,21 +151,31 @@ public class EvaluacionProveedorView implements SubmenuVista {
             if (ranking.isEmpty()) {
                 System.out.println("\n  [i] No hay proveedores registrados para generar el ranking.");
             } else {
-                String formato = "  %-4s %-30s %-12s %-12s%n";
                 System.out.println("\n  [Ranking de proveedores]");
-                System.out.printf(formato, "#", "Proveedor", "Promedio", "Evaluaciones");
-                System.out.println("  -------------------------------------------------------------");
+                List<String[]> filas = new ArrayList<>();
                 int posicion = 1;
                 for (RankingProveedor fila : ranking) {
                     if (fila.getPromedio() == null) {
-                        System.out.printf(formato, "-", fila.getProveedor().getNombre(), "Sin evaluar",
-                                fila.getCantidadEvaluaciones());
+                        filas.add(new String[]{
+                                "-",
+                                fila.getProveedor().getNombre(),
+                                "Sin evaluar",
+                                String.valueOf(fila.getCantidadEvaluaciones())
+                        });
                     } else {
-                        System.out.printf(formato, posicion, fila.getProveedor().getNombre(), fila.getPromedio(),
-                                fila.getCantidadEvaluaciones());
+                        filas.add(new String[]{
+                                String.valueOf(posicion),
+                                fila.getProveedor().getNombre(),
+                                fila.getPromedio().toString(),
+                                String.valueOf(fila.getCantidadEvaluaciones())
+                        });
                         posicion++;
                     }
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"#", "Proveedor", "Promedio", "Evaluaciones"},
+                        filas,
+                        new boolean[]{true, false, true, true});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());

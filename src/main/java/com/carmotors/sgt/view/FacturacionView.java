@@ -11,8 +11,10 @@ import com.carmotors.sgt.model.FacturaSnapshot;
 import com.carmotors.sgt.model.ResultadoReimpresionFactura;
 import com.carmotors.sgt.model.TipoConcepto;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -211,26 +213,26 @@ public class FacturacionView implements SubmenuVista {
                 return;
             }
 
-            System.out.println("\n================================================================================");
-            System.out.println("                             FACTURAS EMITIDAS                                  ");
-            System.out.println("================================================================================");
-            System.out.printf("  %-5s %-14s %-7s %-20s %-14s %-10s%n",
-                    "ID", "NÚMERO", "ORDEN", "FECHA EMISIÓN", "TOTAL", "TXT");
-            System.out.println("--------------------------------------------------------------------------------");
+            System.out.println("\n  [Facturas emitidas: " + facturas.size() + "]");
+            List<String[]> filas = new ArrayList<>();
             for (Factura factura : facturas) {
                 String fecha = factura.getFechaEmision() != null
                         ? factura.getFechaEmision().format(FORMATO_FECHA_HORA)
                         : "N/A";
                 String estadoTxt = factura.isArchivoGenerado() ? "Generado" : "Pendiente";
-                System.out.printf("  %-5d %-14s %-7d %-20s $%-13s %-10s%n",
-                        factura.getId(),
+                filas.add(new String[]{
+                        String.valueOf(factura.getId()),
                         factura.getNumeroFactura(),
-                        factura.getOrdenId(),
+                        String.valueOf(factura.getOrdenId()),
                         fecha,
-                        factura.getTotalFinal().toPlainString(),
-                        estadoTxt);
+                        "$" + factura.getTotalFinal().toPlainString(),
+                        estadoTxt
+                });
             }
-            System.out.println("================================================================================");
+            ConsoleTableFormatter.imprimirTabla(
+                    new String[]{"ID", "Número", "Orden", "Fecha emisión", "Total", "TXT"},
+                    filas,
+                    new boolean[]{true, false, true, false, true, false});
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] No se pudieron listar las facturas: " + e.getMessage());
         } finally {
@@ -267,12 +269,21 @@ public class FacturacionView implements SubmenuVista {
                 + " " + snapshot.getVehiculoModelo());
         System.out.println("--------------------------------------------------");
         System.out.println("  Conceptos:");
+        List<String[]> filasConceptos = new ArrayList<>();
         for (FacturaDetalle concepto : consulta.getDetalles()) {
             String tipo = concepto.getTipoConcepto() == TipoConcepto.MANO_OBRA ? "Mano de obra" : "Repuesto";
-            System.out.println("    - [" + tipo + "] " + concepto.getDescripcionSnapshot());
-            System.out.println("        " + concepto.getCantidad() + " x $" + concepto.getPrecioUnitario()
-                    + " = $" + concepto.getSubtotal());
+            filasConceptos.add(new String[]{
+                    tipo,
+                    concepto.getDescripcionSnapshot(),
+                    String.valueOf(concepto.getCantidad()),
+                    "$" + concepto.getPrecioUnitario(),
+                    "$" + concepto.getSubtotal()
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"Tipo", "Descripción", "Cantidad", "Precio unit.", "Subtotal"},
+                filasConceptos,
+                new boolean[]{false, false, true, true, true});
         System.out.println("--------------------------------------------------");
         System.out.println("  Total repuestos:     $" + factura.getTotalRepuestos());
         System.out.println("  Total mano de obra:  $" + factura.getTotalManoObra());

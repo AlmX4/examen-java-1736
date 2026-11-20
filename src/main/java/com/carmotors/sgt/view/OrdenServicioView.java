@@ -22,6 +22,7 @@ import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.service.chain.SugerenciaTecnico;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.math.BigDecimal;
@@ -76,22 +77,23 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("  1. Crear orden de servicio");
             System.out.println("  2. Agregar línea de servicio");
             System.out.println("  3. Retirar línea de servicio");
-            System.out.println("  4. Asignar técnicos a una línea");
-            System.out.println("  5. Registrar horas trabajadas de un técnico");
-            System.out.println("  6. Reservar repuestos en una línea");
-            System.out.println("  7. Retirar repuestos de una línea");
+            System.out.println("  4. Ajustar mano de obra de una línea");
+            System.out.println("  5. Asignar técnicos a una línea");
+            System.out.println("  6. Registrar horas trabajadas de un técnico");
+            System.out.println("  7. Reservar repuestos en una línea");
+            System.out.println("  8. Retirar repuestos de una línea");
             System.out.println("  -- Consultas --");
-            System.out.println("  8. Listar órdenes de servicio");
-            System.out.println("  9. Ver detalle de una orden");
+            System.out.println("  9. Listar órdenes de servicio");
+            System.out.println(" 10. Ver detalle de una orden");
             System.out.println("  -- Transiciones de Estado --");
-            System.out.println(" 10. Pasar orden a En Proceso");
-            System.out.println(" 11. Completar orden");
-            System.out.println(" 12. Cancelar orden");
-            System.out.println(" 13. Entregar orden");
+            System.out.println(" 11. Pasar orden a En Proceso");
+            System.out.println(" 12. Completar orden");
+            System.out.println(" 13. Cancelar orden");
+            System.out.println(" 14. Entregar orden");
             System.out.println("  0. Volver al menú anterior");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 13);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 14);
             switch (opcion) {
                 case 1:
                     crearOrden();
@@ -103,33 +105,36 @@ public class OrdenServicioView implements SubmenuVista {
                     quitarLinea();
                     break;
                 case 4:
-                    asignarTecnicosALinea();
+                    ajustarManoObraLinea();
                     break;
                 case 5:
-                    registrarHorasTrabajadas();
+                    asignarTecnicosALinea();
                     break;
                 case 6:
-                    reservarRepuesto();
+                    registrarHorasTrabajadas();
                     break;
                 case 7:
-                    retirarRepuesto();
+                    reservarRepuesto();
                     break;
                 case 8:
-                    listarOrdenes();
+                    retirarRepuesto();
                     break;
                 case 9:
-                    consultarDetalle();
+                    listarOrdenes();
                     break;
                 case 10:
-                    pasarAEnProceso();
+                    consultarDetalle();
                     break;
                 case 11:
-                    completarOrden();
+                    pasarAEnProceso();
                     break;
                 case 12:
-                    cancelarOrden();
+                    completarOrden();
                     break;
                 case 13:
+                    cancelarOrden();
+                    break;
+                case 14:
                     entregarOrden();
                     break;
                 case 0:
@@ -160,14 +165,24 @@ public class OrdenServicioView implements SubmenuVista {
             List<ResumenOrdenServicio> ordenes = ordenServicioController.consultarOrdenes(filtro);
             if (ordenes.isEmpty()) {
                 System.out.println("\n  [i] No se encontraron órdenes con los filtros indicados.");
-            }
-            for (ResumenOrdenServicio orden : ordenes) {
-                String tecnicos = orden.getTecnicos().isEmpty() ? "Sin asignar"
-                        : String.join(", ", orden.getTecnicos().values());
-                System.out.println("  Orden " + orden.getId() + " | " + orden.getPlaca()
-                        + " | " + ordenServicioController.obtenerNombreEstado(orden.getEstadoId())
-                        + " | Recepción: " + orden.getFechaRecepcion().format(FORMATO_FECHA_HORA)
-                        + " | Técnicos: " + tecnicos);
+            } else {
+                System.out.println("\n  [Órdenes de servicio: " + ordenes.size() + "]");
+                List<String[]> filas = new ArrayList<>();
+                for (ResumenOrdenServicio orden : ordenes) {
+                    String tecnicos = orden.getTecnicos().isEmpty() ? "Sin asignar"
+                            : String.join(", ", orden.getTecnicos().values());
+                    filas.add(new String[]{
+                            String.valueOf(orden.getId()),
+                            orden.getPlaca(),
+                            ordenServicioController.obtenerNombreEstado(orden.getEstadoId()),
+                            orden.getFechaRecepcion().format(FORMATO_FECHA_HORA),
+                            tecnicos
+                    });
+                }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"Orden", "Placa", "Estado", "Fecha recepción", "Técnicos"},
+                        filas,
+                        new boolean[]{true, false, false, false, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] " + e.getMessage());
@@ -209,20 +224,38 @@ public class OrdenServicioView implements SubmenuVista {
             System.out.println("      Técnicos y horas:");
             if (linea.getHorasPorTecnico().isEmpty()) {
                 System.out.println("        Sin técnicos asignados.");
-            }
-            for (ConsultaOrdenServicio.HorasTecnico asignacion : linea.getHorasPorTecnico()) {
-                Tecnico tecnico = asignacion.getTecnico();
-                System.out.println("        " + tecnico.getNombre() + " (ID " + tecnico.getId()
-                        + ") | " + asignacion.getHorasTrabajadas().toPlainString() + " h");
+            } else {
+                List<String[]> filasTecnicos = new ArrayList<>();
+                for (ConsultaOrdenServicio.HorasTecnico asignacion : linea.getHorasPorTecnico()) {
+                    Tecnico tecnico = asignacion.getTecnico();
+                    filasTecnicos.add(new String[]{
+                            String.valueOf(tecnico.getId()),
+                            tecnico.getNombre(),
+                            asignacion.getHorasTrabajadas().toPlainString() + " h"
+                    });
+                }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Técnico", "Horas"},
+                        filasTecnicos,
+                        new boolean[]{true, false, true});
             }
             System.out.println("      Repuestos:");
             if (linea.getRepuestos().isEmpty()) {
                 System.out.println("        Sin repuestos asignados.");
-            }
-            for (DetalleRepuesto pieza : linea.getRepuestos()) {
-                System.out.println("        " + pieza.getNombreRepuestoSnapshot() + " | "
-                        + consulta.getEstadoRepuestos() + ": " + pieza.getCantidadAsignada()
-                        + " | Precio unitario: $" + pieza.getPrecioUnitarioVenta().toPlainString());
+            } else {
+                List<String[]> filasRepuestos = new ArrayList<>();
+                for (DetalleRepuesto pieza : linea.getRepuestos()) {
+                    filasRepuestos.add(new String[]{
+                            pieza.getNombreRepuestoSnapshot(),
+                            consulta.getEstadoRepuestos(),
+                            String.valueOf(pieza.getCantidadAsignada()),
+                            "$" + pieza.getPrecioUnitarioVenta().toPlainString()
+                    });
+                }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"Repuesto", "Estado", "Cantidad", "Precio unit."},
+                        filasRepuestos,
+                        new boolean[]{false, false, true, true});
             }
             System.out.println("      Mano de obra: $" + detalle.getCostoManoObra().toPlainString());
             System.out.println("      Subtotal: $" + linea.getSubtotal().toPlainString());
@@ -318,19 +351,17 @@ public class OrdenServicioView implements SubmenuVista {
                     System.out.println("  [!] No hay técnicos activos para asignar.");
                     return;
                 }
-                for (Tecnico tecnico : tecnicos) {
-                    String nombreEsp = ordenServicioController.obtenerNombreEspecialidad(tecnico.getEspecialidadId());
-                    System.out.println("    " + tecnico.getId() + ". " + tecnico.getNombre()
-                            + " | Especialidad: " + nombreEsp);
-                }
-                int seleccion = ConsoleReader.leerEnteroEnRango("ID del técnico (0 para cancelar)", 0, Integer.MAX_VALUE);
+                SugerenciaTecnico sugerencia = ordenServicioController.sugerirTecnicoParaTipoServicio(ordenId, tipo.getId());
+                mostrarTecnicosActivos(tecnicos);
+                int seleccion = solicitarTecnicoParaAsignar(sugerencia);
                 if (seleccion == 0) {
+                    System.out.println("  [i] Operación cancelada.");
                     return;
                 }
                 Tecnico tecnico = ordenServicioController.buscarTecnico(seleccion);
                 if (!ordenServicioController.especialidadCoincide(tipo, tecnico)) {
                     confirmarOtraEspecialidad = ConsoleReader.leerConfirmacion(
-                            "La especialidad del técnico difiere de la requerida. ¿Desea asignarlo?");
+                            "La especialidad del técnico difiere de la requerida (RN-19). ¿Desea asignarlo?");
                     if (!confirmarOtraEspecialidad) {
                         return;
                     }
@@ -367,6 +398,44 @@ public class OrdenServicioView implements SubmenuVista {
                 return;
             }
             System.out.println("  " + ordenServicioController.quitarLinea(ordenId, detalleId));
+        } catch (CarMotorsException e) {
+            System.out.println("  [!] " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
+        }
+    }
+
+    private void ajustarManoObraLinea() {
+        try {
+            int ordenId = ConsoleReader.leerEnteroPositivo("ID de la orden");
+            ordenServicioController.validarOrdenEditable(ordenId);
+            List<OrdenServicioDetalle> lineas = ordenServicioController.listarLineas(ordenId);
+            if (lineas.isEmpty()) {
+                System.out.println("  [!] La orden no tiene líneas de servicio.");
+                return;
+            }
+            imprimirLineas(lineas);
+            OrdenServicioDetalle seleccionada = null;
+            while (seleccionada == null) {
+                int detalleId = ConsoleReader.leerEnteroEnRango("ID de la línea (0 para cancelar)", 0, Integer.MAX_VALUE);
+                if (detalleId == 0) {
+                    System.out.println("  [i] Operación cancelada.");
+                    return;
+                }
+                for (OrdenServicioDetalle linea : lineas) {
+                    if (linea.getId() == detalleId) {
+                        seleccionada = linea;
+                        break;
+                    }
+                }
+                if (seleccionada == null) {
+                    System.out.println("  [!] Error: La línea no pertenece a la orden " + ordenId + ".");
+                }
+            }
+            System.out.println("  Mano de obra actual: $" + seleccionada.getCostoManoObra().toPlainString());
+            BigDecimal nuevoCosto = ConsoleReader.leerBigDecimalNoNegativo("Nuevo costo de mano de obra (COP)");
+            System.out.println("  " + ordenServicioController.actualizarCostoManoObra(
+                    ordenId, seleccionada.getId(), nuevoCosto));
         } catch (CarMotorsException e) {
             System.out.println("  [!] " + e.getMessage());
         } finally {
@@ -440,7 +509,7 @@ public class OrdenServicioView implements SubmenuVista {
                 return;
             }
 
-            BigDecimal horas = ConsoleReader.leerBigDecimalNoNegativo("Horas trabajadas totales del técnico en esta línea");
+            BigDecimal horas = ConsoleReader.leerHorasNoNegativas("Horas trabajadas totales del técnico en esta línea");
             System.out.println("  " + ordenServicioController.registrarHorasTrabajadas(ordenId, detalleId, tecnicoId, horas));
         } catch (CarMotorsException e) {
             System.out.println("  [!] " + e.getMessage());
@@ -462,7 +531,7 @@ public class OrdenServicioView implements SubmenuVista {
                     return;
                 }
             }
-            BigDecimal horas = ConsoleReader.leerBigDecimalNoNegativo("Horas trabajadas (0 si aún no inicia)");
+            BigDecimal horas = ConsoleReader.leerHorasNoNegativas("Horas trabajadas (0 si aún no inicia)");
             System.out.println("  " + ordenServicioController.asignarTecnicoALinea(
                     ordenId, detalleId, tecnicoId, horas, confirmarOtraEspecialidad));
         } catch (CarMotorsException e) {
@@ -507,20 +576,36 @@ public class OrdenServicioView implements SubmenuVista {
 
     private void mostrarTecnicosActivos(List<Tecnico> activos) {
         System.out.println("\n  Técnicos activos disponibles:");
+        List<String[]> filas = new ArrayList<>();
         for (Tecnico tecnico : activos) {
             String nombreEsp = ordenServicioController.obtenerNombreEspecialidad(tecnico.getEspecialidadId());
-            System.out.println("    " + tecnico.getId() + ". " + tecnico.getNombre()
-                    + " | Especialidad: " + nombreEsp);
+            filas.add(new String[]{
+                    String.valueOf(tecnico.getId()),
+                    tecnico.getNombre(),
+                    nombreEsp
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"ID", "Técnico", "Especialidad"},
+                filas,
+                new boolean[]{true, false, false});
     }
 
     private void mostrarTecnicosAsignados(List<DetalleTecnico> asignados) {
+        List<String[]> filas = new ArrayList<>();
         for (DetalleTecnico asignacion : asignados) {
             Tecnico tecnico = ordenServicioController.buscarTecnico(asignacion.getTecnicoId());
             String nombre = tecnico != null ? tecnico.getNombre() : "ID " + asignacion.getTecnicoId();
-            System.out.println("    - Técnico #" + asignacion.getTecnicoId()
-                    + " (" + nombre + ") | Horas: " + asignacion.getHorasTrabajadas() + " h");
+            filas.add(new String[]{
+                    String.valueOf(asignacion.getTecnicoId()),
+                    nombre,
+                    asignacion.getHorasTrabajadas() + " h"
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"ID", "Técnico", "Horas"},
+                filas,
+                new boolean[]{true, false, true});
     }
 
     private void reservarRepuesto() {
@@ -591,10 +676,18 @@ public class OrdenServicioView implements SubmenuVista {
                 System.out.println("  Repuestos:         la orden no tenía repuestos; no se descontó inventario.");
             } else {
                 System.out.println("  Repuestos descontados del inventario:");
+                List<String[]> filas = new ArrayList<>();
                 for (ConsumoRepuesto consumo : resultado.getConsumos()) {
-                    System.out.println("    - Repuesto " + consumo.getRepuestoId() + " | " + consumo.getNombreRepuesto()
-                            + " | Unidades: " + consumo.getUnidadesDescontadas());
+                    filas.add(new String[]{
+                            String.valueOf(consumo.getRepuestoId()),
+                            consumo.getNombreRepuesto(),
+                            String.valueOf(consumo.getUnidadesDescontadas())
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID Rep.", "Repuesto", "Unidades descontadas"},
+                        filas,
+                        new boolean[]{true, false, true});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] No se pudo completar la orden: " + e.getMessage());
@@ -622,10 +715,18 @@ public class OrdenServicioView implements SubmenuVista {
                 System.out.println("  Reservas:           la orden no tenía repuestos reservados.");
             } else {
                 System.out.println("  Reservas de repuestos liberadas:");
+                List<String[]> filas = new ArrayList<>();
                 for (ReservaLiberada reserva : resultado.getReservasLiberadas()) {
-                    System.out.println("    - Repuesto " + reserva.getRepuestoId() + " | " + reserva.getNombreRepuesto()
-                            + " | Unidades liberadas: " + reserva.getUnidadesLiberadas());
+                    filas.add(new String[]{
+                            String.valueOf(reserva.getRepuestoId()),
+                            reserva.getNombreRepuesto(),
+                            String.valueOf(reserva.getUnidadesLiberadas())
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID Rep.", "Repuesto", "Unidades liberadas"},
+                        filas,
+                        new boolean[]{true, false, true});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] No se pudo cancelar la orden: " + e.getMessage());
@@ -677,12 +778,19 @@ public class OrdenServicioView implements SubmenuVista {
             }
 
             System.out.println("\n  Repuestos reservados en la línea " + detalleId + ":");
+            List<String[]> filas = new ArrayList<>();
             for (DetalleRepuesto reserva : reservas) {
-                System.out.println("    - Repuesto " + reserva.getRepuestoId() + " | "
-                        + reserva.getNombreRepuestoSnapshot()
-                        + " | Cantidad: " + reserva.getCantidadAsignada()
-                        + " | Precio unitario: $" + reserva.getPrecioUnitarioVenta().toPlainString());
+                filas.add(new String[]{
+                        String.valueOf(reserva.getRepuestoId()),
+                        reserva.getNombreRepuestoSnapshot(),
+                        String.valueOf(reserva.getCantidadAsignada()),
+                        "$" + reserva.getPrecioUnitarioVenta().toPlainString()
+                });
             }
+            ConsoleTableFormatter.imprimirTabla(
+                    new String[]{"ID Rep.", "Repuesto", "Cantidad", "Precio unit."},
+                    filas,
+                    new boolean[]{true, false, true, true});
 
             DetalleRepuesto seleccionada = seleccionarRepuestoReservado(reservas);
             if (seleccionada == null) {
@@ -781,12 +889,19 @@ public class OrdenServicioView implements SubmenuVista {
     }
 
     private void imprimirLineas(List<OrdenServicioDetalle> lineas) {
+        List<String[]> filas = new ArrayList<>();
         for (OrdenServicioDetalle linea : lineas) {
             String observaciones = linea.getObservaciones() == null ? "N/A" : linea.getObservaciones();
-            System.out.println("    - Línea " + linea.getId()
-                    + " | " + linea.getNombreServicioSnapshot()
-                    + " | Mano de obra: $" + linea.getCostoManoObra()
-                    + " | Observaciones: " + observaciones);
+            filas.add(new String[]{
+                    String.valueOf(linea.getId()),
+                    linea.getNombreServicioSnapshot(),
+                    "$" + linea.getCostoManoObra(),
+                    observaciones
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"Línea", "Servicio", "Mano de obra", "Observaciones"},
+                filas,
+                new boolean[]{true, false, true, false});
     }
 }

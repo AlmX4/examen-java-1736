@@ -6,7 +6,9 @@ import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -94,9 +96,25 @@ public class TecnicoView implements SubmenuVista {
                 System.out.println("\n  [i] No hay técnicos registrados para el filtro seleccionado.");
             } else {
                 System.out.println(soloActivos ? "\n--- Técnicos Activos ---" : "\n--- Todos los Técnicos ---");
+                List<String[]> filas = new ArrayList<>();
                 for (Tecnico tecnico : tecnicos) {
-                    imprimirDetalleTecnico(tecnico);
+                    String tel = (tecnico.getTelefono() == null || tecnico.getTelefono().isEmpty())
+                            ? "Sin teléfono"
+                            : tecnico.getTelefono();
+                    String especialidad = tecnicoController.obtenerNombreEspecialidad(tecnico.getEspecialidadId());
+                    filas.add(new String[]{
+                            String.valueOf(tecnico.getId()),
+                            tecnico.getNombre(),
+                            tecnico.getDocumentoIdentidad(),
+                            especialidad,
+                            tel,
+                            tecnico.isActivo() ? "Activo" : "Inactivo"
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Nombre", "Documento", "Especialidad", "Teléfono", "Estado"},
+                        filas,
+                        new boolean[]{true, false, false, false, false, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -260,35 +278,26 @@ public class TecnicoView implements SubmenuVista {
             if (lineas.isEmpty()) {
                 System.out.println("\n  [i] El técnico no tiene líneas de trabajo activas asignadas.");
             } else {
-                String formato = "  %-7s %-10s %-36s %-14s %-8s%n";
-                System.out.println();
-                System.out.printf(formato, "Orden", "Placa", "Servicio", "Estado", "Horas");
-                System.out.println("  --------------------------------------------------------------------------------");
+                List<String[]> filas = new ArrayList<>();
                 for (CargaLineaTecnico linea : lineas) {
-                    System.out.printf(
-                            formato,
-                            linea.getOrdenId(),
+                    filas.add(new String[]{
+                            String.valueOf(linea.getOrdenId()),
                             linea.getPlaca(),
-                            recortarTexto(linea.getTipoServicio(), 36),
+                            linea.getTipoServicio(),
                             linea.getEstadoNombre(),
-                            linea.getHorasTrabajadas()
-                    );
+                            String.valueOf(linea.getHorasTrabajadas())
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"Orden", "Placa", "Servicio", "Estado", "Horas"},
+                        filas,
+                        new boolean[]{true, false, false, false, true},
+                        36);
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error al consultar la carga de trabajo: " + e.getMessage());
         }
         ConsoleReader.pausar();
-    }
-
-    private String recortarTexto(String texto, int maxLongitud) {
-        if (texto == null) {
-            return "";
-        }
-        if (texto.length() <= maxLongitud) {
-            return texto;
-        }
-        return texto.substring(0, maxLongitud - 3) + "...";
     }
 
     private int seleccionarEspecialidad(List<Especialidad> especialidades) {

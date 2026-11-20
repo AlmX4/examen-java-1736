@@ -9,8 +9,10 @@ import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.ResumenOrdenHistorial;
 import com.carmotors.sgt.model.Vehiculo;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -115,9 +117,27 @@ public class ClienteView implements SubmenuVista {
                 System.out.println("\n  [i] No hay clientes registrados para el filtro seleccionado.");
             } else {
                 System.out.println(soloActivos ? "\n--- Clientes Activos ---" : "\n--- Todos los Clientes ---");
+                List<String[]> filas = new ArrayList<>();
                 for (Cliente cliente : clientes) {
-                    imprimirDetalleCliente(cliente);
+                    String tel = (cliente.getTelefono() == null || cliente.getTelefono().isEmpty())
+                            ? "Sin teléfono"
+                            : cliente.getTelefono();
+                    String email = (cliente.getEmail() == null || cliente.getEmail().isEmpty())
+                            ? "Sin email"
+                            : cliente.getEmail();
+                    filas.add(new String[]{
+                            String.valueOf(cliente.getId()),
+                            cliente.getNombre(),
+                            cliente.getDocumentoIdentidad(),
+                            tel,
+                            email,
+                            cliente.isActivo() ? "Activo" : "Inactivo"
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Nombre", "Documento", "Teléfono", "Email", "Estado"},
+                        filas,
+                        new boolean[]{true, false, false, false, false, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -284,9 +304,19 @@ public class ClienteView implements SubmenuVista {
             if (vehiculos.isEmpty()) {
                 System.out.println("  [i] El cliente no tiene vehículos registrados.");
             } else {
+                List<String[]> filas = new ArrayList<>();
                 for (Vehiculo v : vehiculos) {
-                    imprimirDetalleVehiculo(v);
+                    filas.add(new String[]{
+                            String.valueOf(v.getId()),
+                            v.getPlaca(),
+                            v.getMarca(),
+                            v.getModelo()
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Placa", "Marca", "Modelo"},
+                        filas,
+                        new boolean[]{true, false, false, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
@@ -361,10 +391,17 @@ public class ClienteView implements SubmenuVista {
             System.out.println("\n  [i] El cliente no tiene vehículos registrados.");
         } else {
             System.out.println("\n  Vehículos:");
+            List<String[]> filasVehiculos = new ArrayList<>();
             for (Vehiculo vehiculo : vehiculos) {
-                System.out.println("    - " + vehiculo.getPlaca() + " | " + vehiculo.getMarca()
-                        + " " + vehiculo.getModelo());
+                filasVehiculos.add(new String[]{
+                        vehiculo.getPlaca(),
+                        vehiculo.getMarca(),
+                        vehiculo.getModelo()
+                });
             }
+            ConsoleTableFormatter.imprimirTabla(
+                    new String[]{"Placa", "Marca", "Modelo"},
+                    filasVehiculos);
         }
 
         List<ResumenOrdenHistorial> ordenes = historial.getOrdenes();
@@ -374,23 +411,40 @@ public class ClienteView implements SubmenuVista {
         }
 
         System.out.println("\n  Órdenes de servicio (más reciente primero):");
+        List<String[]> filasOrdenes = new ArrayList<>();
         for (ResumenOrdenHistorial orden : ordenes) {
             String fecha = orden.getFechaRecepcion() == null
                     ? "Sin fecha"
                     : orden.getFechaRecepcion().format(FORMATO_FECHA_HORA);
-            System.out.println("    - Orden " + orden.getOrdenId() + " | " + orden.getPlaca()
-                    + " | Estado: " + orden.getEstado() + " | Recepción: " + fecha);
-            for (OrdenServicioDetalle linea : orden.getLineas()) {
-                System.out.println("        · Línea " + linea.getId() + ": " + linea.getNombreServicioSnapshot()
-                        + " | Mano de obra: $" + linea.getCostoManoObra());
+            StringBuilder resumenLineas = new StringBuilder();
+            List<OrdenServicioDetalle> lineas = orden.getLineas();
+            for (int i = 0; i < lineas.size(); i++) {
+                if (i > 0) {
+                    resumenLineas.append("; ");
+                }
+                OrdenServicioDetalle linea = lineas.get(i);
+                resumenLineas.append(linea.getNombreServicioSnapshot())
+                        .append(" ($")
+                        .append(linea.getCostoManoObra())
+                        .append(')');
             }
-            if (orden.isFacturada()) {
-                System.out.println("        Total facturado: $" + orden.getTotalFacturado().toPlainString()
-                        + " | Factura: " + orden.getNumeroFactura());
-            } else {
-                System.out.println("        Total facturado: Sin facturar");
-            }
+            String facturacion = orden.isFacturada()
+                    ? "$" + orden.getTotalFacturado().toPlainString() + " (" + orden.getNumeroFactura() + ")"
+                    : "Sin facturar";
+            filasOrdenes.add(new String[]{
+                    String.valueOf(orden.getOrdenId()),
+                    orden.getPlaca(),
+                    orden.getEstado(),
+                    fecha,
+                    resumenLineas.length() == 0 ? "Sin líneas" : resumenLineas.toString(),
+                    facturacion
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"Orden", "Placa", "Estado", "Fecha recepción", "Servicios", "Facturación"},
+                filasOrdenes,
+                new boolean[]{true, false, false, false, false, false},
+                48);
     }
 
     private void imprimirDetalleVehiculo(Vehiculo vehiculo) {

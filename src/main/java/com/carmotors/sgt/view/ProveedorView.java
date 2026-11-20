@@ -1,11 +1,13 @@
 package com.carmotors.sgt.view;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.carmotors.sgt.controller.ProveedorController;
 import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 public class ProveedorView implements SubmenuVista {
 
@@ -117,9 +119,30 @@ public class ProveedorView implements SubmenuVista {
                 System.out.println("\n  [i] No hay proveedores registrados.");
             } else {
                 System.out.println("\n  [Lista de proveedores]");
+                List<String[]> filas = new ArrayList<>();
                 for (Proveedor proveedor : proveedores) {
-                    imprimirDetalleProveedor(proveedor);
+                    String email = (proveedor.getEmail() == null || proveedor.getEmail().isEmpty())
+                            ? "Sin email"
+                            : proveedor.getEmail();
+                    String tel = (proveedor.getTelefono() == null || proveedor.getTelefono().isEmpty())
+                            ? "Sin teléfono"
+                            : proveedor.getTelefono();
+                    String dir = (proveedor.getDireccion() == null || proveedor.getDireccion().isEmpty())
+                            ? "Sin dirección"
+                            : proveedor.getDireccion();
+                    filas.add(new String[]{
+                            String.valueOf(proveedor.getId()),
+                            proveedor.getNombre(),
+                            proveedor.isActivo() ? "ACTIVO" : "INACTIVO",
+                            email,
+                            tel,
+                            dir
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Nombre", "Estado", "Email", "Teléfono", "Dirección"},
+                        filas,
+                        new boolean[]{true, false, false, false, false, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());

@@ -108,6 +108,17 @@ public class OrdenServicioController {
         }
     }
 
+    public String actualizarCostoManoObra(int ordenId, int detalleId, BigDecimal nuevoCosto) {
+        try {
+            OrdenServicioDetalle actualizada = ordenServicioService.actualizarCostoManoObra(
+                    ordenId, detalleId, nuevoCosto);
+            return "Mano de obra de la línea " + actualizada.getId()
+                    + " actualizada a $" + actualizada.getCostoManoObra().toPlainString() + ".";
+        } catch (CarMotorsException e) {
+            return "No se pudo ajustar la mano de obra: " + e.getMessage();
+        }
+    }
+
     public String obtenerNombreEstado(int estadoId) {
         return ordenServicioService.obtenerNombreEstado(estadoId);
     }
@@ -118,6 +129,10 @@ public class OrdenServicioController {
 
     public SugerenciaTecnico sugerirTecnicoParaLinea(int ordenId, int detalleId) {
         return ordenServicioService.sugerirTecnicoParaLinea(ordenId, detalleId);
+    }
+
+    public SugerenciaTecnico sugerirTecnicoParaTipoServicio(int ordenId, int servicioTipoId) {
+        return ordenServicioService.sugerirTecnicoParaTipoServicio(ordenId, servicioTipoId);
     }
 
     public boolean requiereConfirmacionEspecialidad(int ordenId, int detalleId, int tecnicoId) {

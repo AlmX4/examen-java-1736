@@ -496,7 +496,55 @@ class OrdenServicioServiceTest {
                     () -> service.asignarTecnicoALinea(orden.getId(), detalleId, 2, BigDecimal.ZERO, true));
             assertThrows(ValidacionException.class,
                     () -> service.registrarHorasTrabajadas(orden.getId(), detalleId, 1, BigDecimal.TEN));
+            assertThrows(ValidacionException.class,
+                    () -> service.actualizarCostoManoObra(orden.getId(), detalleId, new BigDecimal("50000")));
+            assertThrows(ValidacionException.class,
+                    () -> service.sugerirTecnicoParaTipoServicio(orden.getId(), 1));
         }
+    }
+
+    @Test
+    @DisplayName("RN-08: Ajusta el costo de mano de obra en órdenes editables y rechaza valores inválidos")
+    void actualizarCostoManoObraPermiteAjusteEnEstadosEditablesYRechazaInvalidos() {
+        OrdenServicio orden = service.crearOrden(1, "Ajuste de mano de obra", lineas(1));
+        int detalleId = service.listarLineas(orden.getId()).get(0).getId();
+
+        OrdenServicioDetalle enCero = service.actualizarCostoManoObra(orden.getId(), detalleId, BigDecimal.ZERO);
+        assertEquals(new BigDecimal("0.00"), enCero.getCostoManoObra());
+
+        orden.setEstadoId(new EstadoEnProceso().getEstadoId());
+        OrdenServicioDetalle ajustada = service.actualizarCostoManoObra(
+                orden.getId(), detalleId, new BigDecimal("125000.555"));
+        assertEquals(new BigDecimal("125000.56"), ajustada.getCostoManoObra());
+        assertEquals(new BigDecimal("125000.56"), detalleDAO.buscarPorId(detalleId).getCostoManoObra());
+
+        assertThrows(ValidacionException.class,
+                () -> service.actualizarCostoManoObra(orden.getId(), detalleId, null));
+        assertThrows(ValidacionException.class,
+                () -> service.actualizarCostoManoObra(orden.getId(), detalleId, new BigDecimal("-1.00")));
+        assertThrows(ValidacionException.class,
+                () -> service.actualizarCostoManoObra(orden.getId(), detalleId, new BigDecimal("10000000000.00")));
+    }
+
+    @Test
+    @DisplayName("RF-09: Sugiere técnico antes de persistir nueva línea en una orden En Proceso")
+    void sugerirTecnicoParaTipoServicioAplicaCadenaAntesDeCrearLinea() {
+        OrdenServicio orden = service.crearOrden(1, "Agregar línea en proceso", lineas(1));
+        orden.setEstadoId(new EstadoEnProceso().getEstadoId());
+        tecnicoDAO.agregar(new Tecnico(4, "Carlos Mendoza", "1090666777", 1, "3109998877", true));
+
+        // Tipo 1 requiere especialidad 1; técnicos activos 1 y 4 tienen especialidad 1 (menor ID: 1)
+        SugerenciaTecnico sugerencia = service.sugerirTecnicoParaTipoServicio(orden.getId(), 1);
+        assertNotNull(sugerencia);
+        assertEquals(1, sugerencia.getTecnico().getId());
+        assertEquals("Especialista libre", sugerencia.getCriterioAplicado());
+
+        tecnicoDAO.fijarCarga(1, 3);
+        tecnicoDAO.fijarCarga(4, 1);
+        SugerenciaTecnico menorCarga = service.sugerirTecnicoParaTipoServicio(orden.getId(), 1);
+        assertNotNull(menorCarga);
+        assertEquals(4, menorCarga.getTecnico().getId());
+        assertEquals("Especialista con menor carga", menorCarga.getCriterioAplicado());
     }
 
     @Test
@@ -986,6 +1034,17 @@ class OrdenServicioServiceTest {
         public Map<Integer, Integer> listarReservasParaActualizar(int detalleId) {
             Map<Integer, Integer> mapa = reservasPorDetalle.get(detalleId);
             return mapa != null ? new LinkedHashMap<>(mapa) : new LinkedHashMap<>();
+        }
+
+        @Override
+        public boolean actualizarCostoManoObra(int ordenId, int detalleId, BigDecimal costoManoObra) {
+            for (OrdenServicioDetalle detalle : detalles) {
+                if (detalle.getOrdenId() == ordenId && detalle.getId() == detalleId) {
+                    detalle.setCostoManoObra(costoManoObra);
+                    return true;
+                }
+            }
+            return false;
         }
 
         @Override

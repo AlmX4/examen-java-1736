@@ -10,9 +10,11 @@ import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
 import com.carmotors.sgt.model.ReporteProductividadTecnicos;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -83,11 +85,20 @@ public class ReportesView implements SubmenuVista {
             System.out.println("  Rango de finalización: " + formatearRango(desde, hasta));
             if (servicios.isEmpty()) {
                 System.out.println("  [i] No se encontraron servicios finalizados en el rango indicado.");
-            }
-            for (ResumenServicioSolicitado servicio : servicios) {
-                System.out.println("  Servicio " + servicio.getServicioTipoId() + " | " + servicio.getNombreServicio()
-                        + " | Líneas: " + servicio.getCantidadLineas()
-                        + " | Ingresos antes de impuestos: $" + servicio.getIngresos().toPlainString());
+            } else {
+                List<String[]> filas = new ArrayList<>();
+                for (ResumenServicioSolicitado servicio : servicios) {
+                    filas.add(new String[]{
+                            String.valueOf(servicio.getServicioTipoId()),
+                            servicio.getNombreServicio(),
+                            String.valueOf(servicio.getCantidadLineas()),
+                            "$" + servicio.getIngresos().toPlainString()
+                    });
+                }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Servicio", "Líneas", "Ingresos (sin IVA)"},
+                        filas,
+                        new boolean[]{true, false, true, true});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] No se pudo generar el reporte: " + e.getMessage());
@@ -109,8 +120,6 @@ public class ReportesView implements SubmenuVista {
     }
 
     private void imprimirRecordatorios(List<RecordatorioMantenimiento> recordatorios, LocalDate hoy) {
-        String formatoFila = "  %-26s %-11s %-30s %-7s %-33s %-12s %-12s %s";
-
         System.out.println("\n==================================================================");
         System.out.println("          RECORDATORIOS DE MANTENIMIENTO PREVENTIVO (RF-21)");
         System.out.println("==================================================================");
@@ -124,20 +133,25 @@ public class ReportesView implements SubmenuVista {
         }
 
         System.out.println();
-        System.out.println(String.format(formatoFila, "Cliente", "Teléfono", "Email", "Placa", "Servicio",
-                "Últ. entrega", "Sugerida", "Estado"));
+        List<String[]> filas = new ArrayList<>();
         for (RecordatorioMantenimiento recordatorio : recordatorios) {
-            System.out.println(String.format(formatoFila,
-                    ajustar(recordatorio.getClienteNombre(), 26),
-                    ajustar(recordatorio.getClienteTelefono(), 11),
-                    ajustar(recordatorio.getClienteEmail(), 30),
-                    ajustar(recordatorio.getPlaca(), 7),
-                    ajustar(recordatorio.getNombreServicio(), 33),
+            filas.add(new String[]{
+                    textoOpcional(recordatorio.getClienteNombre()),
+                    textoOpcional(recordatorio.getClienteTelefono()),
+                    textoOpcional(recordatorio.getClienteEmail()),
+                    textoOpcional(recordatorio.getPlaca()),
+                    textoOpcional(recordatorio.getNombreServicio()),
                     recordatorio.getFechaUltimaEntrega().format(FORMATO_FECHA),
                     recordatorio.getFechaSugerida().format(FORMATO_FECHA),
-                    textoEstado(recordatorio)));
+                    textoEstado(recordatorio)
+            });
         }
-        System.out.println("\n  Total de recordatorios: " + recordatorios.size());
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"Cliente", "Teléfono", "Email", "Placa", "Servicio", "Últ. entrega", "Sugerida", "Estado"},
+                filas,
+                null,
+                30);
+        System.out.println("  Total de recordatorios: " + recordatorios.size());
     }
 
     private String textoEstado(RecordatorioMantenimiento recordatorio) {
@@ -151,11 +165,11 @@ public class ReportesView implements SubmenuVista {
         return dias + (dias == 1 ? " día" : " días");
     }
 
-    private String ajustar(String texto, int ancho) {
+    private String textoOpcional(String texto) {
         if (texto == null || texto.trim().isEmpty()) {
             return "N/A";
         }
-        return texto.length() <= ancho ? texto : texto.substring(0, ancho - 1) + "…";
+        return texto.trim();
     }
 
     private void mostrarReporteProductividadTecnicos() {
@@ -175,9 +189,6 @@ public class ReportesView implements SubmenuVista {
     }
 
     private void imprimirReporteProductividad(ReporteProductividadTecnicos reporte) {
-        String formatoFila = "  %-30s %8s %10s %16s";
-        String separador = "  ------------------------------------------------------------------";
-
         System.out.println("\n==================================================================");
         System.out.println("                    PRODUCTIVIDAD POR TÉCNICO");
         System.out.println("==================================================================");
@@ -187,20 +198,22 @@ public class ReportesView implements SubmenuVista {
         }
 
         System.out.println();
-        System.out.println(String.format(formatoFila, "Técnico", "Líneas", "Horas", "Mano de obra"));
-        System.out.println(separador);
+        List<String[]> filas = new ArrayList<>();
         for (ProductividadTecnico tecnico : reporte.getTecnicos()) {
             String nombre = tecnico.isActivo() ? tecnico.getNombre() : tecnico.getNombre() + " (inactivo)";
-            System.out.println(String.format(formatoFila, nombre,
+            filas.add(new String[]{
+                    nombre,
                     String.valueOf(tecnico.getLineasCompletadas()),
                     tecnico.getHorasTrabajadas().toPlainString(),
-                    "$" + tecnico.getManoObraAtribuida().toPlainString()));
+                    "$" + tecnico.getManoObraAtribuida().toPlainString()
+            });
         }
-        System.out.println(separador);
-        System.out.println(String.format(formatoFila, "Sin distribuir", "", "",
-                "$" + reporte.getManoObraSinDistribuir().toPlainString()));
-        System.out.println(String.format(formatoFila, "TOTAL general", "", "",
-                "$" + reporte.getManoObraTotal().toPlainString()));
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"Técnico", "Líneas", "Horas", "Mano de obra"},
+                filas,
+                new boolean[]{false, true, true, true});
+        System.out.println("  Sin distribuir: $" + reporte.getManoObraSinDistribuir().toPlainString());
+        System.out.println("  TOTAL general:  $" + reporte.getManoObraTotal().toPlainString());
         System.out.println("==================================================================");
     }
 
@@ -234,26 +247,51 @@ public class ReportesView implements SubmenuVista {
         }
 
         System.out.println("\n  1) Consumo total por repuesto (ordenado por valor comercial descendente):");
+        List<String[]> filasRepuesto = new ArrayList<>();
         for (ResumenConsumo item : reporte.getPorRepuesto()) {
-            System.out.println("    - Repuesto " + item.getId() + " | " + item.getNombre()
-                    + " | Unidades: " + item.getUnidades()
-                    + " | Valor comercial: $" + item.getValorComercial().toPlainString());
+            filasRepuesto.add(new String[]{
+                    String.valueOf(item.getId()),
+                    item.getNombre(),
+                    String.valueOf(item.getUnidades()),
+                    "$" + item.getValorComercial().toPlainString()
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"ID", "Repuesto", "Unidades", "Valor comercial"},
+                filasRepuesto,
+                new boolean[]{true, false, true, true});
 
         System.out.println("\n  2) Consumo total por tipo de servicio (ordenado por valor comercial descendente):");
+        List<String[]> filasServicio = new ArrayList<>();
         for (ResumenConsumo item : reporte.getPorTipoServicio()) {
-            System.out.println("    - Servicio " + item.getId() + " | " + item.getNombre()
-                    + " | Unidades: " + item.getUnidades()
-                    + " | Valor comercial: $" + item.getValorComercial().toPlainString());
+            filasServicio.add(new String[]{
+                    String.valueOf(item.getId()),
+                    item.getNombre(),
+                    String.valueOf(item.getUnidades()),
+                    "$" + item.getValorComercial().toPlainString()
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"ID", "Tipo de servicio", "Unidades", "Valor comercial"},
+                filasServicio,
+                new boolean[]{true, false, true, true});
 
         System.out.println("\n  3) Desglose por repuesto y tipo de servicio:");
+        List<String[]> filasDetalle = new ArrayList<>();
         for (DetalleConsumo detalle : reporte.getDetallePorRepuestoYServicio()) {
-            System.out.println("    - " + detalle.getNombreRepuesto() + " (ID " + detalle.getRepuestoId() + ")"
-                    + " | Servicio: " + detalle.getNombreServicio() + " (ID " + detalle.getServicioTipoId() + ")"
-                    + " | Unidades: " + detalle.getUnidades()
-                    + " | Valor comercial: $" + detalle.getValorComercial().toPlainString());
+            filasDetalle.add(new String[]{
+                    String.valueOf(detalle.getRepuestoId()),
+                    detalle.getNombreRepuesto(),
+                    String.valueOf(detalle.getServicioTipoId()),
+                    detalle.getNombreServicio(),
+                    String.valueOf(detalle.getUnidades()),
+                    "$" + detalle.getValorComercial().toPlainString()
+            });
         }
+        ConsoleTableFormatter.imprimirTabla(
+                new String[]{"ID Rep.", "Repuesto", "ID Serv.", "Servicio", "Unidades", "Valor comercial"},
+                filasDetalle,
+                new boolean[]{true, false, true, false, true, true});
 
         System.out.println("\n  --------------------------------------------------");
         System.out.println("  Total unidades consumidas: " + reporte.getTotalUnidades());

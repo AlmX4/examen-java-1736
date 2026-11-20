@@ -6,8 +6,10 @@ import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.MantenimientoTipo;
 import com.carmotors.sgt.model.ServicioTipo;
 import com.carmotors.sgt.util.ConsoleReader;
+import com.carmotors.sgt.util.ConsoleTableFormatter;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -77,9 +79,24 @@ public class ServicioTipoView implements SubmenuVista {
                 System.out.println("\n  [i] No hay tipos de servicio registrados.");
             } else {
                 System.out.println("\n--- Catálogo de Tipos de Servicio ---");
+                List<String[]> filas = new ArrayList<>();
                 for (ServicioTipo servicioTipo : lista) {
-                    imprimirDetalle(servicioTipo);
+                    String intervalo = servicioTipo.getIntervaloMeses() == null
+                            ? "N/A"
+                            : servicioTipo.getIntervaloMeses() + " meses";
+                    filas.add(new String[]{
+                            String.valueOf(servicioTipo.getId()),
+                            servicioTipo.getNombre(),
+                            servicioTipoController.obtenerNombreMantenimientoTipo(servicioTipo.getMantenimientoTipoId()),
+                            servicioTipoController.obtenerNombreEspecialidad(servicioTipo.getEspecialidadId()),
+                            "$" + servicioTipo.getPrecioManoObraBase(),
+                            intervalo
+                    });
                 }
+                ConsoleTableFormatter.imprimirTabla(
+                        new String[]{"ID", "Nombre", "Tipo", "Especialidad", "Mano obra base", "Intervalo"},
+                        filas,
+                        new boolean[]{true, false, false, false, true, false});
             }
         } catch (CarMotorsException e) {
             System.out.println("\n  [!] Error: " + e.getMessage());
