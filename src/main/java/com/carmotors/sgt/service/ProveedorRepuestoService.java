@@ -27,6 +27,7 @@ import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
+import com.carmotors.sgt.util.InputValidator;
 
 /**
  * Reglas del catálogo proveedor-repuesto (RF-29, RF-30, RN-16, RN-18).
@@ -149,10 +150,14 @@ public class ProveedorRepuestoService {
             throw new ValidacionException("La asociación proveedor-repuesto no puede ser nula.");
         }
         Proveedor proveedor = buscarProveedor(proveedorRepuesto.getProveedorId());
-        buscarRepuesto(proveedorRepuesto.getRepuestoId());
+        Repuesto repuesto = buscarRepuesto(proveedorRepuesto.getRepuestoId());
         if (!proveedor.isActivo()) {
             throw new ValidacionException("El proveedor '" + proveedor.getNombre()
                     + "' está inactivo y no puede asociarse a repuestos.");
+        }
+        if (!repuesto.isActivo()) {
+            throw new ValidacionException("El repuesto '" + repuesto.getNombre()
+                    + "' está inactivo y no puede asociarse en el catálogo.");
         }
 
         proveedorRepuesto.setCosto(validarCosto(proveedorRepuesto.getCosto()));
@@ -199,10 +204,14 @@ public class ProveedorRepuestoService {
      */
     public ProveedorRepuesto marcarHabitual(int proveedorId, int repuestoId) {
         Proveedor proveedor = buscarProveedor(proveedorId);
-        buscarRepuesto(repuestoId);
+        Repuesto repuesto = buscarRepuesto(repuestoId);
         if (!proveedor.isActivo()) {
             throw new ValidacionException("El proveedor '" + proveedor.getNombre()
                     + "' está inactivo y no puede ser el proveedor habitual.");
+        }
+        if (!repuesto.isActivo()) {
+            throw new ValidacionException("El repuesto '" + repuesto.getNombre()
+                    + "' está inactivo y no puede tener proveedor habitual.");
         }
 
         ProveedorRepuesto asociacion = buscarAsociacion(proveedorId, repuestoId);
@@ -263,6 +272,10 @@ public class ProveedorRepuestoService {
         BigDecimal costoNormalizado = costo.setScale(ESCALA_COSTO, RoundingMode.HALF_UP);
         if (costoNormalizado.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ValidacionException("El costo debe ser mayor que cero.");
+        }
+        if (costoNormalizado.compareTo(InputValidator.MAX_MONTO_DECIMAL_12_2) > 0) {
+            throw new ValidacionException("El costo supera el máximo permitido ("
+                    + InputValidator.MAX_MONTO_DECIMAL_12_2 + ").");
         }
         return costoNormalizado;
     }

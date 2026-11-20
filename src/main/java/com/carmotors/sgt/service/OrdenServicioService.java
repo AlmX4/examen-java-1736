@@ -65,6 +65,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -1072,11 +1073,59 @@ public class OrdenServicioService {
             throw new ValidacionException("El ID del repuesto debe ser un número positivo.");
         }
 
-        OrdenServicioDetalle linea = ordenServicioDetalleDAO.buscarPorId(detalleId);
+        if (!usarTransaccionJdbc) {
+            return ejecutarRetirarRepuesto(
+                    detalleId, repuestoId, ordenServicioDAO, ordenServicioDetalleDAO,
+                    repuestoDAO, detalleRepuestoDAO, false);
+        }
+
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                OrdenServicioDAO ordenDaoTransaccional = new OrdenServicioDAOImpl(connection);
+                OrdenServicioDetalleDAO detalleDaoTransaccional = new OrdenServicioDetalleDAOImpl(connection);
+                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
+                DetalleRepuestoDAO detalleRepuestoDaoTransaccional = new DetalleRepuestoDAOImpl(connection);
+
+                DetalleRepuesto retirada = ejecutarRetirarRepuesto(
+                        detalleId, repuestoId, ordenDaoTransaccional, detalleDaoTransaccional,
+                        repuestoDaoTransaccional, detalleRepuestoDaoTransaccional, true);
+                connection.commit();
+                return retirada;
+            } catch (CarMotorsException e) {
+                hacerRollbackSeguro(connection, e);
+                throw e;
+            } catch (SQLException e) {
+                hacerRollbackSeguro(connection, e);
+                throw new CarMotorsException("No se pudo retirar el repuesto de la línea: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                hacerRollbackSeguro(connection, e);
+                throw new CarMotorsException("Error inesperado al retirar el repuesto de la línea: "
+                        + e.getMessage(), e);
+            } finally {
+                restaurarAutoCommitSeguro(connection);
+            }
+        } catch (SQLException e) {
+            throw new CarMotorsException("No se pudo completar la transacción del retiro del repuesto: "
+                    + e.getMessage(), e);
+        }
+    }
+
+    private DetalleRepuesto ejecutarRetirarRepuesto(
+            int detalleId,
+            int repuestoId,
+            OrdenServicioDAO ordenDao,
+            OrdenServicioDetalleDAO detalleDao,
+            RepuestoDAO repuestoDao,
+            DetalleRepuestoDAO detalleRepuestoDao,
+            boolean bloquear) {
+        OrdenServicioDetalle linea = detalleDao.buscarPorId(detalleId);
         if (linea == null) {
             throw new EntidadNoEncontradaException("No se encontró una línea de servicio con el ID: " + detalleId);
         }
-        OrdenServicio orden = ordenServicioDAO.buscarPorId(linea.getOrdenId());
+        OrdenServicio orden = bloquear
+                ? ordenDao.buscarPorIdParaActualizar(linea.getOrdenId())
+                : ordenDao.buscarPorId(linea.getOrdenId());
         if (orden == null) {
             throw new EntidadNoEncontradaException("No se encontró la orden de servicio con el ID: "
                     + linea.getOrdenId());
@@ -1087,42 +1136,29 @@ public class OrdenServicioService {
                     + "' y no permite cambios; no se pueden retirar repuestos (RN-05).");
         }
 
-        DetalleRepuesto reserva = detalleRepuestoDAO.buscar(detalleId, repuestoId);
+        DetalleRepuesto reserva = detalleRepuestoDao.buscar(detalleId, repuestoId);
         if (reserva == null) {
             throw new EntidadNoEncontradaException("El repuesto " + repuestoId
                     + " no está reservado en la línea " + detalleId + ".");
         }
 
-        if (!usarTransaccionJdbc) {
-            liberarReserva(reserva, repuestoDAO, detalleRepuestoDAO);
-            return reserva;
+        liberarReserva(reserva, repuestoDao, detalleRepuestoDao);
+        return reserva;
+    }
+
+    private void hacerRollbackSeguro(Connection connection, Throwable causaOriginal) {
+        try {
+            connection.rollback();
+        } catch (SQLException errorRollback) {
+            causaOriginal.addSuppressed(errorRollback);
         }
+    }
 
-        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
-            connection.setAutoCommit(false);
-            try {
-                RepuestoDAO repuestoDaoTransaccional = new RepuestoDAOImpl(connection);
-                DetalleRepuestoDAO detalleRepuestoDaoTransaccional = new DetalleRepuestoDAOImpl(connection);
-
-                liberarReserva(reserva, repuestoDaoTransaccional, detalleRepuestoDaoTransaccional);
-                connection.commit();
-                return reserva;
-            } catch (CarMotorsException e) {
-                connection.rollback();
-                throw e;
-            } catch (SQLException e) {
-                connection.rollback();
-                throw new CarMotorsException("No se pudo retirar el repuesto de la línea: " + e.getMessage(), e);
-            } catch (RuntimeException e) {
-                connection.rollback();
-                throw new CarMotorsException("Error inesperado al retirar el repuesto de la línea: "
-                        + e.getMessage(), e);
-            } finally {
-                connection.setAutoCommit(true);
-            }
-        } catch (SQLException e) {
-            throw new CarMotorsException("No se pudo completar la transacción del retiro del repuesto: "
-                    + e.getMessage(), e);
+    private void restaurarAutoCommitSeguro(Connection connection) {
+        try {
+            connection.setAutoCommit(true);
+        } catch (SQLException errorAutoCommit) {
+            LOGGER.log(Level.WARNING, "No se pudo restaurar autoCommit al cerrar conexión.", errorAutoCommit);
         }
     }
 
@@ -1363,17 +1399,26 @@ public class OrdenServicioService {
             }
         }
 
-        // 4. Cobertura del stock operativo ANTES de descontar nada (sección 2.6, punto 4).
+        // 4. Cobertura del stock operativo ANTES de descontar nada (sección 2.6, puntos 4 y 7).
         LocalDate hoy = fechaCompletado.toLocalDate();
         Map<Integer, List<Lote>> lotesPorRepuesto = new HashMap<>();
         for (Map.Entry<Integer, Integer> requerido : requeridoPorRepuesto.entrySet()) {
             int repuestoId = requerido.getKey();
+            Repuesto repuesto = repuestoDao.buscarPorId(repuestoId);
             List<Lote> lotes = loteDao.listarPorRepuesto(repuestoId);
             int operativo = consumoLotesFefo.calcularStockOperativo(lotes, hoy);
             if (operativo < requerido.getValue()) {
                 throw new StockInsuficienteException("No se puede completar la orden " + ordenId + ": el repuesto '"
                         + nombrePorRepuesto.get(repuestoId) + "' (ID " + repuestoId + ") requiere "
                         + requerido.getValue() + " unidad(es) y su stock operativo es " + operativo + ".");
+            }
+            if (repuesto != null && operativo < repuesto.getCantidadReservada()) {
+                int deficit = repuesto.getCantidadReservada() - operativo;
+                throw new StockInsuficienteException("No se puede completar la orden " + ordenId
+                        + ": el repuesto '" + nombrePorRepuesto.get(repuestoId) + "' (ID " + repuestoId
+                        + ") presenta un déficit global de " + deficit + " unidad(es) (stock operativo: "
+                        + operativo + ", reservas vigentes: " + repuesto.getCantidadReservada()
+                        + "). Ajuste las reservas afectadas o ingrese lotes válidos antes de completar.");
             }
             lotesPorRepuesto.put(repuestoId, lotes);
         }
@@ -1620,9 +1665,13 @@ public class OrdenServicioService {
     }
 
     private String validarDescripcion(String descripcionProblema) {
-        String descripcion = InputValidator.normalizarTexto(descripcionProblema);
+        String descripcion = InputValidator.normalizarEspacios(descripcionProblema);
         if (descripcion.isEmpty()) {
             throw new ValidacionException("La descripción del problema es obligatoria.");
+        }
+        if (descripcion.length() < 3 || !InputValidator.contieneLetra(descripcion)) {
+            throw new ValidacionException(
+                    "La descripción del problema debe tener al menos 3 caracteres e incluir texto descriptivo.");
         }
         if (descripcion.length() > MAX_LONGITUD_DESCRIPCION) {
             throw new ValidacionException("La descripción del problema no puede superar los "

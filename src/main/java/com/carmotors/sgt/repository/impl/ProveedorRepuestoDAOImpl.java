@@ -132,6 +132,20 @@ public class ProveedorRepuestoDAOImpl implements ProveedorRepuestoDAO {
     }
 
     @Override
+    public int desmarcarHabitualesDeProveedor(int proveedorId) {
+        String sql = "UPDATE proveedor_repuestos SET es_habitual = FALSE WHERE proveedor_id = ? AND es_habitual = TRUE";
+        if (conexionCompartida != null) {
+            return ejecutarDesmarcar(conexionCompartida, sql, proveedorId);
+        }
+        try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+            return ejecutarDesmarcar(connection, sql, proveedorId);
+        } catch (SQLException e) {
+            throw new CarMotorsException("Error al desmarcar los repuestos habituales del proveedor: "
+                    + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public boolean marcarHabitual(int proveedorId, int repuestoId) {
         String sql = "UPDATE proveedor_repuestos SET es_habitual = TRUE WHERE proveedor_id = ? AND repuesto_id = ?";
         if (conexionCompartida != null) {

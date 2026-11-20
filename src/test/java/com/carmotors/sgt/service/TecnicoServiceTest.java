@@ -248,6 +248,43 @@ class TecnicoServiceTest {
         assertEquals(1, cargas.get(t3.getId()));
     }
 
+    @Test
+    @DisplayName("Debe rechazar nombre numérico o sin apellido, documento corto y teléfono inválido")
+    void rechazarNombreDocumentoYTelefonoIlogicos() {
+        assertThrows(ValidacionException.class, () -> tecnicoService.registrarTecnico(
+                new Tecnico(0, "0", "1090456123", 1, "3205550001", true)));
+        assertThrows(ValidacionException.class, () -> tecnicoService.registrarTecnico(
+                new Tecnico(0, "Pedro", "1090456123", 1, "3205550001", true)));
+        assertThrows(ValidacionException.class, () -> tecnicoService.registrarTecnico(
+                new Tecnico(0, "Pedro 123", "1090456123", 1, "3205550001", true)));
+        assertThrows(ValidacionException.class, () -> tecnicoService.registrarTecnico(
+                new Tecnico(0, "Pedro Ramírez", "2", 1, "3205550001", true)));
+        assertThrows(ValidacionException.class, () -> tecnicoService.registrarTecnico(
+                new Tecnico(0, "Pedro Ramírez", "1090456123", 1, "2", true)));
+        assertThrows(ValidacionException.class, () -> tecnicoService.registrarTecnico(
+                new Tecnico(0, "Pedro Ramírez", "1090456123", 1, "abc12345", true)));
+    }
+
+    @Test
+    @DisplayName("Actualizar un técnico inactivo conserva activo=false sin reactivarlo (RN-17)")
+    void actualizarTecnicoInactivoConservaEstadoInactivo() {
+        Tecnico creado = tecnicoService.registrarTecnico(
+                new Tecnico(0, "Pedro Ramírez", "1090456123", 1, "3205550001", true));
+        tecnicoService.desactivarTecnico(creado.getId());
+
+        Tecnico cambios = new Tecnico();
+        cambios.setId(creado.getId());
+        cambios.setNombre("Pedro Antonio Ramírez");
+        cambios.setDocumentoIdentidad("1090456123");
+        cambios.setEspecialidadId(3);
+        cambios.setTelefono("3205559999");
+        cambios.setActivo(true);
+
+        Tecnico actualizado = tecnicoService.actualizarTecnico(cambios);
+        assertFalse(actualizado.isActivo());
+        assertFalse(tecnicoService.buscarPorId(creado.getId()).isActivo());
+    }
+
     private static class EspecialidadDAOEnMemoria implements EspecialidadDAO {
 
         private final List<Especialidad> datos = new ArrayList<>();

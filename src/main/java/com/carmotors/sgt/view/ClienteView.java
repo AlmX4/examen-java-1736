@@ -156,9 +156,9 @@ public class ClienteView implements SubmenuVista {
     private void registrarCliente() {
         try {
             Cliente cliente = new Cliente();
-            cliente.setNombre(ConsoleReader.leerTextoObligatorio("Nombre completo del cliente"));
-            cliente.setDocumentoIdentidad(ConsoleReader.leerTextoObligatorio("Documento de identidad"));
-            String telefono = ConsoleReader.leerTextoOpcional("Teléfono (opcional)");
+            cliente.setNombre(ConsoleReader.leerNombreCliente("Nombre completo o razón social del cliente"));
+            cliente.setDocumentoIdentidad(ConsoleReader.leerDocumentoCliente("Documento de identidad o NIT"));
+            String telefono = ConsoleReader.leerTelefonoOpcional("Teléfono (opcional)");
             cliente.setTelefono(telefono.isEmpty() ? null : telefono);
             cliente.setEmail(ConsoleReader.leerEmail("Email"));
 
@@ -179,10 +179,10 @@ public class ClienteView implements SubmenuVista {
 
             Cliente actualizado = new Cliente();
             actualizado.setId(actual.getId());
-            actualizado.setNombre(ConsoleReader.leerTextoObligatorio("Nuevo nombre completo"));
-            actualizado.setDocumentoIdentidad(ConsoleReader.leerTextoObligatorio("Nuevo documento de identidad"));
-            String telefono = ConsoleReader.leerTextoOpcional("Nuevo teléfono (opcional)");
-            actualizado.setTelefono(telefono.isEmpty() ? null : telefono);
+            actualizado.setNombre(ConsoleReader.leerNombreCliente("Nuevo nombre completo o razón social"));
+            actualizado.setDocumentoIdentidad(ConsoleReader.leerDocumentoCliente("Nuevo documento de identidad o NIT"));
+            String telefono = ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (Enter para conservar actual)");
+            actualizado.setTelefono(telefono.isEmpty() ? actual.getTelefono() : telefono);
             actualizado.setEmail(ConsoleReader.leerEmail("Nuevo email"));
             actualizado.setActivo(actual.isActivo());
 

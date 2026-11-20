@@ -110,6 +110,11 @@ public class ServicioTipoView implements SubmenuVista {
             }
 
             ServicioTipo nuevo = capturarDatosServicio(0, mantenimientos, especialidades);
+            if (nuevo == null) {
+                System.out.println("\n  [i] Registro de tipo de servicio cancelado.");
+                ConsoleReader.pausar();
+                return;
+            }
             ServicioTipo creado = servicioTipoController.registrar(nuevo);
             System.out.println("\n  [✓] Tipo de servicio registrado exitosamente con ID " + creado.getId() + ".");
         } catch (CarMotorsException e) {
@@ -134,6 +139,11 @@ public class ServicioTipoView implements SubmenuVista {
             }
 
             ServicioTipo actualizado = capturarDatosServicio(actual.getId(), mantenimientos, especialidades);
+            if (actualizado == null) {
+                System.out.println("\n  [i] Actualización de tipo de servicio cancelada.");
+                ConsoleReader.pausar();
+                return;
+            }
             servicioTipoController.actualizar(actualizado);
             System.out.println("\n  [✓] Tipo de servicio actualizado correctamente.");
         } catch (CarMotorsException e) {
@@ -168,7 +178,13 @@ public class ServicioTipoView implements SubmenuVista {
             List<Especialidad> especialidades) {
         String nombre = ConsoleReader.leerTextoObligatorio("Nombre del tipo de servicio");
         MantenimientoTipo mantenimiento = seleccionarMantenimiento(mantenimientos);
+        if (mantenimiento == null) {
+            return null;
+        }
         int especialidadId = seleccionarEspecialidad(especialidades);
+        if (especialidadId == 0) {
+            return null;
+        }
         BigDecimal precioBase = ConsoleReader.leerBigDecimalNoNegativo("Precio base de mano de obra");
 
         Integer intervaloMeses = null;
@@ -194,7 +210,11 @@ public class ServicioTipoView implements SubmenuVista {
             System.out.println("    " + tipo.getId() + ". " + tipo.getNombre());
         }
         while (true) {
-            int idElegido = ConsoleReader.leerEnteroPositivo("Seleccione el ID del tipo de mantenimiento");
+            int idElegido = ConsoleReader.leerEnteroEnRango(
+                    "Seleccione el ID del tipo de mantenimiento (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (idElegido == 0) {
+                return null;
+            }
             for (MantenimientoTipo tipo : mantenimientos) {
                 if (tipo.getId() == idElegido) {
                     return tipo;
@@ -210,7 +230,11 @@ public class ServicioTipoView implements SubmenuVista {
             System.out.println("    " + esp.getId() + ". " + esp.getNombre());
         }
         while (true) {
-            int idElegido = ConsoleReader.leerEnteroPositivo("Seleccione el ID de la especialidad requerida");
+            int idElegido = ConsoleReader.leerEnteroEnRango(
+                    "Seleccione el ID de la especialidad requerida (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (idElegido == 0) {
+                return 0;
+            }
             for (Especialidad esp : especialidades) {
                 if (esp.getId() == idElegido) {
                     return idElegido;

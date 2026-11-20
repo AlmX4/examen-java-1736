@@ -8,7 +8,36 @@
 
 ## [En curso] — Sprint 8: Cierre y entrega (`develop`)
 
-### Pendiente de integración — `feat(database): consolidate representative seed data (T8.2)` (cierra `#59`, RNF-25 / sección 9)
+### Pendiente de integración — `fix(view): prevent silent field clearing, add cancel options, and align order submenu UX` (`fix/pulido-consola-ux` → `develop`, RNF-03 / RNF-13 / RNF-24 / RN-05)
+- **Autor:** `@julio7879`
+- **Motivo del arreglo:** Auditoría exhaustiva de UX en las vistas de consola detectó: (1) presionar Enter en campos opcionales de `actualizarCliente`, `actualizarProveedor` y `actualizarTecnico` sobrescribía silenciosamente datos vigentes con `null`; (2) `OrdenServicioView` tenía numeración visual desordenada (`6 -> 9 -> 7 -> 8 -> 10`), permitía `0`/negativos en `reservarRepuesto`, no validaba orden editable al inicio de `reservarRepuesto`/`retirarRepuesto`/`quitarLinea`, imprimía `"tras liberar la reserva"` aunque el retiro fallara y mostraba `Especialidad ID` en crudo en `agregarLinea`; (3) cuatro selectores `while (true)` atrapaban al usuario sin opción `0 para cancelar`; y (4) `CatalogoProveedorView.actualizarCondiciones` pedía costo y días sin mostrar las condiciones vigentes ni comprobar primero que el repuesto existiera en el catálogo del proveedor.
+- **Cambios incluidos:**
+  - `ClienteView`, `ProveedorView` y `TecnicoView`: presionar Enter en teléfono/email/dirección durante actualizaciones conserva el valor actual en lugar de borrarlo.
+  - `TecnicoView`, `RepuestoView`, `ServicioTipoView` y `OrdenServicioView`: habilitada salida `0 para cancelar` en los selectores de especialidad, tipo de repuesto, tipo de mantenimiento y tipo de servicio.
+  - `CatalogoProveedorView.actualizarCondiciones`: opción `0 para cancelar`, validación previa de existencia en el catálogo del proveedor y visualización del costo y tiempo de entrega actuales antes de pedir nuevos valores.
+  - `OrdenServicioView`: numeración secuencial `1..13` (alineada con el `switch`), `validarOrdenEditable` temprano en `quitarLinea`/`reservarRepuesto`/`retirarRepuesto`, `leerEnteroPositivo` en `reservarRepuesto`, nombre legible de especialidad en `agregarLinea` y supresión del mensaje de stock liberado cuando el retiro falla (**360** pruebas en total: **0** fallos, **0** errores, **0** omitidas con MySQL 8 activo).
+
+### Pendiente de integración — `fix(negocio): enforce supplier deactivation, global reserve deficit, and transactional part removal` (`fix/reglas-negocio-transacciones` → `develop`, RF-28 / RN-17 / RN-18 / RN-11 / §2.6 / RNF-08)
+- **Autor:** `@julio7879`
+- **Motivo del arreglo:** Auditoría de reglas de negocio y transacciones JDBC detectó: (1) `ProveedorService.desactivarProveedor` no eliminaba `es_habitual = TRUE` en `proveedor_repuestos` ni usaba transacción (`RF-28`/`RN-18`); (2) `TecnicoService.actualizarTecnico` y `ProveedorService.actualizarProveedor` podían reactivar silenciosamente registros inactivos (`RN-17`); (3) `OrdenServicioService.completarOrden` no bloqueaba el cierre cuando había déficit global de reservas por lotes vencidos (Maestro §2.6 punto 7); (4) `OrdenServicioService.retirarRepuesto` validaba fuera de la transacción en 3 conexiones separadas sin `FOR UPDATE` (`RNF-08`); y (5) `ReporteDAOImpl.listarServiciosSolicitados` (`RF-25`) leía el nombre actual del catálogo en vez de `osd.nombre_servicio_snapshot` (`RN-11`).
+- **Cambios incluidos:**
+  - Extensión de `ProveedorRepuestoDAO` / `ProveedorRepuestoDAOImpl` con `desmarcarHabitualesDeProveedor(int)` y ejecución atómica en `ProveedorService.desactivarProveedor` dentro de una única `Connection` (`setAutoCommit(false)` / `commit()` / `rollback()`).
+  - Preservación explícita de `actual.isActivo()` en `ProveedorService.actualizarProveedor` y `TecnicoService.actualizarTecnico`.
+  - Validación de déficit global (`operativo < repuesto.getCantidadReservada()`) en `OrdenServicioService.ejecutarCompletarOrden` antes del descuento FEFO.
+  - Consolidación de `OrdenServicioService.retirarRepuesto` dentro de una única transacción JDBC con bloqueo `FOR UPDATE` y `rollback` seguro con `addSuppressed`.
+  - Actualización de `ReporteDAOImpl.ejecutarConsultaServicios` para usar `osd.nombre_servicio_snapshot`.
+  - Nuevas pruebas de regresión en `ProveedorServiceTest` (+2), `TecnicoServiceTest` (+1) y `OrdenServicioCompletarTest` (+1) (**360** pruebas en total: **0** fallos, **0** errores, **0** omitidas con MySQL 8 activo).
+
+### Pendiente de integración — `fix(validaciones): harden logical input validation across services and console` (`fix/validaciones-entrada` → `develop`, RNF-13 / RF-01 / RF-02 / RF-08 / RF-17 / RF-18 / RF-28 / RF-29 / RF-31 / RF-33)
+- **Autor:** `@julio7879`
+- **Motivo del arreglo:** Durante pruebas manuales en consola se detectó que formularios y servicios aceptaban valores ilógicos (`nombre = "0"`, `documento = "2"`, `telefono = "2"`, precios `0.004` que redondeaban a `0.00`, fechas futuras en lotes/evaluaciones, asociación de repuestos inactivos e intervalos `Integer.MAX_VALUE` en tipos de servicio).
+- **Cambios incluidos:**
+  - Extensión de `InputValidator` y `ConsoleReader` con validadores y lectores de consola con repregunta inmediata (`esNombrePersonaValido`, `esNombreClienteValido`, `esDocumentoNumericoValido`, `esDocumentoClienteValido`, `esTelefonoValido`, `esCodigoLoteValido`, `contieneLetra`, `contieneAlfanumerico`, `contieneDigito`, `MAX_MONTO_DECIMAL_12_2`).
+  - Endurecimiento espejo en `TecnicoService` (incluyendo límites `VARCHAR` de `schema.sql`), `ClienteService`, `VehiculoService`, `ProveedorService`, `EvaluacionProveedorService`, `ProveedorRepuestoService` (bloqueo de repuestos inactivos y tope `DECIMAL(12,2)`), `RepuestoService` (corrección de orden redondeo→validación positiva para impedir `0.004 -> 0.00`), `LoteService` (formato de código y rechazo de `fechaIngreso` futura), `ServicioTipoService` (límite 100 chars, tope `DECIMAL(12,2)` e intervalo `1..120` meses) y `OrdenServicioService` (descripción descriptiva con letras).
+  - Conexión de los lectores validados en `TecnicoView`, `ClienteView` y `ProveedorView`.
+  - Nueva suite `InputValidatorTest` y ampliación de `TecnicoServiceTest`, `RepuestoServiceTest` y `ServicioTipoServiceTest` (**356** pruebas en total: **0** fallos, **0** errores, **0** omitidas con MySQL 8 activo).
+
+### PR #115 — `feat(database): consolidate representative seed data (T8.2)` (`feature/documentacion` → `develop`, cierra `#59`, RNF-25 / sección 9)
 - **Autor:** `@AlmX4`
 - `database/data.sql` consolida 12 clientes, 18 vehículos, 8 proveedores, 20 repuestos, 30 lotes, 6 técnicos, 12 órdenes en los seis estados y 4 facturas con sus snapshots y conceptos.
 - Incluye disponibilidad por debajo, justo en y por encima del mínimo, lotes vencidos y próximos a vencer, empate de carga, órdenes con varias líneas, historial de cancelación y un recordatorio preventivo próximo.

@@ -217,7 +217,34 @@ public class CatalogoProveedorView {
 
     private void actualizarCondiciones(Proveedor proveedor) {
         try {
-            int repuestoId = ConsoleReader.leerEnteroPositivo("Ingrese el ID del repuesto");
+            int repuestoId = ConsoleReader.leerEnteroEnRango(
+                    "Ingrese el ID del repuesto (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (repuestoId == 0) {
+                System.out.println("\n  [i] Operación cancelada.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            List<ProveedorRepuesto> catalogo = proveedorRepuestoController.listarPorProveedor(proveedor.getId());
+            ProveedorRepuesto existente = null;
+            for (ProveedorRepuesto item : catalogo) {
+                if (item.getRepuestoId() == repuestoId) {
+                    existente = item;
+                    break;
+                }
+            }
+            if (existente == null) {
+                System.out.println("\n  [!] El proveedor '" + proveedor.getNombre()
+                        + "' no tiene asociado el repuesto ID " + repuestoId + " en su catálogo.");
+                ConsoleReader.pausar();
+                return;
+            }
+
+            Repuesto repuesto = repuestoController.buscarPorId(repuestoId);
+            System.out.println("\n  Condiciones actuales para '" + repuesto.getNombre() + "':");
+            System.out.println("    Costo actual: $" + existente.getCosto()
+                    + " | Tiempo de entrega: " + existente.getTiempoEntregaDias() + " días");
+
             BigDecimal costo = ConsoleReader.leerBigDecimalPositivo("Nuevo costo de compra");
             int tiempoEntrega = ConsoleReader.leerEnteroNoNegativo("Nuevo tiempo de entrega (días)");
 

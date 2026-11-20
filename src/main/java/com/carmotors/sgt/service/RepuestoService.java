@@ -237,28 +237,42 @@ public class RepuestoService {
             throw new ValidacionException("Debe seleccionar un tipo de repuesto válido.");
         }
 
-        String nombre = InputValidator.normalizarTexto(repuesto.getNombre());
+        String nombre = InputValidator.normalizarEspacios(repuesto.getNombre());
         if (nombre.isEmpty()) {
             throw new ValidacionException("El nombre del repuesto es obligatorio.");
         }
         if (nombre.length() > MAX_LONGITUD_NOMBRE) {
             throw new ValidacionException("El nombre del repuesto no puede superar los " + MAX_LONGITUD_NOMBRE + " caracteres.");
         }
+        if (nombre.length() < 2 || !InputValidator.contieneLetra(nombre)) {
+            throw new ValidacionException("El nombre del repuesto debe tener al menos 2 caracteres e incluir letras.");
+        }
         repuesto.setNombre(nombre);
 
-        String marca = InputValidator.normalizarTexto(repuesto.getMarca());
+        String marca = InputValidator.normalizarEspacios(repuesto.getMarca());
         if (marca.isEmpty()) {
             throw new ValidacionException("La marca del repuesto es obligatoria.");
         }
         if (marca.length() > MAX_LONGITUD_MARCA) {
             throw new ValidacionException("La marca del repuesto no puede superar los " + MAX_LONGITUD_MARCA + " caracteres.");
         }
+        if (marca.length() < 2 || !InputValidator.contieneLetra(marca)) {
+            throw new ValidacionException("La marca del repuesto debe tener al menos 2 caracteres e incluir letras.");
+        }
         repuesto.setMarca(marca);
 
-        if (repuesto.getPrecioVenta() == null || !InputValidator.esBigDecimalPositivo(repuesto.getPrecioVenta())) {
+        if (repuesto.getPrecioVenta() == null) {
             throw new ValidacionException("El precio de venta debe ser un valor positivo.");
         }
-        repuesto.setPrecioVenta(normalizarPrecio(repuesto.getPrecioVenta()));
+        BigDecimal precioNormalizado = normalizarPrecio(repuesto.getPrecioVenta());
+        if (!InputValidator.esBigDecimalPositivo(precioNormalizado)) {
+            throw new ValidacionException("El precio de venta debe ser un valor positivo.");
+        }
+        if (precioNormalizado.compareTo(InputValidator.MAX_MONTO_DECIMAL_12_2) > 0) {
+            throw new ValidacionException("El precio de venta supera el máximo permitido ("
+                    + InputValidator.MAX_MONTO_DECIMAL_12_2 + ").");
+        }
+        repuesto.setPrecioVenta(precioNormalizado);
 
         if (repuesto.getStockMinimo() < 0) {
             throw new ValidacionException("El stock mínimo no puede ser negativo.");

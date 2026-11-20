@@ -20,6 +20,10 @@ import java.util.Map;
  */
 public class TecnicoService {
 
+    private static final int MAX_LONGITUD_NOMBRE = 100;
+    private static final int MAX_LONGITUD_DOCUMENTO = 30;
+    private static final int MAX_LONGITUD_TELEFONO = 20;
+
     private final TecnicoDAO tecnicoDAO;
     private final EspecialidadDAO especialidadDAO;
 
@@ -105,6 +109,9 @@ public class TecnicoService {
                     "Ya existe otro técnico registrado con el documento: " + tecnico.getDocumentoIdentidad());
         }
 
+        // RN-17: La actualización de datos nunca debe alterar el estado activo/inactivo.
+        tecnico.setActivo(actual.isActivo());
+
         boolean actualizado = tecnicoDAO.actualizar(tecnico);
         if (!actualizado) {
             throw new ValidacionException("No se pudo actualizar el técnico con ID: " + tecnico.getId());
@@ -182,15 +189,31 @@ public class TecnicoService {
             throw new ValidacionException("Los datos del técnico no pueden ser nulos.");
         }
 
-        String nombre = InputValidator.normalizarTexto(tecnico.getNombre());
+        String nombre = InputValidator.normalizarEspacios(tecnico.getNombre());
         if (nombre.isEmpty()) {
             throw new ValidacionException("El nombre del técnico es obligatorio.");
+        }
+        if (nombre.length() > MAX_LONGITUD_NOMBRE) {
+            throw new ValidacionException(
+                    "El nombre del técnico no puede superar los " + MAX_LONGITUD_NOMBRE + " caracteres.");
+        }
+        if (!InputValidator.esNombrePersonaValido(nombre)) {
+            throw new ValidacionException(
+                    "El nombre del técnico debe incluir nombre y apellido (2 a 4 palabras, solo letras, sin números).");
         }
         tecnico.setNombre(nombre);
 
         String documento = InputValidator.normalizarTexto(tecnico.getDocumentoIdentidad());
         if (documento.isEmpty()) {
             throw new ValidacionException("El documento de identidad del técnico es obligatorio.");
+        }
+        if (documento.length() > MAX_LONGITUD_DOCUMENTO) {
+            throw new ValidacionException(
+                    "El documento de identidad no puede superar los " + MAX_LONGITUD_DOCUMENTO + " caracteres.");
+        }
+        if (!InputValidator.esDocumentoNumericoValido(documento)) {
+            throw new ValidacionException(
+                    "El documento de identidad del técnico debe contener entre 6 y 12 dígitos numéricos.");
         }
         tecnico.setDocumentoIdentidad(documento);
 
@@ -204,6 +227,16 @@ public class TecnicoService {
         }
 
         String telefono = InputValidator.normalizarTexto(tecnico.getTelefono());
+        if (!telefono.isEmpty()) {
+            if (telefono.length() > MAX_LONGITUD_TELEFONO) {
+                throw new ValidacionException(
+                        "El teléfono del técnico no puede superar los " + MAX_LONGITUD_TELEFONO + " caracteres.");
+            }
+            if (!InputValidator.esTelefonoValido(telefono)) {
+                throw new ValidacionException(
+                        "El teléfono del técnico debe contener entre 7 y 15 dígitos numéricos.");
+            }
+        }
         tecnico.setTelefono(telefono.isEmpty() ? null : telefono);
     }
 }
