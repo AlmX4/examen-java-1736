@@ -6,7 +6,7 @@ import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
-import com.carmotors.sgt.repository.ReporteDAO;
+import com.carmotors.sgt.dao.ReporteDAO;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

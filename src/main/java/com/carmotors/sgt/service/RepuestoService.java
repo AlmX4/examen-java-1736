@@ -15,14 +15,14 @@ import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
 import com.carmotors.sgt.model.RepuestoTipo;
-import com.carmotors.sgt.repository.ProveedorDAO;
-import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
-import com.carmotors.sgt.repository.RepuestoDAO;
-import com.carmotors.sgt.repository.RepuestoTipoDAO;
-import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
-import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
-import com.carmotors.sgt.repository.impl.RepuestoDAOImpl;
-import com.carmotors.sgt.repository.impl.RepuestoTipoDAOImpl;
+import com.carmotors.sgt.dao.ProveedorDAO;
+import com.carmotors.sgt.dao.ProveedorRepuestoDAO;
+import com.carmotors.sgt.dao.RepuestoDAO;
+import com.carmotors.sgt.dao.RepuestoTipoDAO;
+import com.carmotors.sgt.dao.impl.ProveedorDAOImpl;
+import com.carmotors.sgt.dao.impl.ProveedorRepuestoDAOImpl;
+import com.carmotors.sgt.dao.impl.RepuestoDAOImpl;
+import com.carmotors.sgt.dao.impl.RepuestoTipoDAOImpl;
 import com.carmotors.sgt.util.InputValidator;
 
 public class RepuestoService {

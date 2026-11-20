@@ -9,7 +9,7 @@ import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
-import com.carmotors.sgt.repository.ReporteDAO;
+import com.carmotors.sgt.dao.ReporteDAO;
 import com.carmotors.sgt.service.state.EstadoCancelada;
 import com.carmotors.sgt.service.state.EstadoCompletado;
 import com.carmotors.sgt.service.state.EstadoEnProceso;

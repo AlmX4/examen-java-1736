@@ -20,8 +20,8 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.RankingProveedor;
-import com.carmotors.sgt.repository.ProveedorDAO;
-import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
+import com.carmotors.sgt.dao.ProveedorDAO;
+import com.carmotors.sgt.dao.EvaluacionProveedorDAO;
 
 class EvaluacionProveedorServiceTest {
 
