@@ -37,18 +37,18 @@
 
 ## Arquitectura y Estructura del Repositorio
 
-El sistema implementa una arquitectura en capas estrictamente desacoplada siguiendo el patrón **MVC + Service + Repository (DAO)**, con inyección explícita de dependencias desde `Main` como *Composition Root*.
+El sistema implementa una arquitectura en capas estrictamente desacoplada siguiendo el patrón **MVC + Service + DAO**, con inyección explícita de dependencias desde `Main` como *Composition Root*.
 
-![Arquitectura por capas de CarMotors SGT](assets/arquitectura.png)
+![Arquitectura por capas de CarMotors SGT](docs/arquitectura.png)
 
 ### Separación de Responsabilidades por Capa
 
 | Capa / Paquete | Responsabilidad Principal | Restricciones Arquitectónicas |
 |---|---|---|
-| `com.carmotors.sgt.view` | Menús interactivos por consola y captura validada de entradas mediante `ConsoleReader` e `InputValidator`. | **Nunca** invoca repositorios ni ejecuta lógica de negocio o cálculos financieros. |
+| `com.carmotors.sgt.view` | Menús interactivos por consola y captura validada de entradas mediante `ConsoleReader` e `InputValidator`. | **Nunca** invoca DAOs ni ejecuta lógica de negocio o cálculos financieros. |
 | `com.carmotors.sgt.controller` | Coordina las peticiones entre las vistas y los servicios o `TallerFacade`, captura excepciones del dominio y retorna mensajes claros. | **Nunca** abre conexiones JDBC ni accede directamente a las interfaces DAO. |
 | `com.carmotors.sgt.service` | Concentra el 100 % de las reglas de negocio, validaciones de dominio, patrones de diseño y demarcación de transacciones JDBC. | **Nunca** realiza lectura o escritura directa de menús por consola. |
-| `com.carmotors.sgt.repository` y `.impl` | Contratos DAO e implementaciones JDBC puras basadas en `PreparedStatement` con soporte para recibir una `Connection` compartida. | **Nunca** decide reglas de negocio ni imprime salidas en consola. |
+| `com.carmotors.sgt.dao` y `.impl` | Contratos DAO e implementaciones JDBC puras basadas en `PreparedStatement` con soporte para recibir una `Connection` compartida. | **Nunca** decide reglas de negocio ni imprime salidas en consola. |
 | `com.carmotors.sgt.model` | Entidades del dominio, DTOs de consulta/reporte y enumeraciones tipadas. | Objetos de transporte y dominio sin dependencias hacia consola o JDBC. |
 | `com.carmotors.sgt.config` | Gestión centralizada de configuración externa y creación de conexiones JDBC (`ConnectionFactory`). | Carga segura desde classpath sin exponer credenciales en código fuente. |
 | `com.carmotors.sgt.util` | Utilidades reutilizables para lectura robusta de consola (`ConsoleReader`), formateo tabular (`ConsoleTableFormatter`) y validación de formatos (`InputValidator`). | Funciones auxiliares transversales sin estado de negocio. |
@@ -60,13 +60,13 @@ El código fuente productivo cuenta con **161** tipos de producción y **13** ar
 
 ```text
 Proyecto-Java-Grupo4/
-├── assets/
-│   ├── arquitectura.png                         # Diagrama de arquitectura por capas
-│   ├── diagrama-clases.png                      # Diagrama de clases UML del sistema
-│   └── diagrama-er.png                          # Diagrama Entidad-Relación de MySQL
 ├── database/
 │   ├── schema.sql                               # DDL completo (20 tablas, FK, UNIQUE, CHECK)
 │   └── data.sql                                 # Dataset representativo para pruebas y demo
+├── docs/
+│   ├── arquitectura.png                         # Diagrama de arquitectura por capas
+│   ├── diagrama-clases.png                      # Diagrama de clases UML del sistema
+│   └── diagrama-er.png                          # Diagrama Entidad-Relación de MySQL
 ├── src/
 │   ├── main/
 │   │   ├── java/com/carmotors/sgt/
@@ -74,6 +74,8 @@ Proyecto-Java-Grupo4/
 │   │   │   ├── config/
 │   │   │   │   └── ConnectionFactory.java       # Singleton de configuración y conexiones JDBC
 │   │   │   ├── controller/                      # 12 controladores de coordinación
+│   │   │   ├── dao/                             # 21 interfaces DAO
+│   │   │   │   └── impl/                        # 21 implementaciones JDBC con PreparedStatement
 │   │   │   ├── exception/
 │   │   │   │   ├── CarMotorsException.java      # Excepción base no chequeada del dominio
 │   │   │   │   ├── ConfiguracionException.java
@@ -83,8 +85,6 @@ Proyecto-Java-Grupo4/
 │   │   │   │   ├── TransicionEstadoInvalidaException.java
 │   │   │   │   └── ValidacionException.java
 │   │   │   ├── model/                           # 47 entidades, DTOs de consulta/reporte y enums
-│   │   │   ├── repository/                      # 21 interfaces DAO
-│   │   │   │   └── impl/                        # 21 implementaciones JDBC con PreparedStatement
 │   │   │   ├── service/                         # 15 servicios de dominio
 │   │   │   │   ├── builder/                     # Patrón Builder (FacturaTXTBuilder)
 │   │   │   │   ├── chain/                       # Patrón Chain of Responsibility (sugerencia de técnicos)
@@ -244,11 +244,11 @@ El script de datos semilla carga un escenario realista y listo para operar inmed
 
 ### Diagrama Entidad-Relación (ER)
 
-![Diagrama Entidad-Relación de CarMotors SGT](assets/diagrama-er.png)
+![Diagrama Entidad-Relación de CarMotors SGT](docs/diagrama-er.png)
 
 ### Diagrama de Clases UML
 
-![Diagrama de Clases UML de CarMotors SGT](assets/diagrama-clases.png)
+![Diagrama de Clases UML de CarMotors SGT](docs/diagrama-clases.png)
 
 ---
 
@@ -261,7 +261,7 @@ El script de datos semilla carga un escenario realista y listo para operar inmed
 | **Singleton** | Creacional | `ConnectionFactory` (`com.carmotors.sgt.config`) | Carga la configuración de `config.properties` una única vez en memoria con acceso `synchronized` y provee conexiones JDBC independientes por operación. |
 | **Builder** | Creacional | `FacturaTXTBuilder` (`com.carmotors.sgt.service.builder`) | Construye paso a paso el comprobante interno de texto (`conEncabezado`, `conClienteYVehiculo`, `conConceptos`, `conTotales`, `construir`). |
 | **Facade** | Estructural | `TallerFacade` (`com.carmotors.sgt.service.facade`) | Unifica los flujos complejos que coordinan `OrdenServicioService`, `InventarioService` y `TecnicoService` (creación integral y completado con notificación de stock bajo). |
-| **DAO / Repository** | Arquitectónico / Datos | 21 interfaces en `com.carmotors.sgt.repository` + 21 `*DAOImpl` en `repository.impl` | Aísla todas las sentencias SQL (`PreparedStatement`) del dominio y soporta inyección de conexión transaccional compartida. |
+| **DAO** | Arquitectónico / Datos | 21 interfaces en `com.carmotors.sgt.dao` + 21 `*DAOImpl` en `dao.impl` | Aísla todas las sentencias SQL (`PreparedStatement`) del dominio y soporta inyección de conexión transaccional compartida. |
 | **State** | Comportamiento | `EstadoOrden`, `EstadoOrdenBase`, `EstadoOrdenFactory`, `EstadoPendiente`, `EstadoEnProceso`, `EstadoCompletado`, `EstadoFacturado`, `EstadoEntregado`, `EstadoCancelada` (`com.carmotors.sgt.service.state`) | Encapsula las transiciones válidas y permisos de edición de cada estado de una orden, lanzando `TransicionEstadoInvalidaException` ante transiciones prohibidas. |
 | **Chain of Responsibility** | Comportamiento | `ManejadorSugerencia`, `ManejadorEspecialistaLibre`, `ManejadorEspecialistaMenorCarga`, `ManejadorGeneralMenorCarga`, `SugerenciaTecnicoChain`, `SugerenciaTecnico` (`com.carmotors.sgt.service.chain`) | Evalúa secuencialmente la asignación óptima de un técnico: (1) especialista libre, (2) especialista con menor carga activa y (3) técnico general con menor carga, desempatando por menor ID. |
 | **Observer** | Comportamiento | `StockObserver`, `AlertaStockBajoObserver` (`com.carmotors.sgt.service.observer`) + `InventarioService` | Desacopla la evaluación de stock tras el consumo de repuestos de la emisión de alertas en consola cuando el disponible alcanza o cae bajo el mínimo. |
@@ -272,7 +272,7 @@ El script de datos semilla carga un escenario realista y listo para operar inmed
 - **O — Abierto/Cerrado (OCP):** El árbol `EstadoOrden`, los eslabones de `ManejadorSugerencia` y los suscriptores `StockObserver` permiten incorporar nuevos estados, criterios de asignación de técnicos o canales de notificación sin modificar los flujos existentes.
 - **L — Sustitución de Liskov (LSP):** `EstadoOrdenBase` y las seis implementaciones concretas (`EstadoPendiente` a `EstadoCancelada`) son completamente intercambiables bajo el contrato `EstadoOrden`; del mismo modo, todas las vistas modulares implementan `SubmenuVista` para ser ejecutadas uniformemente por `ConsolaMenuView`.
 - **I — Segregación de Interfaces (ISP):** Contratos pequeños y cohesivos como `ServicioEstadoDAO` (solo lectura de catálogo), `StockObserver` (un único evento `onStockBajo`) y `SubmenuVista` (dos métodos esenciales de integración con el menú).
-- **D — Inversión de Dependencias (DIP):** Las clases de servicio dependen exclusivamente de interfaces DAO (`com.carmotors.sgt.repository`) recibidas por constructor. `Main.java` actúa como *Composition Root* ensamblando e inyectando toda la jerarquía de repositorios, servicios, controladores y vistas.
+- **D — Inversión de Dependencias (DIP):** Las clases de servicio dependen exclusivamente de interfaces DAO (`com.carmotors.sgt.dao`) recibidas por constructor. `Main.java` actúa como *Composition Root* ensamblando e inyectando toda la jerarquía de DAOs, servicios, controladores y vistas.
 
 ### Programación Funcional, Manejo de Excepciones y Logging
 

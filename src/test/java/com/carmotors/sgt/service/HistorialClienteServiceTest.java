@@ -29,11 +29,11 @@ import com.carmotors.sgt.model.OrdenServicioDetalle;
 import com.carmotors.sgt.model.ResumenOrdenHistorial;
 import com.carmotors.sgt.model.ResumenOrdenServicio;
 import com.carmotors.sgt.model.Vehiculo;
-import com.carmotors.sgt.repository.ClienteDAO;
-import com.carmotors.sgt.repository.ConsultaOrdenServicioDAO;
-import com.carmotors.sgt.repository.FacturaDAO;
-import com.carmotors.sgt.repository.OrdenServicioDetalleDAO;
-import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.dao.ClienteDAO;
+import com.carmotors.sgt.dao.ConsultaOrdenServicioDAO;
+import com.carmotors.sgt.dao.FacturaDAO;
+import com.carmotors.sgt.dao.OrdenServicioDetalleDAO;
+import com.carmotors.sgt.dao.VehiculoDAO;
 
 /**
  * Pruebas del historial de servicio del cliente (T7.4, RF-20, RN-17, RNF-11, HU-10)

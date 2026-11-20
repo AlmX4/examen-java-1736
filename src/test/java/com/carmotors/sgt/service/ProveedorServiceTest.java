@@ -15,8 +15,8 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
-import com.carmotors.sgt.repository.ProveedorDAO;
-import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
+import com.carmotors.sgt.dao.ProveedorDAO;
+import com.carmotors.sgt.dao.ProveedorRepuestoDAO;
 
 class ProveedorServiceTest {
 

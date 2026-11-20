@@ -14,10 +14,10 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.RankingProveedor;
-import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
-import com.carmotors.sgt.repository.ProveedorDAO;
-import com.carmotors.sgt.repository.impl.EvaluacionProveedorDAOImpl;
-import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
+import com.carmotors.sgt.dao.EvaluacionProveedorDAO;
+import com.carmotors.sgt.dao.ProveedorDAO;
+import com.carmotors.sgt.dao.impl.EvaluacionProveedorDAOImpl;
+import com.carmotors.sgt.dao.impl.ProveedorDAOImpl;
 import com.carmotors.sgt.util.InputValidator;
 
 public class EvaluacionProveedorService {

@@ -5,8 +5,8 @@ import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Cliente;
 import com.carmotors.sgt.model.Vehiculo;
-import com.carmotors.sgt.repository.ClienteDAO;
-import com.carmotors.sgt.repository.VehiculoDAO;
+import com.carmotors.sgt.dao.ClienteDAO;
+import com.carmotors.sgt.dao.VehiculoDAO;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.util.List;

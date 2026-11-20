@@ -6,9 +6,9 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.MantenimientoTipo;
 import com.carmotors.sgt.model.ServicioTipo;
-import com.carmotors.sgt.repository.EspecialidadDAO;
-import com.carmotors.sgt.repository.MantenimientoTipoDAO;
-import com.carmotors.sgt.repository.ServicioTipoDAO;
+import com.carmotors.sgt.dao.EspecialidadDAO;
+import com.carmotors.sgt.dao.MantenimientoTipoDAO;
+import com.carmotors.sgt.dao.ServicioTipoDAO;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.math.BigDecimal;

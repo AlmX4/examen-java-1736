@@ -6,8 +6,8 @@ import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.Especialidad;
 import com.carmotors.sgt.model.Tecnico;
-import com.carmotors.sgt.repository.EspecialidadDAO;
-import com.carmotors.sgt.repository.TecnicoDAO;
+import com.carmotors.sgt.dao.EspecialidadDAO;
+import com.carmotors.sgt.dao.TecnicoDAO;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.util.ArrayList;

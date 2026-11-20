@@ -23,10 +23,10 @@ import com.carmotors.sgt.model.EvaluacionProveedor;
 import com.carmotors.sgt.model.Proveedor;
 import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.model.Repuesto;
-import com.carmotors.sgt.repository.EvaluacionProveedorDAO;
-import com.carmotors.sgt.repository.ProveedorDAO;
-import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
-import com.carmotors.sgt.repository.RepuestoDAO;
+import com.carmotors.sgt.dao.EvaluacionProveedorDAO;
+import com.carmotors.sgt.dao.ProveedorDAO;
+import com.carmotors.sgt.dao.ProveedorRepuestoDAO;
+import com.carmotors.sgt.dao.RepuestoDAO;
 
 class ProveedorRepuestoServiceTest {
 

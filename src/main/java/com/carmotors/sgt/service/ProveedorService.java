@@ -12,10 +12,10 @@ import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Proveedor;
-import com.carmotors.sgt.repository.ProveedorDAO;
-import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
-import com.carmotors.sgt.repository.impl.ProveedorDAOImpl;
-import com.carmotors.sgt.repository.impl.ProveedorRepuestoDAOImpl;
+import com.carmotors.sgt.dao.ProveedorDAO;
+import com.carmotors.sgt.dao.ProveedorRepuestoDAO;
+import com.carmotors.sgt.dao.impl.ProveedorDAOImpl;
+import com.carmotors.sgt.dao.impl.ProveedorRepuestoDAOImpl;
 import com.carmotors.sgt.util.InputValidator;
 
 public class ProveedorService {
