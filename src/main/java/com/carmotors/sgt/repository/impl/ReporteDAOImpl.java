@@ -196,12 +196,11 @@ public class ReporteDAOImpl implements ReporteDAO {
 
     private List<RegistroServicioSolicitado> ejecutarConsultaServicios(Connection connection, LocalDate fechaDesde,
                                                                         LocalDate fechaHasta) throws SQLException {
-        String sql = "SELECT osd.id AS detalle_id, osd.servicio_tipo_id, st.nombre AS nombre_servicio, "
+        String sql = "SELECT osd.id AS detalle_id, osd.servicio_tipo_id, osd.nombre_servicio_snapshot AS nombre_servicio, "
                 + "o.estado_id, o.fecha_completado, osd.costo_mano_obra, dr.cantidad_asignada, "
                 + "dr.precio_unitario_venta "
                 + "FROM ordenes_servicio o "
                 + "JOIN orden_servicio_detalle osd ON osd.orden_id = o.id "
-                + "JOIN servicio_tipos st ON st.id = osd.servicio_tipo_id "
                 + "LEFT JOIN detalle_repuestos dr ON dr.detalle_id = osd.id "
                 + "WHERE o.estado_id IN (3, 4, 5) AND o.fecha_completado >= ? AND o.fecha_completado < ?";
 

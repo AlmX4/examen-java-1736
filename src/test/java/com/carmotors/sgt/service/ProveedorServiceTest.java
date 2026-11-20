@@ -14,7 +14,9 @@ import com.carmotors.sgt.exception.DatoDuplicadoException;
 import com.carmotors.sgt.exception.EntidadNoEncontradaException;
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.Proveedor;
+import com.carmotors.sgt.model.ProveedorRepuesto;
 import com.carmotors.sgt.repository.ProveedorDAO;
+import com.carmotors.sgt.repository.ProveedorRepuestoDAO;
 
 class ProveedorServiceTest {
 
@@ -129,6 +131,41 @@ class ProveedorServiceTest {
     }
 
     @Test
+    void desactivarProveedorDebeDesmarcarCondicionDeProveedorHabitual() {
+        ProveedorDAOMock dao = new ProveedorDAOMock();
+        ProveedorRepuestoDAOMock catalogoDao = new ProveedorRepuestoDAOMock();
+        catalogoDao.habitualesPorProveedor.add(1);
+        ProveedorService service = new ProveedorService(dao, catalogoDao, false);
+        dao.getDatos().add(new Proveedor(1, "Distribuidora Uno", "3001234567", "ventas@dominio.com", "Calle 1", true));
+
+        service.desactivarProveedor(1);
+
+        assertFalse(dao.getDatos().get(0).isActivo());
+        assertFalse(catalogoDao.habitualesPorProveedor.contains(1));
+        assertEquals(1, catalogoDao.llamadasDesmarcarProveedor);
+    }
+
+    @Test
+    void actualizarProveedorInactivoNoDebeReactivarloSilenciosamente() {
+        ProveedorDAOMock dao = new ProveedorDAOMock();
+        ProveedorService service = new ProveedorService(dao);
+        dao.getDatos().add(new Proveedor(1, "Distribuidora Inactiva", "3001234567", "old@dominio.com", "Calle 1", false));
+
+        Proveedor cambios = new Proveedor();
+        cambios.setId(1);
+        cambios.setNombre("Distribuidora Renovada");
+        cambios.setTelefono("3009998877");
+        cambios.setEmail("new@dominio.com");
+        cambios.setDireccion("Calle 20");
+        cambios.setActivo(true);
+
+        Proveedor actualizado = service.actualizarProveedor(cambios);
+
+        assertFalse(actualizado.isActivo());
+        assertFalse(dao.getDatos().get(0).isActivo());
+    }
+
+    @Test
     void reactivarProveedorInexistenteDebeLanzarExcepcion() {
         ProveedorService service = new ProveedorService(new ProveedorDAOMock());
 
@@ -172,6 +209,61 @@ class ProveedorServiceTest {
                 () -> service.crearProveedor(proveedor));
 
         assertTrue(ex.getMessage().toLowerCase().contains("teléfono"));
+    }
+
+    private static class ProveedorRepuestoDAOMock implements ProveedorRepuestoDAO {
+        private final List<Integer> habitualesPorProveedor = new ArrayList<>();
+        private int llamadasDesmarcarProveedor = 0;
+
+        @Override
+        public List<ProveedorRepuesto> listarPorProveedor(int proveedorId) {
+            return new ArrayList<>();
+        }
+
+        @Override
+        public List<ProveedorRepuesto> listarPorRepuesto(int repuestoId) {
+            return new ArrayList<>();
+        }
+
+        @Override
+        public ProveedorRepuesto buscarPorProveedorYRepuesto(int proveedorId, int repuestoId) {
+            return null;
+        }
+
+        @Override
+        public boolean guardar(ProveedorRepuesto proveedorRepuesto) {
+            return false;
+        }
+
+        @Override
+        public boolean actualizarCondiciones(ProveedorRepuesto proveedorRepuesto) {
+            return false;
+        }
+
+        @Override
+        public boolean eliminar(int proveedorId, int repuestoId) {
+            return false;
+        }
+
+        @Override
+        public int desmarcarHabitual(int repuestoId) {
+            return 0;
+        }
+
+        @Override
+        public int desmarcarHabitualesDeProveedor(int proveedorId) {
+            llamadasDesmarcarProveedor++;
+            int removidos = 0;
+            while (habitualesPorProveedor.remove(Integer.valueOf(proveedorId))) {
+                removidos++;
+            }
+            return removidos;
+        }
+
+        @Override
+        public boolean marcarHabitual(int proveedorId, int repuestoId) {
+            return false;
+        }
     }
 
     private static class ProveedorDAOMock implements ProveedorDAO {

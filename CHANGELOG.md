@@ -8,6 +8,17 @@
 
 ## [En curso] — Sprint 8: Cierre y entrega (`develop`)
 
+### Pendiente de integración — `fix(negocio): enforce supplier deactivation, global reserve deficit, and transactional part removal` (`fix/reglas-negocio-transacciones` → `develop`, RF-28 / RN-17 / RN-18 / RN-11 / §2.6 / RNF-08)
+- **Autor:** `@julio7879`
+- **Motivo del arreglo:** Auditoría de reglas de negocio y transacciones JDBC detectó: (1) `ProveedorService.desactivarProveedor` no eliminaba `es_habitual = TRUE` en `proveedor_repuestos` ni usaba transacción (`RF-28`/`RN-18`); (2) `TecnicoService.actualizarTecnico` y `ProveedorService.actualizarProveedor` podían reactivar silenciosamente registros inactivos (`RN-17`); (3) `OrdenServicioService.completarOrden` no bloqueaba el cierre cuando había déficit global de reservas por lotes vencidos (Maestro §2.6 punto 7); (4) `OrdenServicioService.retirarRepuesto` validaba fuera de la transacción en 3 conexiones separadas sin `FOR UPDATE` (`RNF-08`); y (5) `ReporteDAOImpl.listarServiciosSolicitados` (`RF-25`) leía el nombre actual del catálogo en vez de `osd.nombre_servicio_snapshot` (`RN-11`).
+- **Cambios incluidos:**
+  - Extensión de `ProveedorRepuestoDAO` / `ProveedorRepuestoDAOImpl` con `desmarcarHabitualesDeProveedor(int)` y ejecución atómica en `ProveedorService.desactivarProveedor` dentro de una única `Connection` (`setAutoCommit(false)` / `commit()` / `rollback()`).
+  - Preservación explícita de `actual.isActivo()` en `ProveedorService.actualizarProveedor` y `TecnicoService.actualizarTecnico`.
+  - Validación de déficit global (`operativo < repuesto.getCantidadReservada()`) en `OrdenServicioService.ejecutarCompletarOrden` antes del descuento FEFO.
+  - Consolidación de `OrdenServicioService.retirarRepuesto` dentro de una única transacción JDBC con bloqueo `FOR UPDATE` y `rollback` seguro con `addSuppressed`.
+  - Actualización de `ReporteDAOImpl.ejecutarConsultaServicios` para usar `osd.nombre_servicio_snapshot`.
+  - Nuevas pruebas de regresión en `ProveedorServiceTest` (+2), `TecnicoServiceTest` (+1) y `OrdenServicioCompletarTest` (+1) (**360** pruebas en total: **0** fallos, **0** errores, **0** omitidas con MySQL 8 activo).
+
 ### Pendiente de integración — `fix(validaciones): harden logical input validation across services and console` (`fix/validaciones-entrada` → `develop`, RNF-13 / RF-01 / RF-02 / RF-08 / RF-17 / RF-18 / RF-28 / RF-29 / RF-31 / RF-33)
 - **Autor:** `@julio7879`
 - **Motivo del arreglo:** Durante pruebas manuales en consola se detectó que formularios y servicios aceptaban valores ilógicos (`nombre = "0"`, `documento = "2"`, `telefono = "2"`, precios `0.004` que redondeaban a `0.00`, fechas futuras en lotes/evaluaciones, asociación de repuestos inactivos e intervalos `Integer.MAX_VALUE` en tipos de servicio).

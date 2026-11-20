@@ -270,6 +270,19 @@ class OrdenServicioCompletarTest {
         assertEquals(3, stock.getStockMinimo());
     }
 
+    @Test
+    @DisplayName("Bloquea completar si existe déficit global por lotes vencidos aunque el operativo cubra esta orden (§2.6)")
+    void bloquearCompletarSiHayDeficitGlobalDeReservas() {
+        // El repuesto FILTRO tiene stock operativo = 4 (lote 14), y orden 7 requiere 2 unidades.
+        // Simulamos otra orden activa que eleva cantidad_reservada global a 6 (déficit = 2).
+        repuestoDAO.buscarPorId(FILTRO).setCantidadReservada(6);
+
+        assertThrows(StockInsuficienteException.class, () -> service.completarOrden(7));
+        assertEquals(EN_PROCESO, ordenDAO.buscarPorId(7).getEstadoId());
+        assertEquals(4, loteDAO.cantidadActual(14));
+        assertEquals(6, repuestoDAO.buscarPorId(FILTRO).getCantidadReservada());
+    }
+
     // ------------------------------------------------------------------
     // Observer espía y DAOs en memoria
     // ------------------------------------------------------------------
