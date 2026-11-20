@@ -140,7 +140,13 @@ public class TecnicoView implements SubmenuVista {
             Tecnico tecnico = new Tecnico();
             tecnico.setNombre(ConsoleReader.leerNombrePersona("Nombre completo del técnico"));
             tecnico.setDocumentoIdentidad(ConsoleReader.leerDocumentoNumerico("Documento de identidad"));
-            tecnico.setEspecialidadId(seleccionarEspecialidad(especialidades));
+            int especialidadId = seleccionarEspecialidad(especialidades);
+            if (especialidadId == 0) {
+                System.out.println("\n  [i] Registro de técnico cancelado.");
+                ConsoleReader.pausar();
+                return;
+            }
+            tecnico.setEspecialidadId(especialidadId);
             String telefono = ConsoleReader.leerTelefonoOpcional("Teléfono (opcional)");
             tecnico.setTelefono(telefono.isEmpty() ? null : telefono);
 
@@ -170,9 +176,15 @@ public class TecnicoView implements SubmenuVista {
             actualizado.setId(actual.getId());
             actualizado.setNombre(ConsoleReader.leerNombrePersona("Nuevo nombre completo"));
             actualizado.setDocumentoIdentidad(ConsoleReader.leerDocumentoNumerico("Nuevo documento de identidad"));
-            actualizado.setEspecialidadId(seleccionarEspecialidad(especialidades));
-            String telefono = ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (opcional)");
-            actualizado.setTelefono(telefono.isEmpty() ? null : telefono);
+            int especialidadId = seleccionarEspecialidad(especialidades);
+            if (especialidadId == 0) {
+                System.out.println("\n  [i] Actualización de técnico cancelada.");
+                ConsoleReader.pausar();
+                return;
+            }
+            actualizado.setEspecialidadId(especialidadId);
+            String telefono = ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (Enter para conservar actual)");
+            actualizado.setTelefono(telefono.isEmpty() ? actual.getTelefono() : telefono);
             actualizado.setActivo(actual.isActivo());
 
             tecnicoController.actualizar(actualizado);
@@ -285,7 +297,11 @@ public class TecnicoView implements SubmenuVista {
             System.out.println("    " + esp.getId() + ". " + esp.getNombre());
         }
         while (true) {
-            int idElegido = ConsoleReader.leerEnteroPositivo("Seleccione el ID de la especialidad");
+            int idElegido = ConsoleReader.leerEnteroEnRango(
+                    "Seleccione el ID de la especialidad (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (idElegido == 0) {
+                return 0;
+            }
             for (Especialidad esp : especialidades) {
                 if (esp.getId() == idElegido) {
                     return idElegido;
