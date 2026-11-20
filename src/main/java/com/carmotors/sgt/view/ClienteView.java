@@ -181,8 +181,8 @@ public class ClienteView implements SubmenuVista {
             actualizado.setId(actual.getId());
             actualizado.setNombre(ConsoleReader.leerNombreCliente("Nuevo nombre completo o razón social"));
             actualizado.setDocumentoIdentidad(ConsoleReader.leerDocumentoCliente("Nuevo documento de identidad o NIT"));
-            String telefono = ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (opcional)");
-            actualizado.setTelefono(telefono.isEmpty() ? null : telefono);
+            String telefono = ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (Enter para conservar actual)");
+            actualizado.setTelefono(telefono.isEmpty() ? actual.getTelefono() : telefono);
             actualizado.setEmail(ConsoleReader.leerEmail("Nuevo email"));
             actualizado.setActivo(actual.isActivo());
 

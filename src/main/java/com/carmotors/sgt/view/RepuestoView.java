@@ -163,7 +163,13 @@ public class RepuestoView implements SubmenuVista {
 
             Repuesto repuesto = new Repuesto();
             repuesto.setNombre(ConsoleReader.leerTextoObligatorio("Nombre del repuesto"));
-            repuesto.setRepuestoTipoId(seleccionarTipo(tipos));
+            int tipoId = seleccionarTipo(tipos);
+            if (tipoId == 0) {
+                System.out.println("\n  [i] Registro de repuesto cancelado.");
+                ConsoleReader.pausar();
+                return;
+            }
+            repuesto.setRepuestoTipoId(tipoId);
             repuesto.setMarca(ConsoleReader.leerTextoObligatorio("Marca del repuesto"));
             repuesto.setPrecioVenta(ConsoleReader.leerBigDecimalPositivo("Precio de venta"));
             repuesto.setStockMinimo(ConsoleReader.leerEnteroNoNegativo("Stock mínimo"));
@@ -196,7 +202,13 @@ public class RepuestoView implements SubmenuVista {
             Repuesto actualizado = new Repuesto();
             actualizado.setId(actual.getId());
             actualizado.setNombre(ConsoleReader.leerTextoObligatorio("Nuevo nombre"));
-            actualizado.setRepuestoTipoId(seleccionarTipo(tipos));
+            int tipoId = seleccionarTipo(tipos);
+            if (tipoId == 0) {
+                System.out.println("\n  [i] Actualización de repuesto cancelada.");
+                ConsoleReader.pausar();
+                return;
+            }
+            actualizado.setRepuestoTipoId(tipoId);
             actualizado.setMarca(ConsoleReader.leerTextoObligatorio("Nueva marca"));
             actualizado.setPrecioVenta(ConsoleReader.leerBigDecimalPositivo("Nuevo precio de venta"));
             actualizado.setStockMinimo(ConsoleReader.leerEnteroNoNegativo("Nuevo stock mínimo"));
@@ -376,7 +388,11 @@ public class RepuestoView implements SubmenuVista {
         }
 
         while (true) {
-            int idElegido = ConsoleReader.leerEnteroPositivo("Seleccione el ID del tipo de repuesto");
+            int idElegido = ConsoleReader.leerEnteroEnRango(
+                    "Seleccione el ID del tipo de repuesto (0 para cancelar)", 0, Integer.MAX_VALUE);
+            if (idElegido == 0) {
+                return 0;
+            }
             for (RepuestoTipo tipo : tipos) {
                 if (tipo.getId() == idElegido) {
                     return idElegido;

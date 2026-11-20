@@ -166,9 +166,12 @@ public class ProveedorView implements SubmenuVista {
             Proveedor actualizado = new Proveedor();
             actualizado.setId(actual.getId());
             actualizado.setNombre(ConsoleReader.leerTextoObligatorio("Nuevo nombre"));
-            actualizado.setTelefono(ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (opcional)"));
-            actualizado.setEmail(ConsoleReader.leerEmailOpcional("Nuevo email (opcional)"));
-            actualizado.setDireccion(ConsoleReader.leerTextoOpcional("Nueva dirección (opcional)"));
+            String telefono = ConsoleReader.leerTelefonoOpcional("Nuevo teléfono (Enter para conservar actual)");
+            actualizado.setTelefono(telefono.isEmpty() ? actual.getTelefono() : telefono);
+            String email = ConsoleReader.leerEmailOpcional("Nuevo email (Enter para conservar actual)");
+            actualizado.setEmail(email.isEmpty() ? actual.getEmail() : email);
+            String direccion = ConsoleReader.leerTextoOpcional("Nueva dirección (Enter para conservar actual)");
+            actualizado.setDireccion(direccion.isEmpty() ? actual.getDireccion() : direccion);
             actualizado.setActivo(actual.isActivo());
 
             Proveedor guardado = proveedorController.actualizar(actualizado);
