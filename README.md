@@ -379,4 +379,4 @@ mvn clean test
 - Andres Felipe Jimenez Ramirez - Grupo 4
 - Acceso: Menu principal > 7. Reportes Gerenciales > 5. Ver Tiempos Promedio de Reparacion.
 - Proyecto de Origen: https://github.com/julio7879/Proyecto-Java-Grupo4
-- Clases del examen: ReportesView, ReportesController, ReportesService, ReporteDAOIML, Reporte DAO, RegistroTiempoReparacion, TiempoPromedioReparacion
+- Clases del examen: src/main/java/com/carmotors/sgt/view/ReportesView.java, src/main/java/com/carmotors/sgt/service/ReporteService.java, src/main/java/com/carmotors/sgt/model/RegistroTiempoReparacion.java, src/main/java/com/carmotors/sgt/model/TiempoPromedioReparacion.java, src/main/java/com/carmotors/sgt/dao/ReporteDAO.java, src/main/java/com/carmotors/sgt/dao/impl/ReporteDAOImpl.java, src/main/java/com/carmotors/sgt/controller/ReportesController.java, 
