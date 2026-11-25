@@ -5,6 +5,7 @@ import com.carmotors.sgt.model.CargaLineaTecnico;
 import com.carmotors.sgt.model.ProductividadTecnico;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
 import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
+import com.carmotors.sgt.model.RegistroTiempoReparacion;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ReporteProductividadTecnicos;
@@ -285,6 +286,11 @@ class ReporteProductividadTecnicosTest {
             assertEquals(DESDE, fechaDesde);
             assertEquals(HASTA, fechaHasta);
             return new ArrayList<>(registros);
+        }
+
+        @Override
+        public List<RegistroTiempoReparacion> listarTiemposReparacion() {
+            return List.of();
         }
 
         @Override

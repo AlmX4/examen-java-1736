@@ -378,4 +378,4 @@ mvn clean test
 ### Examen final 1736 - Ver Tiempos Promedios de Reparacion
 Andres Felipe Jimenez Ramirez - Grupo 4
 Acceso: Menu principal > 7. Reportes Gerenciales > 5. Ver Tiempos Promedio de Reparacion.
-Clases del examen: ReportesView, Reportes Controller, ReportesService, ReporteDaoIML
+Clases del examen: ReportesView, ReportesController, ReportesService, ReporteDAOIML, Reporte DAO, RegistroTiempoReparacion, TiempoPromedioReparacion

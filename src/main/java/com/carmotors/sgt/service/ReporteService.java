@@ -1,13 +1,16 @@
 package com.carmotors.sgt.service;
 
+
 import com.carmotors.sgt.exception.ValidacionException;
 import com.carmotors.sgt.model.ProductividadTecnico;
 import com.carmotors.sgt.model.RecordatorioMantenimiento;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
 import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
+import com.carmotors.sgt.model.RegistroTiempoReparacion;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
+import com.carmotors.sgt.model.TiempoPromedioReparacion;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
@@ -23,6 +26,7 @@ import com.carmotors.sgt.service.state.EstadoFacturado;
 import com.carmotors.sgt.util.InputValidator;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -30,6 +34,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LongSummaryStatistics;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -50,6 +56,7 @@ public class ReporteService {
 
     private final ReporteDAO reporteDAO;
     private final TecnicoDAO tecnicoDAO;
+
 
     public ReporteService() {
         this(new ReporteDAOImpl(), new TecnicoDAOImpl());
@@ -231,6 +238,20 @@ public class ReporteService {
                 .filter(recordatorio -> !recordatorio.getFechaSugerida().isAfter(fechaLimite))
                 .sorted(comparadorRecordatorios())
                 .collect(Collectors.toList());
+    }
+
+    public List<TiempoPromedioReparacion> generarReporteTiemposPromedio() {
+        Map<String, LongSummaryStatistics> duracionesPorTipo = reporteDAO.listarTiemposReparacion().stream()
+                .filter(registro -> !registro.getFechaEntrega().isBefore(registro.getFechaRecepcion()))
+                .collect(Collectors.groupingBy(RegistroTiempoReparacion::getTipoMantenimiento,
+                        Collectors.summarizingLong(registro ->
+                                Duration.between(registro.getFechaRecepcion(), registro.getFechaEntrega()).getSeconds())));
+
+        return List.of("Preventivo", "Correctivo").stream()
+                .map(tipo -> new TiempoPromedioReparacion(tipo,
+                        Optional.ofNullable(duracionesPorTipo.get(tipo))
+                                .map(duraciones -> Duration.ofSeconds(duraciones.getSum() / duraciones.getCount()))))
+                .toList();
     }
 
     private RegistroMantenimientoPreventivo ultimaEntrega(List<RegistroMantenimientoPreventivo> grupo) {

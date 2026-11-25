@@ -9,6 +9,7 @@ import com.carmotors.sgt.model.ReporteConsumoRepuestos.DetalleConsumo;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos.ResumenConsumo;
 import com.carmotors.sgt.model.ReporteProductividadTecnicos;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
+import com.carmotors.sgt.model.TiempoPromedioReparacion;
 import com.carmotors.sgt.util.ConsoleReader;
 import com.carmotors.sgt.util.ConsoleTableFormatter;
 
@@ -50,10 +51,11 @@ public class ReportesView implements SubmenuVista {
             System.out.println("  2. Servicios más solicitados (RF-25)");
             System.out.println("  3. Productividad por técnico (RF-26)");
             System.out.println("  4. Recordatorios de mantenimiento preventivo (RF-21)");
+            System.out.println("  5. Ver Tiempos Promedio de Reparación");
             System.out.println("  0. Volver al menú principal");
             System.out.println("==================================================");
 
-            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 4);
+            int opcion = ConsoleReader.leerEnteroEnRango("Seleccione una opción", 0, 5);
             switch (opcion) {
                 case 1:
                     mostrarReporteConsumoRepuestos();
@@ -67,12 +69,34 @@ public class ReportesView implements SubmenuVista {
                 case 4:
                     mostrarReporteRecordatorios();
                     break;
+                case 5:
+                    mostrarReporteTiempoPromedio();
+                    break;
                 case 0:
                     ejecutando = false;
                     break;
                 default:
                     break;
             }
+        }
+    }
+
+    private void mostrarReporteTiempoPromedio() {
+        try {
+            System.out.println("\n--- Tiempos promedio de reparación ---");
+            List<String[]> filas = new ArrayList<>();
+            for (TiempoPromedioReparacion resultado : reportesController.generarReporteTiemposPromedio()) {
+                String promedio = resultado.getDuracionPromedio()
+                        .map(duracion -> "%d días, %d horas y %d minutos".formatted(
+                                duracion.toDays(), duracion.toHoursPart(), duracion.toMinutesPart()))
+                        .orElse("Sin datos");
+                filas.add(new String[]{resultado.getTipoMantenimiento(), promedio});
+            }
+            ConsoleTableFormatter.imprimirTabla(new String[]{"Tipo de mantenimiento", "Tiempo promedio"}, filas, null);
+        } catch (CarMotorsException e) {
+            System.out.println("\n  [!] No se pudo generar el reporte: " + e.getMessage());
+        } finally {
+            ConsoleReader.pausar();
         }
     }
 

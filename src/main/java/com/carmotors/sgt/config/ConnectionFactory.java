@@ -84,7 +84,7 @@ public final class ConnectionFactory {
         if (entrada == null) {
             throw new ConfiguracionException(
                     "No se encontró '" + ARCHIVO_CONFIG + "' en el classpath. "
-                    + "Copia src/main/resources/config.properties.example como "
+                    + "Copia src/main/resources/config.properties como "
                     + "src/main/resources/config.properties y ajusta tus credenciales de MySQL.");
         }
 

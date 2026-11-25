@@ -5,6 +5,7 @@ import com.carmotors.sgt.exception.CarMotorsException;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
 import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
+import com.carmotors.sgt.model.RegistroTiempoReparacion;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 import com.carmotors.sgt.dao.ReporteDAO;
 
@@ -14,6 +15,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -156,6 +158,45 @@ public class ReporteDAOImpl implements ReporteDAO {
             LOGGER.warning("Falló la consulta de mantenimientos preventivos (código JDBC " + e.getErrorCode() + ").");
             throw new CarMotorsException("No se pudieron consultar los mantenimientos preventivos.", e);
         }
+    }
+
+    @Override
+    public List<RegistroTiempoReparacion> listarTiemposReparacion() {
+        try {
+            if (conexionCompartida != null) {
+                return ejecutarConsultaTiemposReparacion(conexionCompartida);
+            }
+            try (Connection connection = ConnectionFactory.getInstance().getConnection()) {
+                return ejecutarConsultaTiemposReparacion(connection);
+            }
+        } catch (SQLException e) {
+            LOGGER.warning("Falló la consulta de tiempos de reparación (código JDBC " + e.getErrorCode() + ").");
+            throw new CarMotorsException("No se pudieron consultar los tiempos de reparación.", e);
+        }
+    }
+
+    private List<RegistroTiempoReparacion> ejecutarConsultaTiemposReparacion(Connection connection)
+            throws SQLException {
+        String sql = """
+                SELECT mt.nombre AS tipo_mantenimiento, o.fecha_recepcion, o.fecha_entrega
+                FROM ordenes_servicio o
+                JOIN orden_servicio_detalle osd ON osd.orden_id = o.id
+                JOIN servicio_tipos st ON st.id = osd.servicio_tipo_id
+                JOIN mantenimiento_tipos mt ON mt.id = st.mantenimiento_tipo_id
+                WHERE o.fecha_recepcion IS NOT NULL AND o.fecha_entrega IS NOT NULL
+                """;
+
+        List<RegistroTiempoReparacion> registros = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet filas = statement.executeQuery()) {
+            while (filas.next()) {
+                registros.add(new RegistroTiempoReparacion(
+                        filas.getString("tipo_mantenimiento"),
+                        filas.getObject("fecha_recepcion", LocalDateTime.class),
+                        filas.getObject("fecha_entrega", LocalDateTime.class)));
+            }
+        }
+        return registros;
     }
 
     private List<RegistroMantenimientoPreventivo> ejecutarConsultaMantenimientos(Connection connection)

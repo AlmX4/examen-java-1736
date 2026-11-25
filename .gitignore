@@ -17,7 +17,7 @@ target/
 *.log
 logs/
 
-# Configuración local con credenciales (RNF-14). Subir solo config.properties.example
+# Configuración local con credenciales (RNF-14). Subir solo config.properties
 config.properties
 src/main/resources/config.properties
 

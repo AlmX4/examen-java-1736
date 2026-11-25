@@ -4,6 +4,7 @@ import com.carmotors.sgt.model.RecordatorioMantenimiento;
 import com.carmotors.sgt.model.ReporteConsumoRepuestos;
 import com.carmotors.sgt.model.ReporteProductividadTecnicos;
 import com.carmotors.sgt.model.ResumenServicioSolicitado;
+import com.carmotors.sgt.model.TiempoPromedioReparacion;
 import com.carmotors.sgt.service.ReporteService;
 
 import java.time.LocalDate;
@@ -33,6 +34,10 @@ public class ReportesController {
 
     public ReporteProductividadTecnicos generarReporteProductividadTecnicos(LocalDate fechaDesde, LocalDate fechaHasta) {
         return reporteService.generarReporteProductividadTecnicos(fechaDesde, fechaHasta);
+    }
+
+    public List<TiempoPromedioReparacion> generarReporteTiemposPromedio() {
+        return reporteService.generarReporteTiemposPromedio();
     }
 
     public List<RecordatorioMantenimiento> generarReporteRecordatorios(LocalDate fechaReferencia) {

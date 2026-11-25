@@ -3,6 +3,7 @@ package com.carmotors.sgt.dao;
 import com.carmotors.sgt.model.RegistroConsumoRepuesto;
 import com.carmotors.sgt.model.RegistroMantenimientoPreventivo;
 import com.carmotors.sgt.model.RegistroProductividadTecnico;
+import com.carmotors.sgt.model.RegistroTiempoReparacion;
 import com.carmotors.sgt.model.RegistroServicioSolicitado;
 
 import java.time.LocalDate;
@@ -48,4 +49,7 @@ public interface ReporteDAO {
      * @return registros planos ordenados por vehículo, tipo de servicio y fecha de entrega descendente
      */
     List<RegistroMantenimientoPreventivo> listarMantenimientosPreventivos();
+
+    /** Recupera las fechas de recepción y entrega y el tipo de mantenimiento de cada línea entregada. */
+    List<RegistroTiempoReparacion> listarTiemposReparacion();
 }
