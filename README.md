@@ -324,7 +324,7 @@ Copia la plantilla de configuración para crear el archivo de propiedades local 
 #### Linux / macOS (Bash)
 
 ```bash
-cp src/main/resources/config.properties.example src/main/resources/config.properties
+cp src/main/resources/config.properties src/main/resources/config.properties
 ```
 
 #### Windows (PowerShell)
@@ -375,13 +375,7 @@ mvn clean test
 
 ---
 
-## Autores
-
-Proyecto desarrollado por el **Grupo 4**:
-
-| Integrante | Usuario GitHub | Rol en el Proyecto |
-|---|---|---|
-| **Julio** | [`@julio7879`](https://github.com/julio7879) | Líder de Proyecto y Arquitectura |
-| **Andrés Jiménez** | [`@AlmX4`](https://github.com/AlmX4) | Desarrollador Backend |
-| **Jhorman** | [`@JopsWtD`](https://github.com/JopsWtD) | Desarrollador Backend y Arquitectura |
-| **Sofía** | [`@Sofi11017`](https://github.com/Sofi11017) | Desarrolladora Backend |
+### Examen final 1736 - Ver Tiempos Promedios de Reparacion
+Andres Felipe Jimenez Ramirez - Grupo 4
+Acceso: Menu principal > 7. Reportes Gerenciales > 5. Ver Tiempos Promedio de Reparacion.
+Clases del examen: ReportesView, Reportes Controller, ReportesService, ReporteDaoIML
